@@ -36,13 +36,13 @@ class MusicPlayer(private val context: Context) {
                         Log.d("MusicPlayer", "Song ended")
                         playNext()
                     }
-
                     Player.STATE_BUFFERING -> {
-                        TODO()
+                        Log.d("MusicPlayer", "Player buffering")
+                        // Player sta caricando il contenuto
                     }
-
                     Player.STATE_IDLE -> {
-                        TODO()
+                        Log.d("MusicPlayer", "Player idle")
+                        // Player è inattivo
                     }
                 }
 
