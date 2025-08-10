@@ -5,14 +5,21 @@ import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
 import android.util.Log
+import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
 
 class MainActivity : AppCompatActivity() {
 
     private lateinit var musicScanner: MusicScanner
+    private lateinit var songAdapter: SongAdapter
+    private lateinit var recyclerView: RecyclerView
+    private lateinit var songCountText: TextView
+    private lateinit var musicPlayer: MusicPlayer
     private var songs: List<Song> = emptyList()
 
     private val requestPermissions = registerForActivityResult(
@@ -22,7 +29,7 @@ class MainActivity : AppCompatActivity() {
         if (allGranted) {
             loadMusicFiles()
         } else {
-            Toast.makeText(this, "Permessi necessari per accedere alla musica", Toast.LENGTH_LONG).show()
+            Toast.makeText(this, getString(R.string.permissions_needed), Toast.LENGTH_LONG).show()
         }
     }
 
@@ -30,9 +37,37 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
+        setupViews()
         musicScanner = MusicScanner(this)
 
+        // Inizializza MusicPlayer
+        musicPlayer = MusicPlayer(this)
+        musicPlayer.onPlayerStateChanged = { isPlaying, currentSong ->
+            Log.d("MainActivity", "Player state: isPlaying=$isPlaying, song=${currentSong?.title}")
+            // Qui aggiorneremo la UI quando aggiungiamo i controlli
+        }
+
         checkPermissionsAndLoadMusic()
+    }
+
+    private fun setupViews() {
+        recyclerView = findViewById(R.id.songs_recycler_view)
+        songCountText = findViewById(R.id.song_count)
+
+        // Setup RecyclerView
+        recyclerView.layoutManager = LinearLayoutManager(this)
+        songAdapter = SongAdapter(songs) { song ->
+            onSongClick(song)
+        }
+        recyclerView.adapter = songAdapter
+    }
+
+    private fun onSongClick(song: Song) {
+        // Ora riproduce davvero la canzone!
+        musicPlayer.setPlaylist(songs, songs.indexOf(song))
+        musicPlayer.playSong(song)
+        Toast.makeText(this, getString(R.string.now_playing_format, song.title), Toast.LENGTH_SHORT).show()
+        Log.d("MainActivity", "Riproduzione avviata: ${song.title} - ${song.artist}")
     }
 
     private fun checkPermissionsAndLoadMusic() {
@@ -62,16 +97,22 @@ class MainActivity : AppCompatActivity() {
     private fun loadMusicFiles() {
         try {
             songs = musicScanner.scanMusicFiles()
-            Toast.makeText(this, "Trovate ${songs.size} canzoni!", Toast.LENGTH_SHORT).show()
 
-            // Log delle prime 3 canzoni per debug
-            songs.take(3).forEach { song ->
-                Log.d("MainActivity", "Canzone: ${song.title} - ${song.artist}")
-            }
+            // Aggiorna UI
+            songCountText.text = getString(R.string.song_count_format, songs.size)
+            songAdapter.updateSongs(songs)
+
+            Toast.makeText(this, getString(R.string.songs_loaded_format, songs.size), Toast.LENGTH_SHORT).show()
+            Log.d("MainActivity", "Caricate ${songs.size} canzoni")
 
         } catch (e: Exception) {
             Log.e("MainActivity", "Errore caricamento musica", e)
-            Toast.makeText(this, "Errore caricamento musica: ${e.message}", Toast.LENGTH_LONG).show()
+            Toast.makeText(this, getString(R.string.error_loading_music, e.message), Toast.LENGTH_LONG).show()
         }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        musicPlayer.release()
     }
 }

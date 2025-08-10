@@ -1,5 +1,15 @@
 <resources>
     <string name="app_name">MusicLab</string>
     <string name="main_title">MusicLab App</string>
-    <string name="development_text">Music Player in sviluppo...</string>
+    <string name="development_text">Music Player in sviluppo…</string>
+    <string name="song_count_format">%d canzoni</string>
+    <string name="song_count_zero">0 canzoni</string>
+    <string name="now_playing_format">♪ %s</string>
+    <string name="songs_loaded_format">Caricate %d canzoni!</string>
+    <string name="permissions_needed">Permessi necessari per accedere alla musica</string>
+    <string name="error_loading_music">Errore caricamento musica: %s</string>
+    <string name="song_title_placeholder">Nome Canzone</string>
+    <string name="artist_placeholder">Artista</string>
+    <string name="album_placeholder">Album</string>
+    <string name="duration_placeholder">3:45</string>
 </resources>
