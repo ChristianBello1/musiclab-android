@@ -1,3 +1,5 @@
 <resources>
     <string name="app_name">MusicLab</string>
+    <string name="main_title">MusicLab App</string>
+    <string name="development_text">Music Player in sviluppo...</string>
 </resources>
