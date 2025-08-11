@@ -2,7 +2,8 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical">
+    android:orientation="vertical"
+    android:fitsSystemWindows="true">
 
     <!-- Header -->
     <LinearLayout
@@ -32,11 +33,37 @@
 
     </LinearLayout>
 
-    <!-- Lista Canzoni -->
-    <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/songs_recycler_view"
+    <!-- Main Content Container -->
+    <FrameLayout
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:padding="8dp" />
+        android:layout_height="0dp"
+        android:layout_weight="1">
+
+        <!-- Lista Canzoni -->
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/songs_recycler_view"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:padding="8dp"
+            android:paddingBottom="140dp"
+            android:clipToPadding="false" />
+
+        <!-- Player Bottom Bar (nascosta inizialmente) -->
+        <LinearLayout
+            android:id="@+id/player_bottom_container"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_gravity="bottom"
+            android:layout_marginBottom="16dp"
+            android:visibility="gone"
+            android:clickable="true"
+            android:focusable="true"
+            android:background="?attr/selectableItemBackground">
+
+            <include layout="@layout/player_bottom_bar" />
+
+        </LinearLayout>
+
+    </FrameLayout>
 
 </LinearLayout>

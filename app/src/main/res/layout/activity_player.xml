@@ -1,0 +1,254 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- app/src/main/res/layout/activity_player.xml -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="?attr/colorSurface"
+    android:fitsSystemWindows="true">
+
+    <!-- Header with back button -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:padding="16dp"
+        android:gravity="center_vertical">
+
+        <ImageButton
+            android:id="@+id/btn_back"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:src="@android:drawable/arrow_down_float"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/close_player"
+            app:tint="?attr/colorPrimary" />
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="@string/now_playing"
+            android:textSize="18sp"
+            android:textStyle="bold"
+            android:gravity="center" />
+
+        <ImageButton
+            android:id="@+id/btn_queue"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:src="@android:drawable/ic_dialog_dialer"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/show_queue"
+            app:tint="?attr/colorPrimary" />
+
+    </LinearLayout>
+
+    <!-- Album Art Placeholder -->
+    <androidx.cardview.widget.CardView
+        android:layout_width="280dp"
+        android:layout_height="280dp"
+        android:layout_gravity="center"
+        android:layout_marginVertical="32dp"
+        app:cardCornerRadius="16dp"
+        app:cardElevation="8dp">
+
+        <ImageView
+            android:id="@+id/album_art"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:scaleType="centerCrop"
+            android:src="@android:drawable/ic_media_play"
+            android:background="?attr/colorPrimary"
+            android:contentDescription="@string/album_placeholder"
+            app:tint="@android:color/white" />
+
+    </androidx.cardview.widget.CardView>
+
+    <!-- Song Info -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:paddingHorizontal="24dp"
+        android:gravity="center">
+
+        <TextView
+            android:id="@+id/player_song_title"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/song_name"
+            android:textSize="22sp"
+            android:textStyle="bold"
+            android:gravity="center"
+            android:maxLines="2"
+            android:ellipsize="end" />
+
+        <TextView
+            android:id="@+id/player_song_artist"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/artist_name"
+            android:textSize="16sp"
+            android:textColor="?android:attr/textColorSecondary"
+            android:gravity="center"
+            android:layout_marginTop="8dp"
+            android:maxLines="1"
+            android:ellipsize="end" />
+
+    </LinearLayout>
+
+    <!-- Progress Section -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:paddingHorizontal="24dp"
+        android:layout_marginTop="32dp">
+
+        <SeekBar
+            android:id="@+id/player_seek_bar"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:max="100"
+            android:progress="0" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+
+            <TextView
+                android:id="@+id/player_current_time"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/time_format"
+                android:textSize="12sp"
+                android:textColor="?android:attr/textColorSecondary" />
+
+            <View
+                android:layout_width="0dp"
+                android:layout_height="1dp"
+                android:layout_weight="1" />
+
+            <TextView
+                android:id="@+id/player_total_time"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/time_format"
+                android:textSize="12sp"
+                android:textColor="?android:attr/textColorSecondary" />
+
+        </LinearLayout>
+
+    </LinearLayout>
+
+    <!-- Main Controls -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center"
+        android:paddingHorizontal="24dp"
+        android:layout_marginTop="24dp">
+
+        <ImageButton
+            android:id="@+id/btn_skip_back_10"
+            android:layout_width="56dp"
+            android:layout_height="56dp"
+            android:src="@android:drawable/ic_media_rew"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/skip_back_10"
+            app:tint="?attr/colorPrimary" />
+
+        <ImageButton
+            android:id="@+id/btn_player_previous"
+            android:layout_width="64dp"
+            android:layout_height="64dp"
+            android:src="@android:drawable/ic_media_previous"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/previous_song"
+            android:layout_marginHorizontal="8dp"
+            app:tint="?attr/colorPrimary" />
+
+        <androidx.cardview.widget.CardView
+            android:layout_width="80dp"
+            android:layout_height="80dp"
+            app:cardCornerRadius="40dp"
+            app:cardElevation="4dp"
+            android:layout_marginHorizontal="16dp">
+
+            <ImageButton
+                android:id="@+id/btn_player_play_pause"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:src="@android:drawable/ic_media_play"
+                android:background="?attr/selectableItemBackground"
+                android:contentDescription="@string/btn_play_pause"
+                app:tint="?attr/colorPrimary" />
+
+        </androidx.cardview.widget.CardView>
+
+        <ImageButton
+            android:id="@+id/btn_player_next"
+            android:layout_width="64dp"
+            android:layout_height="64dp"
+            android:src="@android:drawable/ic_media_next"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/next_song"
+            android:layout_marginHorizontal="8dp"
+            app:tint="?attr/colorPrimary" />
+
+        <ImageButton
+            android:id="@+id/btn_skip_forward_10"
+            android:layout_width="56dp"
+            android:layout_height="56dp"
+            android:src="@android:drawable/ic_media_ff"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/skip_forward_10"
+            app:tint="?attr/colorPrimary" />
+
+    </LinearLayout>
+
+    <!-- Secondary Controls -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center"
+        android:paddingHorizontal="48dp"
+        android:layout_marginTop="24dp">
+
+        <ImageButton
+            android:id="@+id/btn_shuffle"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:src="@android:drawable/ic_menu_rotate"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/shuffle"
+            app:tint="?android:attr/textColorSecondary" />
+
+        <View
+            android:layout_width="0dp"
+            android:layout_height="1dp"
+            android:layout_weight="1" />
+
+        <ImageButton
+            android:id="@+id/btn_repeat"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:src="@android:drawable/ic_menu_revert"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/repeat"
+            app:tint="?android:attr/textColorSecondary" />
+
+    </LinearLayout>
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1" />
+
+</LinearLayout>

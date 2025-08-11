@@ -12,4 +12,38 @@
     <string name="artist_placeholder">Artista</string>
     <string name="album_placeholder">Album</string>
     <string name="duration_placeholder">3:45</string>
+
+    <!-- Player Bottom Bar -->
+    <string name="no_song_playing">Nessuna canzone</string>
+    <string name="unknown_artist">Artista sconosciuto</string>
+    <string name="btn_previous">Precedente</string>
+    <string name="btn_play_pause">Play/Pausa</string>
+    <string name="btn_next">Successivo</string>
+    <string name="btn_expand_player">Espandi player</string>
+
+    <!-- Player Activity -->
+    <string name="close_player">Chiudi player</string>
+    <string name="show_queue">Mostra coda</string>
+    <string name="now_playing">In riproduzione</string>
+    <string name="song_name">Nome Canzone</string>
+    <string name="artist_name">Artista</string>
+    <string name="skip_back_10">Indietro 10 secondi</string>
+    <string name="previous_song">Canzone precedente</string>
+    <string name="next_song">Canzone successiva</string>
+    <string name="skip_forward_10">Avanti 10 secondi</string>
+    <string name="shuffle">Shuffle</string>
+    <string name="repeat">Ripeti</string>
+    <string name="time_format">0:00</string>
+
+    <!-- Global -->
+    <string name="update">Aggiorna</string>
+    <string name="add">Aggiungi</string>
+    <string name="get">Ottieni</string>
+    <string name="pass">Passa</string>
+    <string name="through">tramite</string>
+    <string name="open">Apri</string>
+    <string name="second">secondo</string>
+    <string name="state">stato</string>
+    <string name="no_song">Nessuna</string>
+    <string name="unknown">sconosciuto</string>
 </resources>

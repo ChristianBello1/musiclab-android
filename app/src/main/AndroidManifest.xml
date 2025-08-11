@@ -12,6 +12,9 @@
 
     <uses-permission android:name="android.permission.WAKE_LOCK" />
 
+    <!-- Permesso per controllare la riproduzione audio -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+
     <application
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
@@ -22,6 +25,7 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.MusicLab">
 
+        <!-- Activity principale -->
         <activity
             android:name=".MainActivity"
             android:exported="true">
@@ -30,6 +34,13 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- Activity del player completo -->
+        <activity
+            android:name=".PlayerActivity"
+            android:exported="false"
+            android:theme="@style/Theme.MusicLab"
+            android:launchMode="singleTop" />
 
     </application>
 

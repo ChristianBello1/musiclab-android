@@ -1,10 +1,14 @@
 package com.example.musiclab
 
 import android.Manifest
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
 import android.util.Log
+import android.view.View
+import android.widget.ImageButton
+import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
@@ -21,6 +25,15 @@ class MainActivity : AppCompatActivity() {
     private lateinit var songCountText: TextView
     private lateinit var musicPlayer: MusicPlayer
     private var songs: List<Song> = emptyList()
+
+    // Player Bottom Bar Views
+    private lateinit var playerBottomContainer: LinearLayout
+    private lateinit var currentSongTitle: TextView
+    private lateinit var currentSongArtist: TextView
+    private lateinit var btnBottomPrevious: ImageButton
+    private lateinit var btnBottomPlayPause: ImageButton
+    private lateinit var btnBottomNext: ImageButton
+    private lateinit var btnExpandPlayer: ImageButton
 
     private val requestPermissions = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
@@ -40,11 +53,14 @@ class MainActivity : AppCompatActivity() {
         setupViews()
         musicScanner = MusicScanner(this)
 
-        // Inizializza MusicPlayer
-        musicPlayer = MusicPlayer(this)
+        // Usa il MusicPlayer globale
+        musicPlayer = MusicPlayerManager.getInstance().getMusicPlayer(this)
+
+        // Setup player state listener
         musicPlayer.onPlayerStateChanged = { isPlaying, currentSong ->
-            Log.d("MainActivity", "Player state: isPlaying=$isPlaying, song=${currentSong?.title}")
-            // Qui aggiorneremo la UI quando aggiungiamo i controlli
+            runOnUiThread {
+                updatePlayerBottomBar(isPlaying, currentSong)
+            }
         }
 
         checkPermissionsAndLoadMusic()
@@ -54,20 +70,99 @@ class MainActivity : AppCompatActivity() {
         recyclerView = findViewById(R.id.songs_recycler_view)
         songCountText = findViewById(R.id.song_count)
 
+        // Setup Player Bottom Bar
+        playerBottomContainer = findViewById(R.id.player_bottom_container)
+        currentSongTitle = findViewById(R.id.current_song_title)
+        currentSongArtist = findViewById(R.id.current_song_artist)
+        btnBottomPrevious = findViewById(R.id.btn_previous)
+        btnBottomPlayPause = findViewById(R.id.btn_play_pause)
+        btnBottomNext = findViewById(R.id.btn_next)
+        btnExpandPlayer = findViewById(R.id.btn_expand_player)
+
         // Setup RecyclerView
         recyclerView.layoutManager = LinearLayoutManager(this)
         songAdapter = SongAdapter(songs) { song ->
             onSongClick(song)
         }
         recyclerView.adapter = songAdapter
+
+        setupPlayerBottomBarListeners()
+    }
+
+    private fun setupPlayerBottomBarListeners() {
+        btnBottomPrevious.setOnClickListener {
+            musicPlayer.playPrevious()
+        }
+
+        btnBottomPlayPause.setOnClickListener {
+            musicPlayer.playPause()
+        }
+
+        btnBottomNext.setOnClickListener {
+            musicPlayer.playNext()
+        }
+
+        btnExpandPlayer.setOnClickListener {
+            openPlayerActivity()
+        }
+
+        // Click su tutta la barra per aprire il player
+        playerBottomContainer.setOnClickListener {
+            openPlayerActivity()
+        }
     }
 
     private fun onSongClick(song: Song) {
-        // Ora riproduce davvero la canzone!
+        // Imposta playlist e riproduci canzone
         musicPlayer.setPlaylist(songs, songs.indexOf(song))
         musicPlayer.playSong(song)
+
+        // Mostra la barra del player
+        showPlayerBottomBar()
+
         Toast.makeText(this, getString(R.string.now_playing_format, song.title), Toast.LENGTH_SHORT).show()
         Log.d("MainActivity", "Riproduzione avviata: ${song.title} - ${song.artist}")
+    }
+
+    private fun updatePlayerBottomBar(isPlaying: Boolean, currentSong: Song?) {
+        if (currentSong != null) {
+            // Mostra la barra se c'è una canzone
+            showPlayerBottomBar()
+
+            // Aggiorna informazioni canzone
+            currentSongTitle.text = currentSong.title
+            currentSongArtist.text = currentSong.artist
+
+            // Aggiorna icona play/pause
+            val iconRes = if (isPlaying) {
+                android.R.drawable.ic_media_pause
+            } else {
+                android.R.drawable.ic_media_play
+            }
+            btnBottomPlayPause.setImageResource(iconRes)
+        } else {
+            // Nascondi la barra se non c'è musica
+            hidePlayerBottomBar()
+        }
+    }
+
+    private fun showPlayerBottomBar() {
+        if (playerBottomContainer.visibility != View.VISIBLE) {
+            playerBottomContainer.visibility = View.VISIBLE
+            Log.d("MainActivity", "Player bottom bar shown")
+        }
+    }
+
+    private fun hidePlayerBottomBar() {
+        if (playerBottomContainer.visibility != View.GONE) {
+            playerBottomContainer.visibility = View.GONE
+            Log.d("MainActivity", "Player bottom bar hidden")
+        }
+    }
+
+    private fun openPlayerActivity() {
+        val intent = Intent(this, PlayerActivity::class.java)
+        startActivity(intent)
     }
 
     private fun checkPermissionsAndLoadMusic() {
@@ -111,8 +206,17 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    override fun onResume() {
+        super.onResume()
+        // Aggiorna la UI del player quando si torna alla MainActivity
+        val currentSong = musicPlayer.getCurrentSong()
+        val isPlaying = musicPlayer.isPlaying()
+        updatePlayerBottomBar(isPlaying, currentSong)
+    }
+
     override fun onDestroy() {
         super.onDestroy()
-        musicPlayer.release()
+        // Non rilasciare il player qui perché è globale
+        // MusicPlayerManager.getInstance().release()
     }
 }

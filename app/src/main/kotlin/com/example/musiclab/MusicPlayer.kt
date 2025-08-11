@@ -141,6 +141,8 @@ class MusicPlayer(private val context: Context) {
         return isShuffleEnabled
     }
 
+    fun isShuffleEnabled(): Boolean = isShuffleEnabled
+
     fun toggleRepeat(): Int {
         repeatMode = when (repeatMode) {
             Player.REPEAT_MODE_OFF -> Player.REPEAT_MODE_ONE
@@ -151,6 +153,59 @@ class MusicPlayer(private val context: Context) {
         exoPlayer?.repeatMode = repeatMode
         Log.d("MusicPlayer", "Repeat mode: $repeatMode")
         return repeatMode
+    }
+
+    fun getRepeatMode(): Int = repeatMode
+
+    fun getCurrentPosition(): Long {
+        return exoPlayer?.currentPosition ?: 0L
+    }
+
+    fun getDuration(): Long {
+        return exoPlayer?.duration ?: 0L
+    }
+
+    fun seekTo(positionMs: Long) {
+        exoPlayer?.seekTo(positionMs)
+        Log.d("MusicPlayer", "Seeked to: ${positionMs}ms")
+    }
+
+    fun seekTo(positionSeconds: Int) {
+        seekTo(positionSeconds * 1000L)
+    }
+
+    fun skipForward(milliseconds: Long) {
+        val currentPos = getCurrentPosition()
+        val newPos = (currentPos + milliseconds).coerceAtMost(getDuration())
+        seekTo(newPos)
+        Log.d("MusicPlayer", "Skipped forward ${milliseconds}ms")
+    }
+
+    fun skipBackward(milliseconds: Long) {
+        val currentPos = getCurrentPosition()
+        val newPos = (currentPos - milliseconds).coerceAtLeast(0L)
+        seekTo(newPos)
+        Log.d("MusicPlayer", "Skipped backward ${milliseconds}ms")
+    }
+
+    fun getPlaylist(): List<Song> = playlist
+
+    fun getCurrentIndex(): Int = currentSongIndex
+
+    fun hasNext(): Boolean {
+        return if (isShuffleEnabled) {
+            playlist.isNotEmpty()
+        } else {
+            currentSongIndex < playlist.size - 1
+        }
+    }
+
+    fun hasPrevious(): Boolean {
+        return if (isShuffleEnabled) {
+            playlist.isNotEmpty()
+        } else {
+            currentSongIndex > 0
+        }
     }
 
     fun release() {
