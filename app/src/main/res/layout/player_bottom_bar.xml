@@ -93,9 +93,9 @@
                     android:id="@+id/btn_expand_player"
                     android:layout_width="40dp"
                     android:layout_height="40dp"
-                    android:src="@android:drawable/arrow_up_float"
+                    android:src="@android:drawable/ic_dialog_dialer"
                     android:background="?attr/selectableItemBackgroundBorderless"
-                    android:contentDescription="@string/btn_expand_player"
+                    android:contentDescription="@string/show_queue"
                     android:layout_marginStart="8dp"
                     app:tint="?attr/colorPrimary" />
 

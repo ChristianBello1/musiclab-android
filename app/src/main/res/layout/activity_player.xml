@@ -219,8 +219,8 @@
         android:orientation="horizontal"
         android:gravity="center"
         android:paddingHorizontal="64dp"
-        android:layout_marginTop="24dp"
-        android:layout_marginBottom="32dp">
+        android:layout_marginTop="16dp"
+        android:layout_marginBottom="24dp">
 
         <ImageButton
             android:id="@+id/btn_shuffle"
@@ -246,10 +246,5 @@
             app:tint="?android:attr/textColorSecondary" />
 
     </LinearLayout>
-
-    <View
-        android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1" />
 
 </LinearLayout>
