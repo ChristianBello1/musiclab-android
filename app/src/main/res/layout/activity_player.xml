@@ -151,13 +151,13 @@
         android:layout_height="wrap_content"
         android:orientation="horizontal"
         android:gravity="center"
-        android:paddingHorizontal="24dp"
+        android:paddingHorizontal="16dp"
         android:layout_marginTop="24dp">
 
         <ImageButton
             android:id="@+id/btn_skip_back_10"
-            android:layout_width="56dp"
-            android:layout_height="56dp"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
             android:src="@android:drawable/ic_media_rew"
             android:background="?attr/selectableItemBackgroundBorderless"
             android:contentDescription="@string/skip_back_10"
@@ -165,8 +165,8 @@
 
         <ImageButton
             android:id="@+id/btn_player_previous"
-            android:layout_width="64dp"
-            android:layout_height="64dp"
+            android:layout_width="56dp"
+            android:layout_height="56dp"
             android:src="@android:drawable/ic_media_previous"
             android:background="?attr/selectableItemBackgroundBorderless"
             android:contentDescription="@string/previous_song"
@@ -174,9 +174,9 @@
             app:tint="?attr/colorPrimary" />
 
         <androidx.cardview.widget.CardView
-            android:layout_width="80dp"
-            android:layout_height="80dp"
-            app:cardCornerRadius="40dp"
+            android:layout_width="72dp"
+            android:layout_height="72dp"
+            app:cardCornerRadius="36dp"
             app:cardElevation="4dp"
             android:layout_marginHorizontal="16dp">
 
@@ -193,8 +193,8 @@
 
         <ImageButton
             android:id="@+id/btn_player_next"
-            android:layout_width="64dp"
-            android:layout_height="64dp"
+            android:layout_width="56dp"
+            android:layout_height="56dp"
             android:src="@android:drawable/ic_media_next"
             android:background="?attr/selectableItemBackgroundBorderless"
             android:contentDescription="@string/next_song"
@@ -203,8 +203,8 @@
 
         <ImageButton
             android:id="@+id/btn_skip_forward_10"
-            android:layout_width="56dp"
-            android:layout_height="56dp"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
             android:src="@android:drawable/ic_media_ff"
             android:background="?attr/selectableItemBackgroundBorderless"
             android:contentDescription="@string/skip_forward_10"
@@ -218,8 +218,9 @@
         android:layout_height="wrap_content"
         android:orientation="horizontal"
         android:gravity="center"
-        android:paddingHorizontal="48dp"
-        android:layout_marginTop="24dp">
+        android:paddingHorizontal="64dp"
+        android:layout_marginTop="24dp"
+        android:layout_marginBottom="32dp">
 
         <ImageButton
             android:id="@+id/btn_shuffle"
