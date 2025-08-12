@@ -1,6 +1,6 @@
 <resources>
     <string name="app_name">MusicLab</string>
-    <string name="main_title">MusicLab App</string>
+    <string name="main_title">MusicLab</string>
     <string name="development_text">Music Player in sviluppo…</string>
     <string name="song_count_format">%d canzoni</string>
     <string name="song_count_zero">0 canzoni</string>
@@ -12,6 +12,20 @@
     <string name="artist_placeholder">Artista</string>
     <string name="album_placeholder">Album</string>
     <string name="duration_placeholder">3:45</string>
+
+    <!-- Header Navigation -->
+    <string name="search">Cerca</string>
+    <string name="login_google">Login Google</string>
+    <string name="settings">Impostazioni</string>
+    <string name="tab_folders">Cartelle</string>
+    <string name="tab_playlists">Playlist</string>
+    <string name="sort_songs">Ordina canzoni</string>
+
+    <!-- Search -->
+    <string name="search_songs">Cerca canzoni, artisti, album...</string>
+    <string name="close_search">Chiudi ricerca</string>
+    <string name="no_search_results">Nessun risultato trovato</string>
+    <string name="search_results_format">%d risultati per "%s"</string>
 
     <!-- Player Bottom Bar -->
     <string name="no_song_playing">Nessuna canzone</string>
@@ -35,6 +49,44 @@
     <string name="repeat">Ripeti</string>
     <string name="time_format">0:00</string>
 
+    <!-- Folders & Playlists -->
+    <string name="folder_name">Nome Cartella</string>
+    <string name="songs_in_folder">%d canzoni</string>
+    <string name="playlist_name">Nome Playlist</string>
+    <string name="songs_in_playlist">%d canzoni</string>
+    <string name="create_new_playlist">Crea nuova playlist</string>
+    <string name="add_to_playlist">Aggiungi a playlist</string>
+    <string name="remove_from_playlist">Rimuovi da playlist</string>
+    <string name="playlist_menu">Menu playlist</string>
+    <string name="no_playlists_create">Nessuna playlist.\nTocca + per crearne una!</string>
+    <string name="no_music_found">Nessuna musica trovata</string>
+    <string name="check_storage_permission">Verifica i permessi di archiviazione</string>
+    <string name="folder_menu">Menu cartella</string>
+
+    <!-- Queue -->
+    <string name="playback_queue">Coda di riproduzione</string>
+    <string name="currently_playing">In riproduzione</string>
+    <string name="up_next">Prossimi</string>
+    <string name="clear_queue">Svuota coda</string>
+    <string name="remove_from_queue">Rimuovi dalla coda</string>
+    <string name="move_up">Sposta su</string>
+    <string name="move_down">Sposta giù</string>
+
+    <!-- Sort Options -->
+    <string name="sort_by_title">Ordina per titolo</string>
+    <string name="sort_by_artist">Ordina per artista</string>
+    <string name="sort_by_album">Ordina per album</string>
+    <string name="sort_by_duration">Ordina per durata</string>
+    <string name="sort_by_date_added">Ordina per data aggiunta</string>
+
+    <!-- Login & Cloud -->
+    <string name="login_required">Login richiesto</string>
+    <string name="login_to_sync_playlists">Accedi per sincronizzare le playlist</string>
+    <string name="logout">Disconnetti</string>
+    <string name="sync_playlists">Sincronizza playlist</string>
+    <string name="sync_successful">Sincronizzazione completata</string>
+    <string name="sync_failed">Errore sincronizzazione</string>
+
     <!-- Global -->
     <string name="update">Aggiorna</string>
     <string name="add">Aggiungi</string>
@@ -46,4 +98,10 @@
     <string name="state">stato</string>
     <string name="no_song">Nessuna</string>
     <string name="unknown">sconosciuto</string>
+    <string name="cancel">Annulla</string>
+    <string name="ok">OK</string>
+    <string name="save">Salva</string>
+    <string name="delete">Elimina</string>
+    <string name="edit">Modifica</string>
+    <string name="create">Crea</string>
 </resources>

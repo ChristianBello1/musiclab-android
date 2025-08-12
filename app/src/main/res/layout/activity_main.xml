@@ -1,11 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
     android:fitsSystemWindows="true">
 
-    <!-- Header -->
+    <!-- Header Principale -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -14,6 +15,7 @@
         android:gravity="center_vertical"
         android:background="?attr/colorPrimary">
 
+        <!-- Logo/Titolo App -->
         <TextView
             android:layout_width="0dp"
             android:layout_height="wrap_content"
@@ -23,30 +25,159 @@
             android:textStyle="bold"
             android:textColor="@android:color/white" />
 
-        <TextView
-            android:id="@+id/song_count"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="@string/song_count_zero"
-            android:textSize="14sp"
-            android:textColor="@android:color/white" />
+        <!-- Pulsante Ricerca -->
+        <ImageButton
+            android:id="@+id/btn_search"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:src="@android:drawable/ic_menu_search"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/search"
+            app:tint="@android:color/white"
+            android:layout_marginEnd="8dp" />
+
+        <!-- Pulsante Login Google -->
+        <ImageButton
+            android:id="@+id/btn_login"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:src="@android:drawable/ic_dialog_info"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/login_google"
+            app:tint="@android:color/white"
+            android:layout_marginEnd="8dp" />
+
+        <!-- Pulsante Impostazioni -->
+        <ImageButton
+            android:id="@+id/btn_settings"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:src="@android:drawable/ic_menu_preferences"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/settings"
+            app:tint="@android:color/white" />
 
     </LinearLayout>
 
-    <!-- Main Content Container -->
+    <!-- Tab Navigation -->
+    <com.google.android.material.tabs.TabLayout
+        android:id="@+id/tab_layout"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="?attr/colorPrimary"
+        app:tabTextColor="@android:color/white"
+        app:tabSelectedTextColor="@android:color/white"
+        app:tabIndicatorColor="@color/teal_200"
+        app:tabMode="fixed">
+
+        <com.google.android.material.tabs.TabItem
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/tab_folders" />
+
+        <com.google.android.material.tabs.TabItem
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/tab_playlists" />
+
+    </com.google.android.material.tabs.TabLayout>
+
+    <!-- Info Bar (contatore canzoni + filtri) -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:padding="12dp"
+        android:gravity="center_vertical"
+        android:background="@color/purple_200">
+
+        <TextView
+            android:id="@+id/song_count"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="@string/song_count_zero"
+            android:textSize="14sp"
+            android:textColor="@color/black" />
+
+        <!-- Pulsante Filtri/Ordinamento -->
+        <ImageButton
+            android:id="@+id/btn_sort"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:src="@android:drawable/ic_menu_sort_alphabetically"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/sort_songs"
+            app:tint="@color/black" />
+
+    </LinearLayout>
+
+    <!-- Main Content Container con ViewPager -->
     <FrameLayout
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1">
 
-        <!-- Lista Canzoni -->
-        <androidx.recyclerview.widget.RecyclerView
-            android:id="@+id/songs_recycler_view"
+        <!-- ViewPager per i Fragment -->
+        <androidx.viewpager2.widget.ViewPager2
+            android:id="@+id/view_pager"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:padding="8dp"
             android:paddingBottom="140dp"
             android:clipToPadding="false" />
+
+        <!-- Search Overlay (nascosto inizialmente) -->
+        <LinearLayout
+            android:id="@+id/search_container"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:orientation="vertical"
+            android:background="@color/white"
+            android:visibility="gone">
+
+            <!-- Search Bar -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:padding="16dp"
+                android:gravity="center_vertical">
+
+                <EditText
+                    android:id="@+id/search_input"
+                    android:layout_width="0dp"
+                    android:layout_height="48dp"
+                    android:layout_weight="1"
+                    android:autofillHints=""
+                    android:hint="@string/search_songs"
+                    android:textColor="@color/black"
+                    android:textColorHint="@android:color/darker_gray"
+                    android:background="@drawable/search_background"
+                    android:padding="12dp"
+                    android:drawableStart="@android:drawable/ic_menu_search"
+                    android:drawablePadding="8dp"
+                    android:inputType="text"
+                    android:imeOptions="actionSearch" />
+
+                <ImageButton
+                    android:id="@+id/btn_close_search"
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    android:src="@android:drawable/ic_menu_close_clear_cancel"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:contentDescription="@string/close_search"
+                    android:layout_marginStart="8dp" />
+
+            </LinearLayout>
+
+            <!-- Search Results -->
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/search_results_recycler"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:padding="8dp" />
+
+        </LinearLayout>
 
         <!-- Player Bottom Bar (nascosta inizialmente) -->
         <LinearLayout

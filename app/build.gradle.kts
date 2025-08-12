@@ -43,6 +43,7 @@ dependencies {
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
 
+
     // Music Player dependencies - VERSIONI AGGIORNATE
     implementation("androidx.media3:media3-exoplayer:1.8.0")
     implementation("androidx.media3:media3-ui:1.8.0")
@@ -51,4 +52,11 @@ dependencies {
     implementation("androidx.cardview:cardview:1.0.0")
     implementation("com.google.android.material:material:1.12.0")
     implementation("androidx.activity:activity-ktx:1.10.1")
+
+    // Navigation e ViewPager
+    implementation("androidx.viewpager2:viewpager2:1.1.0")
+    implementation("androidx.fragment:fragment-ktx:1.8.5")
+
+    // Google Sign-In (per il futuro)
+    implementation("com.google.android.gms:play-services-auth:21.3.0")
 }

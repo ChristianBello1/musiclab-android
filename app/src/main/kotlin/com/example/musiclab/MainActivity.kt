@@ -7,8 +7,11 @@ import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.text.Editable
+import android.text.TextWatcher
 import android.util.Log
 import android.view.View
+import android.widget.EditText
 import android.widget.ImageButton
 import android.widget.LinearLayout
 import android.widget.SeekBar
@@ -16,19 +19,41 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
+import androidx.activity.OnBackPressedCallback
 import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import androidx.viewpager2.widget.ViewPager2
+import com.google.android.material.tabs.TabLayout
+import com.google.android.material.tabs.TabLayoutMediator
 import java.util.Locale
 
 class MainActivity : AppCompatActivity() {
 
+    // Core components
     private lateinit var musicScanner: MusicScanner
-    private lateinit var songAdapter: SongAdapter
-    private lateinit var recyclerView: RecyclerView
-    private lateinit var songCountText: TextView
     private lateinit var musicPlayer: MusicPlayer
     private var songs: List<Song> = emptyList()
+
+    // Navigation components
+    private lateinit var tabLayout: TabLayout
+    private lateinit var viewPager: ViewPager2
+    private lateinit var viewPagerAdapter: MainViewPagerAdapter
+
+    // Header buttons
+    private lateinit var btnSearch: ImageButton
+    private lateinit var btnLogin: ImageButton
+    private lateinit var btnSettings: ImageButton
+    private lateinit var btnSort: ImageButton
+    private lateinit var songCountText: TextView
+
+    // Search components
+    private lateinit var searchContainer: LinearLayout
+    private lateinit var searchInput: EditText
+    private lateinit var btnCloseSearch: ImageButton
+    private lateinit var searchResultsRecycler: RecyclerView
+    private lateinit var searchAdapter: SongAdapter
+    private var isSearchActive = false
 
     // Player Bottom Bar Views
     private lateinit var playerBottomContainer: LinearLayout
@@ -44,6 +69,14 @@ class MainActivity : AppCompatActivity() {
     private lateinit var bottomCurrentTime: TextView
     private lateinit var bottomTotalTime: TextView
 
+    // State management
+    private var isLoggedIn = false
+    private var currentSortMode = SortMode.TITLE
+
+    enum class SortMode {
+        TITLE, ARTIST, ALBUM, DURATION, DATE_ADDED
+    }
+
     // Progress handler
     private val progressHandler = Handler(Looper.getMainLooper())
     private var isUpdatingBottomProgress = false
@@ -51,7 +84,7 @@ class MainActivity : AppCompatActivity() {
     private val bottomProgressRunnable = object : Runnable {
         override fun run() {
             updateBottomProgress()
-            progressHandler.postDelayed(this, 1000) // Aggiorna ogni secondo
+            progressHandler.postDelayed(this, 1000)
         }
     }
 
@@ -71,9 +104,21 @@ class MainActivity : AppCompatActivity() {
         setContentView(R.layout.activity_main)
 
         setupViews()
-        musicScanner = MusicScanner(this)
+        setupViewPager()
+        setupListeners()
 
-        // Usa il MusicPlayer globale
+        // Setup modern back handling
+        onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
+            override fun handleOnBackPressed() {
+                if (isSearchActive) {
+                    closeSearch()
+                } else {
+                    finish()
+                }
+            }
+        })
+
+        musicScanner = MusicScanner(this)
         musicPlayer = MusicPlayerManager.getInstance().getMusicPlayer(this)
 
         // Setup player state listener
@@ -87,8 +132,30 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun setupViews() {
-        recyclerView = findViewById(R.id.songs_recycler_view)
+        // Header components
+        btnSearch = findViewById(R.id.btn_search)
+        btnLogin = findViewById(R.id.btn_login)
+        btnSettings = findViewById(R.id.btn_settings)
+        btnSort = findViewById(R.id.btn_sort)
         songCountText = findViewById(R.id.song_count)
+
+        // Navigation components
+        tabLayout = findViewById(R.id.tab_layout)
+        viewPager = findViewById(R.id.view_pager)
+
+        // Search components
+        searchContainer = findViewById(R.id.search_container)
+        searchInput = findViewById(R.id.search_input)
+        btnCloseSearch = findViewById(R.id.btn_close_search)
+        searchResultsRecycler = findViewById(R.id.search_results_recycler)
+
+        // Setup search RecyclerView
+        searchResultsRecycler.layoutManager = LinearLayoutManager(this)
+        searchAdapter = SongAdapter(emptyList()) { song ->
+            onSongClick(song)
+            closeSearch()
+        }
+        searchResultsRecycler.adapter = searchAdapter
 
         // Setup Player Bottom Bar
         playerBottomContainer = findViewById(R.id.player_bottom_container)
@@ -103,13 +170,38 @@ class MainActivity : AppCompatActivity() {
         bottomSeekBar = findViewById(R.id.seek_bar)
         bottomCurrentTime = findViewById(R.id.current_time)
         bottomTotalTime = findViewById(R.id.total_time)
+    }
 
-        // Setup RecyclerView
-        recyclerView.layoutManager = LinearLayoutManager(this)
-        songAdapter = SongAdapter(songs) { song ->
-            onSongClick(song)
-        }
-        recyclerView.adapter = songAdapter
+    private fun setupViewPager() {
+        viewPagerAdapter = MainViewPagerAdapter(this, songs)
+        viewPager.adapter = viewPagerAdapter
+
+        // Connect TabLayout with ViewPager2
+        TabLayoutMediator(tabLayout, viewPager) { tab, position ->
+            tab.text = when (position) {
+                0 -> getString(R.string.tab_folders)
+                1 -> getString(R.string.tab_playlists)
+                else -> ""
+            }
+        }.attach()
+    }
+
+    private fun setupListeners() {
+        // Header buttons
+        btnSearch.setOnClickListener { toggleSearch() }
+        btnLogin.setOnClickListener { toggleLogin() }
+        btnSettings.setOnClickListener { openSettings() }
+        btnSort.setOnClickListener { showSortOptions() }
+
+        // Search listeners
+        btnCloseSearch.setOnClickListener { closeSearch() }
+        searchInput.addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+            override fun afterTextChanged(s: Editable?) {
+                performSearch(s.toString())
+            }
+        })
 
         setupPlayerBottomBarListeners()
     }
@@ -127,28 +219,17 @@ class MainActivity : AppCompatActivity() {
             musicPlayer.playNext()
         }
 
-        // NUOVO: Pulsante coda invece di espandere player
         btnExpandPlayer.setOnClickListener {
-            // TODO: Aprire QueueActivity
-            Log.d("MainActivity", "Queue button clicked - opening queue...")
+            // Apri QueueActivity (da implementare)
             Toast.makeText(this, "Coda di riproduzione (coming soon!)", Toast.LENGTH_SHORT).show()
         }
 
-        // Click su tutta la barra per aprire il player (ESCLUSO il pulsante coda)
-        playerBottomContainer.setOnClickListener { view ->
-            // Controlla se il click è sul pulsante coda
-            if (view != btnExpandPlayer) {
-                openPlayerActivity()
-            }
-        }
-
-        // Setup area song info per aprire player
-        val songInfoArea = playerBottomContainer.getChildAt(0) // Il LinearLayout con le song info
-        songInfoArea.setOnClickListener {
+        // Click su tutta la barra per aprire il player
+        playerBottomContainer.setOnClickListener {
             openPlayerActivity()
         }
 
-        // Setup SeekBar per la barra in basso
+        // Setup SeekBar
         bottomSeekBar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
             override fun onStartTrackingTouch(seekBar: SeekBar?) {
                 isUpdatingBottomProgress = true
@@ -159,7 +240,6 @@ class MainActivity : AppCompatActivity() {
                 seekBar?.let { bar ->
                     val position = bar.progress
                     musicPlayer.seekTo(position)
-                    Log.d("MainActivity", "Bottom seekbar: seeked to $position seconds")
                 }
             }
 
@@ -171,33 +251,122 @@ class MainActivity : AppCompatActivity() {
         })
     }
 
+    // Search functionality
+    private fun toggleSearch() {
+        if (isSearchActive) {
+            closeSearch()
+        } else {
+            openSearch()
+        }
+    }
+
+    private fun openSearch() {
+        isSearchActive = true
+        searchContainer.visibility = View.VISIBLE
+        searchInput.requestFocus()
+        // TODO: Show keyboard
+    }
+
+    private fun closeSearch() {
+        isSearchActive = false
+        searchContainer.visibility = View.GONE
+        searchInput.text.clear()
+        searchAdapter.updateSongs(emptyList())
+        // TODO: Hide keyboard
+    }
+
+    private fun performSearch(query: String) {
+        if (query.isBlank()) {
+            searchAdapter.updateSongs(emptyList())
+            return
+        }
+
+        val foldersFragment = viewPagerAdapter.getFoldersFragment()
+        val searchResults = foldersFragment?.filterSongs(query) ?: emptyList()
+        searchAdapter.updateSongs(searchResults)
+
+        Log.d("MainActivity", "Search for '$query' returned ${searchResults.size} results")
+    }
+
+    // Login functionality
+    private fun toggleLogin() {
+        if (isLoggedIn) {
+            logout()
+        } else {
+            login()
+        }
+    }
+
+    private fun login() {
+        // TODO: Implementare Google Sign-In
+        isLoggedIn = true
+        updateLoginButton()
+        viewPagerAdapter.setLoginState(true)
+        Toast.makeText(this, "Login simulato!", Toast.LENGTH_SHORT).show()
+        Log.d("MainActivity", "User logged in")
+    }
+
+    private fun logout() {
+        isLoggedIn = false
+        updateLoginButton()
+        viewPagerAdapter.setLoginState(false)
+        Toast.makeText(this, "Logout effettuato", Toast.LENGTH_SHORT).show()
+        Log.d("MainActivity", "User logged out")
+    }
+
+    private fun updateLoginButton() {
+        val iconRes = if (isLoggedIn) {
+            android.R.drawable.ic_menu_mylocation // Icona "loggato"
+        } else {
+            android.R.drawable.ic_dialog_info // Icona "login"
+        }
+        btnLogin.setImageResource(iconRes)
+    }
+
+    // Settings functionality
+    private fun openSettings() {
+        // TODO: Implementare SettingsActivity
+        Toast.makeText(this, "Impostazioni (coming soon!)", Toast.LENGTH_SHORT).show()
+    }
+
+    // Sort functionality
+    private fun showSortOptions() {
+        // TODO: Implementare dialog per ordinamento
+        Toast.makeText(this, "Opzioni ordinamento (coming soon!)", Toast.LENGTH_SHORT).show()
+    }
+
+    // Music functionality
+    fun onSongClickFromFragment(song: Song) {
+        onSongClick(song)
+    }
+
     private fun onSongClick(song: Song) {
-        // Imposta playlist e riproduci canzone
         musicPlayer.setPlaylist(songs, songs.indexOf(song))
         musicPlayer.playSong(song)
 
-        // Mostra la barra del player e avvia progress update
         showPlayerBottomBar()
         startBottomProgressUpdates()
 
         Toast.makeText(this, getString(R.string.now_playing_format, song.title), Toast.LENGTH_SHORT).show()
-        Log.d("MainActivity", "Riproduzione avviata: ${song.title} - ${song.artist}")
+        Log.d("MainActivity", "Playing: ${song.title} - ${song.artist}")
     }
 
+    fun openPlaylist(playlist: Playlist) {
+        // TODO: Implementare apertura playlist
+        Toast.makeText(this, "Apertura playlist: ${playlist.name}", Toast.LENGTH_SHORT).show()
+        Log.d("MainActivity", "Opening playlist: ${playlist.name}")
+    }
+
+    // Player UI updates
     private fun updatePlayerBottomBar(isPlaying: Boolean, currentSong: Song?) {
         if (currentSong != null) {
-            // Mostra la barra se c'è una canzone
             showPlayerBottomBar()
 
-            // Aggiorna informazioni canzone
             currentSongTitle.text = currentSong.title
             currentSongArtist.text = currentSong.artist
-
-            // Aggiorna durata totale e max della seekbar
             bottomTotalTime.text = currentSong.getFormattedDuration()
             bottomSeekBar.max = (currentSong.duration / 1000).toInt()
 
-            // Aggiorna icona play/pause
             val iconRes = if (isPlaying) {
                 android.R.drawable.ic_media_pause
             } else {
@@ -205,12 +374,10 @@ class MainActivity : AppCompatActivity() {
             }
             btnBottomPlayPause.setImageResource(iconRes)
 
-            // Avvia progress updates se sta suonando
             if (isPlaying) {
                 startBottomProgressUpdates()
             }
         } else {
-            // Nascondi la barra se non c'è musica
             hidePlayerBottomBar()
             stopBottomProgressUpdates()
         }
@@ -233,9 +400,8 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun startBottomProgressUpdates() {
-        stopBottomProgressUpdates() // Stop existing updates
+        stopBottomProgressUpdates()
         progressHandler.post(bottomProgressRunnable)
-        Log.d("MainActivity", "Started bottom progress updates")
     }
 
     private fun stopBottomProgressUpdates() {
@@ -245,7 +411,6 @@ class MainActivity : AppCompatActivity() {
     private fun showPlayerBottomBar() {
         if (playerBottomContainer.visibility != View.VISIBLE) {
             playerBottomContainer.visibility = View.VISIBLE
-            Log.d("MainActivity", "Player bottom bar shown")
         }
     }
 
@@ -253,7 +418,6 @@ class MainActivity : AppCompatActivity() {
         if (playerBottomContainer.visibility != View.GONE) {
             playerBottomContainer.visibility = View.GONE
             stopBottomProgressUpdates()
-            Log.d("MainActivity", "Player bottom bar hidden")
         }
     }
 
@@ -262,17 +426,16 @@ class MainActivity : AppCompatActivity() {
         startActivity(intent)
     }
 
+    // Permissions and music loading
     private fun checkPermissionsAndLoadMusic() {
         val permissionsNeeded = mutableListOf<String>()
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            // Android 13+ usa READ_MEDIA_AUDIO
             if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_MEDIA_AUDIO)
                 != PackageManager.PERMISSION_GRANTED) {
                 permissionsNeeded.add(Manifest.permission.READ_MEDIA_AUDIO)
             }
         } else {
-            // Android 12 e precedenti usano READ_EXTERNAL_STORAGE
             if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE)
                 != PackageManager.PERMISSION_GRANTED) {
                 permissionsNeeded.add(Manifest.permission.READ_EXTERNAL_STORAGE)
@@ -292,13 +455,13 @@ class MainActivity : AppCompatActivity() {
 
             // Aggiorna UI
             songCountText.text = getString(R.string.song_count_format, songs.size)
-            songAdapter.updateSongs(songs)
+            viewPagerAdapter.updateSongs(songs)
 
             Toast.makeText(this, getString(R.string.songs_loaded_format, songs.size), Toast.LENGTH_SHORT).show()
-            Log.d("MainActivity", "Caricate ${songs.size} canzoni")
+            Log.d("MainActivity", "Loaded ${songs.size} songs")
 
         } catch (e: Exception) {
-            Log.e("MainActivity", "Errore caricamento musica", e)
+            Log.e("MainActivity", "Error loading music", e)
             Toast.makeText(this, getString(R.string.error_loading_music, e.message), Toast.LENGTH_LONG).show()
         }
     }
@@ -320,6 +483,5 @@ class MainActivity : AppCompatActivity() {
         super.onDestroy()
         stopBottomProgressUpdates()
         // Non rilasciare il player qui perché è globale
-        // MusicPlayerManager.getInstance().release()
     }
 }
