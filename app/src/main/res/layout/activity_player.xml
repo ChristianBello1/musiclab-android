@@ -1,5 +1,4 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- app/src/main/res/layout/activity_player.xml -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
@@ -8,242 +7,249 @@
     android:background="?attr/colorSurface"
     android:fitsSystemWindows="true">
 
-    <!-- Header with back button -->
+    <!-- Header con più spazio e margini -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
-        android:padding="16dp"
+        android:padding="20dp"
+        android:layout_marginTop="8dp"
         android:gravity="center_vertical">
 
         <ImageButton
             android:id="@+id/btn_back"
-            android:layout_width="48dp"
-            android:layout_height="48dp"
+            android:layout_width="28dp"
+            android:layout_height="28dp"
             android:src="@android:drawable/arrow_down_float"
             android:background="?attr/selectableItemBackgroundBorderless"
             android:contentDescription="@string/close_player"
-            app:tint="?attr/colorPrimary" />
+            android:layout_marginEnd="16dp"
+            app:tint="?attr/colorOnSurface" />
 
         <TextView
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:text="@string/now_playing"
-            android:textSize="18sp"
-            android:textStyle="bold"
+            android:textSize="14sp"
             android:gravity="center" />
 
         <ImageButton
             android:id="@+id/btn_queue"
-            android:layout_width="48dp"
-            android:layout_height="48dp"
+            android:layout_width="28dp"
+            android:layout_height="28dp"
             android:src="@android:drawable/ic_dialog_dialer"
             android:background="?attr/selectableItemBackgroundBorderless"
             android:contentDescription="@string/show_queue"
-            app:tint="?attr/colorPrimary" />
+            android:layout_marginStart="16dp"
+            app:tint="?attr/colorOnSurface" />
 
     </LinearLayout>
 
-    <!-- Album Art Placeholder -->
-    <androidx.cardview.widget.CardView
-        android:layout_width="280dp"
-        android:layout_height="280dp"
-        android:layout_gravity="center"
-        android:layout_marginVertical="32dp"
-        app:cardCornerRadius="16dp"
-        app:cardElevation="8dp">
-
-        <ImageView
-            android:id="@+id/album_art"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:scaleType="centerCrop"
-            android:src="@android:drawable/ic_media_play"
-            android:background="?attr/colorPrimary"
-            android:contentDescription="@string/album_placeholder"
-            app:tint="@android:color/white" />
-
-    </androidx.cardview.widget.CardView>
-
-    <!-- Song Info -->
+    <!-- Contenuto principale centrato -->
     <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
+        android:layout_height="0dp"
+        android:layout_weight="1"
         android:orientation="vertical"
-        android:paddingHorizontal="24dp"
+        android:paddingHorizontal="32dp"
         android:gravity="center">
 
+        <!-- Album Art come nel riferimento -->
+        <androidx.cardview.widget.CardView
+            android:layout_width="220dp"
+            android:layout_height="220dp"
+            android:layout_gravity="center"
+            android:layout_marginBottom="32dp"
+            app:cardCornerRadius="8dp"
+            app:cardElevation="4dp">
+
+            <ImageView
+                android:id="@+id/album_art"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:scaleType="centerCrop"
+                android:src="@android:drawable/ic_media_play"
+                android:background="?attr/colorPrimary"
+                android:contentDescription="@string/album_placeholder"
+                app:tint="@android:color/white" />
+
+        </androidx.cardview.widget.CardView>
+
+        <!-- Song Info pulita -->
         <TextView
             android:id="@+id/player_song_title"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="@string/song_name"
-            android:textSize="22sp"
+            android:textSize="16sp"
             android:textStyle="bold"
             android:gravity="center"
-            android:maxLines="2"
-            android:ellipsize="end" />
+            android:maxLines="1"
+            android:ellipsize="end"
+            android:layout_marginBottom="4dp" />
 
         <TextView
             android:id="@+id/player_song_artist"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="@string/artist_name"
-            android:textSize="16sp"
+            android:textSize="12sp"
             android:textColor="?android:attr/textColorSecondary"
             android:gravity="center"
-            android:layout_marginTop="8dp"
             android:maxLines="1"
             android:ellipsize="end" />
 
     </LinearLayout>
 
-    <!-- Progress Section -->
+    <!-- Controlli in basso come nel riferimento -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
         android:paddingHorizontal="24dp"
-        android:layout_marginTop="32dp">
+        android:paddingBottom="32dp">
 
-        <SeekBar
-            android:id="@+id/player_seek_bar"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:max="100"
-            android:progress="0" />
-
+        <!-- Progress bar con skip 10s ai lati come nel riferimento -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
-            android:gravity="center_vertical">
+            android:gravity="center_vertical"
+            android:layout_marginBottom="24dp">
+
+            <!-- Skip back 10s a sinistra della progress bar -->
+            <ImageButton
+                android:id="@+id/btn_skip_back_10"
+                android:layout_width="28dp"
+                android:layout_height="28dp"
+                android:src="@android:drawable/ic_media_rew"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="@string/skip_back_10"
+                android:layout_marginEnd="12dp"
+                app:tint="?attr/colorOnSurface" />
 
             <TextView
                 android:id="@+id/player_current_time"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="@string/time_format"
-                android:textSize="12sp"
-                android:textColor="?android:attr/textColorSecondary" />
+                android:text="0:00"
+                android:textSize="10sp"
+                android:textColor="?android:attr/textColorSecondary"
+                android:layout_marginEnd="8dp" />
 
-            <View
+            <SeekBar
+                android:id="@+id/player_seek_bar"
                 android:layout_width="0dp"
-                android:layout_height="1dp"
-                android:layout_weight="1" />
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:max="100"
+                android:progress="0" />
 
             <TextView
                 android:id="@+id/player_total_time"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="@string/time_format"
-                android:textSize="12sp"
-                android:textColor="?android:attr/textColorSecondary" />
+                android:text="2:49"
+                android:textSize="10sp"
+                android:textColor="?android:attr/textColorSecondary"
+                android:layout_marginStart="8dp" />
+
+            <!-- Skip forward 10s a destra della progress bar -->
+            <ImageButton
+                android:id="@+id/btn_skip_forward_10"
+                android:layout_width="28dp"
+                android:layout_height="28dp"
+                android:src="@android:drawable/ic_media_ff"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="@string/skip_forward_10"
+                android:layout_marginStart="12dp"
+                app:tint="?attr/colorOnSurface" />
 
         </LinearLayout>
 
-    </LinearLayout>
+        <!-- Controlli principali con shuffle e repeat ai lati -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center"
+            android:paddingHorizontal="24dp">
 
-    <!-- Main Controls -->
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:gravity="center"
-        android:paddingHorizontal="16dp"
-        android:layout_marginTop="24dp">
-
-        <ImageButton
-            android:id="@+id/btn_skip_back_10"
-            android:layout_width="48dp"
-            android:layout_height="48dp"
-            android:src="@android:drawable/ic_media_rew"
-            android:background="?attr/selectableItemBackgroundBorderless"
-            android:contentDescription="@string/skip_back_10"
-            app:tint="?attr/colorPrimary" />
-
-        <ImageButton
-            android:id="@+id/btn_player_previous"
-            android:layout_width="56dp"
-            android:layout_height="56dp"
-            android:src="@android:drawable/ic_media_previous"
-            android:background="?attr/selectableItemBackgroundBorderless"
-            android:contentDescription="@string/previous_song"
-            android:layout_marginHorizontal="8dp"
-            app:tint="?attr/colorPrimary" />
-
-        <androidx.cardview.widget.CardView
-            android:layout_width="72dp"
-            android:layout_height="72dp"
-            app:cardCornerRadius="36dp"
-            app:cardElevation="4dp"
-            android:layout_marginHorizontal="16dp">
-
+            <!-- Shuffle a sinistra -->
             <ImageButton
-                android:id="@+id/btn_player_play_pause"
-                android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:src="@android:drawable/ic_media_play"
-                android:background="?attr/selectableItemBackground"
-                android:contentDescription="@string/btn_play_pause"
-                app:tint="?attr/colorPrimary" />
+                android:id="@+id/btn_shuffle"
+                android:layout_width="32dp"
+                android:layout_height="32dp"
+                android:src="@android:drawable/ic_menu_rotate"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="@string/shuffle"
+                app:tint="?android:attr/textColorSecondary" />
 
-        </androidx.cardview.widget.CardView>
+            <!-- Spazio flessibile -->
+            <View
+                android:layout_width="0dp"
+                android:layout_height="1dp"
+                android:layout_weight="1" />
 
-        <ImageButton
-            android:id="@+id/btn_player_next"
-            android:layout_width="56dp"
-            android:layout_height="56dp"
-            android:src="@android:drawable/ic_media_next"
-            android:background="?attr/selectableItemBackgroundBorderless"
-            android:contentDescription="@string/next_song"
-            android:layout_marginHorizontal="8dp"
-            app:tint="?attr/colorPrimary" />
+            <!-- Previous -->
+            <ImageButton
+                android:id="@+id/btn_player_previous"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:src="@android:drawable/ic_media_previous"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="@string/previous_song"
+                android:layout_marginEnd="20dp"
+                app:tint="?attr/colorOnSurface" />
 
-        <ImageButton
-            android:id="@+id/btn_skip_forward_10"
-            android:layout_width="48dp"
-            android:layout_height="48dp"
-            android:src="@android:drawable/ic_media_ff"
-            android:background="?attr/selectableItemBackgroundBorderless"
-            android:contentDescription="@string/skip_forward_10"
-            app:tint="?attr/colorPrimary" />
+            <!-- Play button centrale bianco -->
+            <androidx.cardview.widget.CardView
+                android:layout_width="56dp"
+                android:layout_height="56dp"
+                app:cardCornerRadius="28dp"
+                app:cardElevation="2dp"
+                app:cardBackgroundColor="@android:color/white">
 
-    </LinearLayout>
+                <ImageButton
+                    android:id="@+id/btn_player_play_pause"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:src="@android:drawable/ic_media_play"
+                    android:background="?attr/selectableItemBackground"
+                    android:contentDescription="@string/btn_play_pause"
+                    app:tint="@android:color/black" />
 
-    <!-- Secondary Controls -->
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:gravity="center"
-        android:paddingHorizontal="64dp"
-        android:layout_marginTop="16dp"
-        android:layout_marginBottom="24dp">
+            </androidx.cardview.widget.CardView>
 
-        <ImageButton
-            android:id="@+id/btn_shuffle"
-            android:layout_width="48dp"
-            android:layout_height="48dp"
-            android:src="@android:drawable/ic_menu_rotate"
-            android:background="?attr/selectableItemBackgroundBorderless"
-            android:contentDescription="@string/shuffle"
-            app:tint="?android:attr/textColorSecondary" />
+            <!-- Next -->
+            <ImageButton
+                android:id="@+id/btn_player_next"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:src="@android:drawable/ic_media_next"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="@string/next_song"
+                android:layout_marginStart="20dp"
+                app:tint="?attr/colorOnSurface" />
 
-        <View
-            android:layout_width="0dp"
-            android:layout_height="1dp"
-            android:layout_weight="1" />
+            <!-- Spazio flessibile -->
+            <View
+                android:layout_width="0dp"
+                android:layout_height="1dp"
+                android:layout_weight="1" />
 
-        <ImageButton
-            android:id="@+id/btn_repeat"
-            android:layout_width="48dp"
-            android:layout_height="48dp"
-            android:src="@android:drawable/ic_menu_revert"
-            android:background="?attr/selectableItemBackgroundBorderless"
-            android:contentDescription="@string/repeat"
-            app:tint="?android:attr/textColorSecondary" />
+            <!-- Repeat a destra -->
+            <ImageButton
+                android:id="@+id/btn_repeat"
+                android:layout_width="32dp"
+                android:layout_height="32dp"
+                android:src="@android:drawable/ic_menu_revert"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="@string/repeat"
+                app:tint="?android:attr/textColorSecondary" />
+
+        </LinearLayout>
 
     </LinearLayout>
 

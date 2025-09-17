@@ -101,6 +101,7 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        supportActionBar?.hide()
         setContentView(R.layout.activity_main)
 
         setupViews()
@@ -173,7 +174,8 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun setupViewPager() {
-        viewPagerAdapter = MainViewPagerAdapter(this, songs)
+        // Inizializza l'adapter con lista vuota
+        viewPagerAdapter = MainViewPagerAdapter(this, emptyList())
         viewPager.adapter = viewPagerAdapter
 
         // Connect TabLayout with ViewPager2
@@ -184,6 +186,8 @@ class MainActivity : AppCompatActivity() {
                 else -> ""
             }
         }.attach()
+
+        Log.d("MainActivity", "ViewPager setup completato")
     }
 
     private fun setupListeners() {
@@ -450,20 +454,52 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun loadMusicFiles() {
+        Log.d("MainActivity", "=== INIZIO CARICAMENTO MUSICA ===")
+
         try {
             songs = musicScanner.scanMusicFiles()
 
+            Log.d("MainActivity", "✅ MUSICA CARICATA: ${songs.size} canzoni")
+
+            // Stampa le prime 5 canzoni per debug
+            songs.take(5).forEachIndexed { index, song ->
+                Log.d("MainActivity", "$index: ${song.title} - ${song.artist}")
+            }
+
             // Aggiorna UI
             songCountText.text = getString(R.string.song_count_format, songs.size)
-            viewPagerAdapter.updateSongs(songs)
+            Log.d("MainActivity", "📊 UI aggiornata - contatore: ${songs.size}")
+
+            // IMPORTANTE: Aspetta che il ViewPager sia pronto, poi aggiorna
+            viewPager.post {
+                Log.d("MainActivity", "🔄 Aggiornamento ViewPager...")
+
+                // Aggiorna l'adapter con le nuove canzoni
+                viewPagerAdapter = MainViewPagerAdapter(this@MainActivity, songs)
+                viewPager.adapter = viewPagerAdapter
+
+                // Riattacca le tab
+                TabLayoutMediator(tabLayout, viewPager) { tab, position ->
+                    tab.text = when (position) {
+                        0 -> getString(R.string.tab_folders)
+                        1 -> getString(R.string.tab_playlists)
+                        else -> ""
+                    }
+                }.attach()
+
+                Log.d("MainActivity", "📱 ViewPager completamente aggiornato!")
+            }
 
             Toast.makeText(this, getString(R.string.songs_loaded_format, songs.size), Toast.LENGTH_SHORT).show()
-            Log.d("MainActivity", "Loaded ${songs.size} songs")
+            Log.d("MainActivity", "🎉 Toast mostrato")
 
         } catch (e: Exception) {
-            Log.e("MainActivity", "Error loading music", e)
+            Log.e("MainActivity", "💥 ERRORE caricamento musica: $e")
+            e.printStackTrace()
             Toast.makeText(this, getString(R.string.error_loading_music, e.message), Toast.LENGTH_LONG).show()
         }
+
+        Log.d("MainActivity", "=== FINE CARICAMENTO MUSICA ===")
     }
 
     override fun onResume() {

@@ -6,7 +6,7 @@
     android:orientation="vertical"
     android:fitsSystemWindows="true">
 
-    <!-- Header Principale -->
+    <!-- Header unico con titolo e pulsanti -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -15,7 +15,6 @@
         android:gravity="center_vertical"
         android:background="?attr/colorPrimary">
 
-        <!-- Logo/Titolo App -->
         <TextView
             android:layout_width="0dp"
             android:layout_height="wrap_content"
@@ -25,7 +24,6 @@
             android:textStyle="bold"
             android:textColor="@android:color/white" />
 
-        <!-- Pulsante Ricerca -->
         <ImageButton
             android:id="@+id/btn_search"
             android:layout_width="48dp"
@@ -36,7 +34,6 @@
             app:tint="@android:color/white"
             android:layout_marginEnd="8dp" />
 
-        <!-- Pulsante Login Google -->
         <ImageButton
             android:id="@+id/btn_login"
             android:layout_width="48dp"
@@ -47,7 +44,6 @@
             app:tint="@android:color/white"
             android:layout_marginEnd="8dp" />
 
-        <!-- Pulsante Impostazioni -->
         <ImageButton
             android:id="@+id/btn_settings"
             android:layout_width="48dp"
@@ -68,21 +64,9 @@
         app:tabTextColor="@android:color/white"
         app:tabSelectedTextColor="@android:color/white"
         app:tabIndicatorColor="@color/teal_200"
-        app:tabMode="fixed">
+        app:tabMode="fixed" />
 
-        <com.google.android.material.tabs.TabItem
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="@string/tab_folders" />
-
-        <com.google.android.material.tabs.TabItem
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="@string/tab_playlists" />
-
-    </com.google.android.material.tabs.TabLayout>
-
-    <!-- Info Bar (contatore canzoni + filtri) -->
+    <!-- Info Bar contatore -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -100,7 +84,6 @@
             android:textSize="14sp"
             android:textColor="@color/black" />
 
-        <!-- Pulsante Filtri/Ordinamento -->
         <ImageButton
             android:id="@+id/btn_sort"
             android:layout_width="40dp"
@@ -112,21 +95,21 @@
 
     </LinearLayout>
 
-    <!-- Main Content Container con ViewPager -->
+    <!-- Contenuto principale -->
     <FrameLayout
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1">
 
-        <!-- ViewPager per i Fragment -->
+        <!-- ViewPager -->
         <androidx.viewpager2.widget.ViewPager2
             android:id="@+id/view_pager"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:paddingBottom="140dp"
+            android:paddingBottom="100dp"
             android:clipToPadding="false" />
 
-        <!-- Search Overlay (nascosto inizialmente) -->
+        <!-- Search Overlay -->
         <LinearLayout
             android:id="@+id/search_container"
             android:layout_width="match_parent"
@@ -135,7 +118,6 @@
             android:background="@color/white"
             android:visibility="gone">
 
-            <!-- Search Bar -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -170,7 +152,6 @@
 
             </LinearLayout>
 
-            <!-- Search Results -->
             <androidx.recyclerview.widget.RecyclerView
                 android:id="@+id/search_results_recycler"
                 android:layout_width="match_parent"
@@ -179,7 +160,7 @@
 
         </LinearLayout>
 
-        <!-- Player Bottom Bar (nascosta inizialmente) -->
+        <!-- Player Bottom Bar -->
         <LinearLayout
             android:id="@+id/player_bottom_container"
             android:layout_width="match_parent"

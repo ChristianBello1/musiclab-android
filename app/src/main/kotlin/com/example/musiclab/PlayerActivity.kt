@@ -4,6 +4,7 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
+import android.view.View
 import android.widget.ImageButton
 import android.widget.SeekBar
 import android.widget.TextView
@@ -45,7 +46,13 @@ class PlayerActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        // Nascondi ActionBar anche nel PlayerActivity
+        supportActionBar?.hide()
+
         setContentView(R.layout.activity_player)
+
+        Log.d("PlayerActivity", "=== CREAZIONE PLAYER ACTIVITY ===")
 
         // Ottieni il MusicPlayer globale
         musicPlayer = MusicPlayerManager.getInstance().getMusicPlayer(this)
@@ -54,6 +61,8 @@ class PlayerActivity : AppCompatActivity() {
         setupClickListeners()
         updateUI()
         startProgressUpdates()
+
+        Log.d("PlayerActivity", "=== SETUP COMPLETATO ===")
     }
 
     private fun setupViews() {
@@ -68,6 +77,8 @@ class PlayerActivity : AppCompatActivity() {
         currentTime = findViewById(R.id.player_current_time)
         totalTime = findViewById(R.id.player_total_time)
 
+        Log.d("PlayerActivity", "Header views caricati")
+
         // Main control buttons
         skipBack10Button = findViewById(R.id.btn_skip_back_10)
         previousButton = findViewById(R.id.btn_player_previous)
@@ -75,7 +86,9 @@ class PlayerActivity : AppCompatActivity() {
         nextButton = findViewById(R.id.btn_player_next)
         skipForward10Button = findViewById(R.id.btn_skip_forward_10)
 
-        // DEBUG: Test se i pulsanti secondari vengono trovati
+        Log.d("PlayerActivity", "Main control buttons caricati")
+
+        // DEBUG: Controllo pulsanti shuffle e repeat
         try {
             shuffleButton = findViewById(R.id.btn_shuffle)
             repeatButton = findViewById(R.id.btn_repeat)
@@ -83,7 +96,7 @@ class PlayerActivity : AppCompatActivity() {
             Log.d("PlayerActivity", "✅ Shuffle button found: ${shuffleButton != null}")
             Log.d("PlayerActivity", "✅ Repeat button found: ${repeatButton != null}")
 
-            // DEBUG: Controlli di visibilità e posizione
+            // Verifica visibilità e dimensioni
             Log.d("PlayerActivity", "🔍 Shuffle button visible: ${shuffleButton.visibility}")
             Log.d("PlayerActivity", "🔍 Shuffle button alpha: ${shuffleButton.alpha}")
             Log.d("PlayerActivity", "🔍 Shuffle button width: ${shuffleButton.width}")
@@ -94,8 +107,19 @@ class PlayerActivity : AppCompatActivity() {
             Log.d("PlayerActivity", "🔍 Repeat button width: ${repeatButton.width}")
             Log.d("PlayerActivity", "🔍 Repeat button height: ${repeatButton.height}")
 
+            // Assicurati che siano visibili e cliccabili
+            shuffleButton.visibility = View.VISIBLE
+            repeatButton.visibility = View.VISIBLE
+            shuffleButton.isClickable = true
+            repeatButton.isClickable = true
+            shuffleButton.alpha = 1.0f
+            repeatButton.alpha = 1.0f
+
+            Log.d("PlayerActivity", "🔧 Pulsanti shuffle/repeat configurati come visibili")
+
         } catch (e: Exception) {
             Log.e("PlayerActivity", "❌ Error finding secondary buttons: $e")
+            e.printStackTrace()
         }
 
         Log.d("PlayerActivity", "=== SETUP VIEWS END ===")
@@ -125,7 +149,10 @@ class PlayerActivity : AppCompatActivity() {
     private fun setupClickListeners() {
         Log.d("PlayerActivity", "=== SETUP CLICK LISTENERS START ===")
 
-        backButton.setOnClickListener { finish() }
+        backButton.setOnClickListener {
+            Log.d("PlayerActivity", "Back button clicked")
+            finish()
+        }
 
         queueButton.setOnClickListener {
             Log.d("PlayerActivity", "🎵 Queue button clicked")
@@ -157,19 +184,26 @@ class PlayerActivity : AppCompatActivity() {
             musicPlayer.skipForward(10000)
         }
 
-        // DEBUG: Click listeners per shuffle e repeat con logging esteso
-        shuffleButton.setOnClickListener {
-            Log.d("PlayerActivity", "🔀 SHUFFLE BUTTON CLICKED! 🔀")
-            val isShuffleEnabled = musicPlayer.toggleShuffle()
-            updateShuffleButton(isShuffleEnabled)
-            Log.d("PlayerActivity", "🔀 Shuffle now: $isShuffleEnabled")
-        }
+        // Click listeners per shuffle e repeat con logging esteso
+        try {
+            shuffleButton.setOnClickListener {
+                Log.d("PlayerActivity", "🔀 SHUFFLE BUTTON CLICKED! 🔀")
+                val isShuffleEnabled = musicPlayer.toggleShuffle()
+                updateShuffleButton(isShuffleEnabled)
+                Log.d("PlayerActivity", "🔀 Shuffle now: $isShuffleEnabled")
+            }
 
-        repeatButton.setOnClickListener {
-            Log.d("PlayerActivity", "🔁 REPEAT BUTTON CLICKED! 🔁")
-            val repeatMode = musicPlayer.toggleRepeat()
-            updateRepeatButton(repeatMode)
-            Log.d("PlayerActivity", "🔁 Repeat mode now: $repeatMode")
+            repeatButton.setOnClickListener {
+                Log.d("PlayerActivity", "🔁 REPEAT BUTTON CLICKED! 🔁")
+                val repeatMode = musicPlayer.toggleRepeat()
+                updateRepeatButton(repeatMode)
+                Log.d("PlayerActivity", "🔁 Repeat mode now: $repeatMode")
+            }
+
+            Log.d("PlayerActivity", "✅ Shuffle/Repeat click listeners configurati")
+
+        } catch (e: Exception) {
+            Log.e("PlayerActivity", "❌ Error setting up shuffle/repeat listeners: $e")
         }
 
         // Listener per cambiamenti di stato del player
@@ -201,11 +235,13 @@ class PlayerActivity : AppCompatActivity() {
             songArtist.text = currentSong.artist
             totalTime.text = currentSong.getFormattedDuration()
             seekBar.max = (currentSong.duration / 1000).toInt()
+            Log.d("PlayerActivity", "📱 Song info updated: ${currentSong.title}")
         } else {
             songTitle.text = getString(R.string.no_song_playing)
             songArtist.text = getString(R.string.unknown_artist)
             totalTime.text = getString(R.string.time_format)
             seekBar.max = 100
+            Log.d("PlayerActivity", "📱 No song playing")
         }
     }
 
@@ -217,32 +253,41 @@ class PlayerActivity : AppCompatActivity() {
             android.R.drawable.ic_media_play
         }
         playPauseButton.setImageResource(iconRes)
+        Log.d("PlayerActivity", "🎵 Play/Pause updated: playing=$isPlaying")
     }
 
     private fun updateShuffleButton(isEnabled: Boolean) {
         Log.d("PlayerActivity", "🔀 Updating shuffle button: enabled=$isEnabled")
 
-        val colorRes = if (isEnabled) {
-            ContextCompat.getColor(this, R.color.purple_500)
-        } else {
-            ContextCompat.getColor(this, android.R.color.darker_gray)
-        }
-        shuffleButton.setColorFilter(colorRes)
+        try {
+            val colorRes = if (isEnabled) {
+                ContextCompat.getColor(this, R.color.purple_500)
+            } else {
+                ContextCompat.getColor(this, android.R.color.darker_gray)
+            }
+            shuffleButton.setColorFilter(colorRes)
 
-        Log.d("PlayerActivity", "🔀 Shuffle button color set to: ${if (isEnabled) "purple" else "gray"}")
+            Log.d("PlayerActivity", "🔀 Shuffle button color set to: ${if (isEnabled) "purple" else "gray"}")
+        } catch (e: Exception) {
+            Log.e("PlayerActivity", "❌ Error updating shuffle button: $e")
+        }
     }
 
     private fun updateRepeatButton(repeatMode: Int) {
         Log.d("PlayerActivity", "🔁 Updating repeat button: mode=$repeatMode")
 
-        val colorRes = if (repeatMode != androidx.media3.common.Player.REPEAT_MODE_OFF) {
-            ContextCompat.getColor(this, R.color.purple_500)
-        } else {
-            ContextCompat.getColor(this, android.R.color.darker_gray)
-        }
-        repeatButton.setColorFilter(colorRes)
+        try {
+            val colorRes = if (repeatMode != androidx.media3.common.Player.REPEAT_MODE_OFF) {
+                ContextCompat.getColor(this, R.color.purple_500)
+            } else {
+                ContextCompat.getColor(this, android.R.color.darker_gray)
+            }
+            repeatButton.setColorFilter(colorRes)
 
-        Log.d("PlayerActivity", "🔁 Repeat button color set to: ${if (repeatMode != 0) "purple" else "gray"}")
+            Log.d("PlayerActivity", "🔁 Repeat button color set to: ${if (repeatMode != 0) "purple" else "gray"}")
+        } catch (e: Exception) {
+            Log.e("PlayerActivity", "❌ Error updating repeat button: $e")
+        }
     }
 
     private fun updateProgress() {
@@ -261,20 +306,24 @@ class PlayerActivity : AppCompatActivity() {
 
     private fun startProgressUpdates() {
         progressHandler.post(progressRunnable)
+        Log.d("PlayerActivity", "📊 Progress updates started")
     }
 
     private fun stopProgressUpdates() {
         progressHandler.removeCallbacks(progressRunnable)
+        Log.d("PlayerActivity", "📊 Progress updates stopped")
     }
 
     override fun onDestroy() {
         super.onDestroy()
         stopProgressUpdates()
+        Log.d("PlayerActivity", "PlayerActivity destroyed")
     }
 
     override fun onPause() {
         super.onPause()
         stopProgressUpdates()
+        Log.d("PlayerActivity", "PlayerActivity paused")
     }
 
     override fun onResume() {
@@ -287,6 +336,8 @@ class PlayerActivity : AppCompatActivity() {
         try {
             Log.d("PlayerActivity", "🔍 Post-resume shuffle visible: ${shuffleButton.visibility}")
             Log.d("PlayerActivity", "🔍 Post-resume repeat visible: ${repeatButton.visibility}")
+            Log.d("PlayerActivity", "🔍 Post-resume shuffle clickable: ${shuffleButton.isClickable}")
+            Log.d("PlayerActivity", "🔍 Post-resume repeat clickable: ${repeatButton.isClickable}")
         } catch (e: Exception) {
             Log.e("PlayerActivity", "❌ Error checking buttons post-resume: $e")
         }
