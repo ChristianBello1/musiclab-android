@@ -1,4 +1,3 @@
-// Sostituisci il file MusicScanner.kt con questa versione per debug
 package com.example.musiclab
 
 import android.content.Context
@@ -8,22 +7,6 @@ import android.util.Log
 import androidx.core.content.ContextCompat
 import java.util.Locale
 import android.Manifest
-
-data class Song(
-    val id: Long,
-    val title: String,
-    val artist: String,
-    val album: String,
-    val duration: Long,
-    val path: String,
-    val size: Long
-) {
-    fun getFormattedDuration(): String {
-        val minutes = (duration / 1000) / 60
-        val seconds = (duration / 1000) % 60
-        return String.format(Locale.getDefault(), "%d:%02d", minutes, seconds)
-    }
-}
 
 class MusicScanner(private val context: Context) {
 
@@ -95,10 +78,8 @@ class MusicScanner(private val context: Context) {
                     val path = c.getString(pathColumn) ?: ""
                     val size = c.getLong(sizeColumn)
 
-                     // Log.d("MusicScanner", "🎵 Trovata: $title - $artist (${size/1024}KB)")
-
                     // Filtra file troppo piccoli (probabilmente non sono canzoni)
-                    if (size > 500 * 1024) { // > 500KB (ridotto da 1MB)
+                    if (size > 500 * 1024) { // > 500KB
                         songs.add(Song(id, title, artist, album, duration, path, size))
                         filteredCount++
                     } else {

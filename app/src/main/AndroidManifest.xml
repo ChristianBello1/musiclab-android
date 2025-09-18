@@ -9,11 +9,12 @@
         android:maxSdkVersion="32" />
 
     <uses-permission android:name="android.permission.INTERNET" />
-
     <uses-permission android:name="android.permission.WAKE_LOCK" />
 
-    <!-- Permesso per controllare la riproduzione audio -->
+    <!-- Permessi per controllare la riproduzione audio -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <!-- AGGIUNGI QUESTA RIGA: -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
 
     <application
         android:allowBackup="true"
@@ -41,6 +42,12 @@
             android:exported="false"
             android:theme="@style/Theme.MusicLab"
             android:launchMode="singleTop" />
+
+        <!-- Activity per vedere le canzoni nella cartella -->
+        <activity
+            android:name=".FolderSongsActivity"
+            android:exported="false"
+            android:theme="@style/Theme.MusicLab" />
 
     </application>
 

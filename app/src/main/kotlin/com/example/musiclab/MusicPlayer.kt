@@ -16,12 +16,48 @@ class MusicPlayer(private val context: Context) {
     private var isShuffleEnabled = false
     private var repeatMode = Player.REPEAT_MODE_OFF
 
-    // Callback per aggiornare la UI
-    var onPlayerStateChanged: ((isPlaying: Boolean, currentSong: Song?) -> Unit)? = null
+    // NUOVO: Lista di callback invece di un singolo callback
+    private val stateChangeListeners = mutableListOf<(isPlaying: Boolean, currentSong: Song?) -> Unit>()
 
     init {
         initializePlayer()
     }
+
+    // NUOVO: Aggiungi listener
+    fun addStateChangeListener(listener: (isPlaying: Boolean, currentSong: Song?) -> Unit) {
+        stateChangeListeners.add(listener)
+        Log.d("MusicPlayer", "🔗 Listener aggiunto, totale: ${stateChangeListeners.size}")
+    }
+
+    // NUOVO: Rimuovi listener
+    fun removeStateChangeListener(listener: (isPlaying: Boolean, currentSong: Song?) -> Unit) {
+        stateChangeListeners.remove(listener)
+        Log.d("MusicPlayer", "🔗 Listener rimosso, totale: ${stateChangeListeners.size}")
+    }
+
+    // NUOVO: Notifica tutti i listener
+    private fun notifyStateChanged(isPlaying: Boolean, currentSong: Song?) {
+        Log.d("MusicPlayer", "📢 Notifying ${stateChangeListeners.size} listeners")
+        stateChangeListeners.forEach { listener ->
+            try {
+                listener.invoke(isPlaying, currentSong)
+            } catch (e: Exception) {
+                Log.e("MusicPlayer", "❌ Error notifying listener: $e")
+            }
+        }
+    }
+
+    // DEPRECATO ma mantenuto per compatibilità
+    var onPlayerStateChanged: ((isPlaying: Boolean, currentSong: Song?) -> Unit)? = null
+        set(value) {
+            field = value
+            // Aggiungi automaticamente alla lista se non c'è già
+            value?.let { listener ->
+                if (!stateChangeListeners.contains(listener)) {
+                    addStateChangeListener(listener)
+                }
+            }
+        }
 
     private fun initializePlayer() {
         exoPlayer = ExoPlayer.Builder(context).build()
@@ -38,22 +74,31 @@ class MusicPlayer(private val context: Context) {
                     }
                     Player.STATE_BUFFERING -> {
                         Log.d("MusicPlayer", "Player buffering")
-                        // Player sta caricando il contenuto
                     }
                     Player.STATE_IDLE -> {
                         Log.d("MusicPlayer", "Player idle")
-                        // Player è inattivo
                     }
                 }
 
                 val isPlaying = exoPlayer?.isPlaying ?: false
                 val currentSong = getCurrentSong()
+
+                // Notifica tutti i listener
+                notifyStateChanged(isPlaying, currentSong)
+
+                // DEPRECATO: mantieni per compatibilità
                 onPlayerStateChanged?.invoke(isPlaying, currentSong)
             }
 
             override fun onIsPlayingChanged(isPlaying: Boolean) {
                 val currentSong = getCurrentSong()
+
+                // Notifica tutti i listener
+                notifyStateChanged(isPlaying, currentSong)
+
+                // DEPRECATO: mantieni per compatibilità
                 onPlayerStateChanged?.invoke(isPlaying, currentSong)
+
                 Log.d("MusicPlayer", "Playing changed: $isPlaying")
             }
         })
@@ -188,27 +233,13 @@ class MusicPlayer(private val context: Context) {
         Log.d("MusicPlayer", "Skipped backward ${milliseconds}ms")
     }
 
-    fun getPlaylist(): List<Song> = playlist
-
     fun getCurrentIndex(): Int = currentSongIndex
 
-    fun hasNext(): Boolean {
-        return if (isShuffleEnabled) {
-            playlist.isNotEmpty()
-        } else {
-            currentSongIndex < playlist.size - 1
-        }
-    }
-
-    fun hasPrevious(): Boolean {
-        return if (isShuffleEnabled) {
-            playlist.isNotEmpty()
-        } else {
-            currentSongIndex > 0
-        }
-    }
-
     fun release() {
+        // Pulisci i listener prima di rilasciare
+        stateChangeListeners.clear()
+        onPlayerStateChanged = null
+
         exoPlayer?.release()
         exoPlayer = null
         Log.d("MusicPlayer", "Player released")

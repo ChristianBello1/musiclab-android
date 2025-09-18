@@ -11,6 +11,7 @@ import android.widget.TextView
 import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import android.content.Intent
 
 data class MusicFolder(
     val name: String,
@@ -149,14 +150,13 @@ class FoldersFragment : Fragment() {
     private fun onFolderClick(folder: MusicFolder) {
         Log.d("FoldersFragment", "🔊 Clicked folder: ${folder.name} with ${folder.songCount} songs")
 
-        // Riproduci la prima canzone della cartella
-        if (folder.songs.isNotEmpty()) {
-            val firstSong = folder.songs.first()
-            Log.d("FoldersFragment", "▶️ Playing: ${firstSong.title}")
-            (activity as? MainActivity)?.onSongClickFromFragment(firstSong)
-        } else {
-            Log.w("FoldersFragment", "⚠️ Cartella vuota!")
-        }
+        // Apri la FolderSongsActivity con le canzoni complete
+        val intent = Intent(requireContext(), FolderSongsActivity::class.java)
+        intent.putExtra("FOLDER_NAME", folder.name)
+        intent.putParcelableArrayListExtra("FOLDER_SONGS", ArrayList(folder.songs))
+
+        Log.d("FoldersFragment", "🚀 Starting FolderSongsActivity")
+        startActivity(intent)
     }
 
     fun updateSongs(newSongs: List<Song>) {

@@ -37,6 +37,15 @@ class PlayerActivity : AppCompatActivity() {
     private val progressHandler = Handler(Looper.getMainLooper())
     private var isUpdatingProgress = false
 
+    // NUOVO: Listener specifico per questa Activity
+    private val playerActivityListener: (Boolean, Song?) -> Unit = { isPlaying, currentSong ->
+        runOnUiThread {
+            updatePlayPauseButton()
+            updateSongInfo()
+            Log.d("PlayerActivity", "🎵 Player state updated: playing=$isPlaying, song=${currentSong?.title}")
+        }
+    }
+
     private val progressRunnable = object : Runnable {
         override fun run() {
             updateProgress()
@@ -88,24 +97,10 @@ class PlayerActivity : AppCompatActivity() {
 
         Log.d("PlayerActivity", "Main control buttons caricati")
 
-        // DEBUG: Controllo pulsanti shuffle e repeat
+        // Secondary control buttons
         try {
             shuffleButton = findViewById(R.id.btn_shuffle)
             repeatButton = findViewById(R.id.btn_repeat)
-
-            Log.d("PlayerActivity", "✅ Shuffle button found: ${shuffleButton != null}")
-            Log.d("PlayerActivity", "✅ Repeat button found: ${repeatButton != null}")
-
-            // Verifica visibilità e dimensioni
-            Log.d("PlayerActivity", "🔍 Shuffle button visible: ${shuffleButton.visibility}")
-            Log.d("PlayerActivity", "🔍 Shuffle button alpha: ${shuffleButton.alpha}")
-            Log.d("PlayerActivity", "🔍 Shuffle button width: ${shuffleButton.width}")
-            Log.d("PlayerActivity", "🔍 Shuffle button height: ${shuffleButton.height}")
-
-            Log.d("PlayerActivity", "🔍 Repeat button visible: ${repeatButton.visibility}")
-            Log.d("PlayerActivity", "🔍 Repeat button alpha: ${repeatButton.alpha}")
-            Log.d("PlayerActivity", "🔍 Repeat button width: ${repeatButton.width}")
-            Log.d("PlayerActivity", "🔍 Repeat button height: ${repeatButton.height}")
 
             // Assicurati che siano visibili e cliccabili
             shuffleButton.visibility = View.VISIBLE
@@ -150,12 +145,13 @@ class PlayerActivity : AppCompatActivity() {
         Log.d("PlayerActivity", "=== SETUP CLICK LISTENERS START ===")
 
         backButton.setOnClickListener {
-            Log.d("PlayerActivity", "Back button clicked")
+            Log.d("PlayerActivity", "🔙 Back button clicked")
             finish()
         }
 
         queueButton.setOnClickListener {
             Log.d("PlayerActivity", "🎵 Queue button clicked")
+            // TODO: Aprire QueueActivity
         }
 
         skipBack10Button.setOnClickListener {
@@ -171,7 +167,6 @@ class PlayerActivity : AppCompatActivity() {
         playPauseButton.setOnClickListener {
             Log.d("PlayerActivity", "⏯️ Play/Pause clicked")
             musicPlayer.playPause()
-            updatePlayPauseButton()
         }
 
         nextButton.setOnClickListener {
@@ -206,13 +201,8 @@ class PlayerActivity : AppCompatActivity() {
             Log.e("PlayerActivity", "❌ Error setting up shuffle/repeat listeners: $e")
         }
 
-        // Listener per cambiamenti di stato del player
-        musicPlayer.onPlayerStateChanged = { isPlaying, currentSong ->
-            runOnUiThread {
-                updatePlayPauseButton()
-                updateSongInfo()
-            }
-        }
+        // NUOVO: Aggiungi il listener invece di sovrascriverlo
+        musicPlayer.addStateChangeListener(playerActivityListener)
 
         Log.d("PlayerActivity", "=== SETUP CLICK LISTENERS END ===")
     }
@@ -317,7 +307,11 @@ class PlayerActivity : AppCompatActivity() {
     override fun onDestroy() {
         super.onDestroy()
         stopProgressUpdates()
-        Log.d("PlayerActivity", "PlayerActivity destroyed")
+
+        // NUOVO: Rimuovi il listener per evitare memory leak
+        musicPlayer.removeStateChangeListener(playerActivityListener)
+
+        Log.d("PlayerActivity", "PlayerActivity destroyed, listener removed")
     }
 
     override fun onPause() {
