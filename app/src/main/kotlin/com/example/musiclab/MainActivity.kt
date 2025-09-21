@@ -242,8 +242,9 @@ class MainActivity : AppCompatActivity() {
         }
 
         btnExpandPlayer.setOnClickListener {
-            Log.d("MainActivity", "📱 Expand player clicked")
-            openPlayerActivity()
+            Log.d("MainActivity", "📱 Queue button clicked - opening QueueActivity")
+            val intent = Intent(this, QueueActivity::class.java)
+            startActivity(intent)
         }
 
         // Click su tutta la barra per aprire il player

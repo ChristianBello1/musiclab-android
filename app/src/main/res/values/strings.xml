@@ -63,15 +63,6 @@
     <string name="check_storage_permission">Verifica i permessi di archiviazione</string>
     <string name="folder_menu">Menu cartella</string>
 
-    <!-- Queue -->
-    <string name="playback_queue">Coda di riproduzione</string>
-    <string name="currently_playing">In riproduzione</string>
-    <string name="up_next">Prossimi</string>
-    <string name="clear_queue">Svuota coda</string>
-    <string name="remove_from_queue">Rimuovi dalla coda</string>
-    <string name="move_up">Sposta su</string>
-    <string name="move_down">Sposta giù</string>
-
     <!-- Sort Options -->
     <string name="sort_by_title">Ordina per titolo</string>
     <string name="sort_by_artist">Ordina per artista</string>
@@ -104,4 +95,21 @@
     <string name="delete">Elimina</string>
     <string name="edit">Modifica</string>
     <string name="create">Crea</string>
+
+    <!-- Queue Management -->
+    <string name="playback_queue">Coda di riproduzione</string>
+    <string name="currently_playing">In riproduzione</string>
+    <string name="up_next">Prossimi</string>
+    <string name="clear_queue">Svuota coda</string>
+    <string name="remove_from_queue">Rimuovi dalla coda</string>
+    <string name="move_up">Sposta su</string>
+    <string name="move_down">Sposta giù</string>
+    <string name="move_song">Sposta canzone</string>
+    <string name="no_songs_in_queue">Nessuna canzone in coda</string>
+    <string name="add_songs_to_queue_hint">Riproduci una canzone per vedere la coda</string>
+    <string name="queue_help_text">Tieni premuto per riordinare • Scorri per rimuovere</string>
+
+    <!-- Queue Position -->
+    <string name="queue_position_format">Posizione %d</string>
+    <string name="next_up_format">Prossima #%d</string>
 </resources>
