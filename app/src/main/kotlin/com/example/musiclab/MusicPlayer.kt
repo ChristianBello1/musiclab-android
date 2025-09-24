@@ -17,46 +17,67 @@ class MusicPlayer(private val context: Context) {
     private var originalPlaylist: List<Song> = emptyList()
     private var currentQueue: MutableList<Song> = mutableListOf()
 
+    // NUOVO: Mantieni l'ordine originale per il de-shuffle
+    private var originalQueueOrder: List<Song> = emptyList()
+
     private var isShuffleEnabled = false
     private var repeatMode = Player.REPEAT_MODE_OFF
 
     // Lista di callback invece di un singolo callback
     private val stateChangeListeners = mutableListOf<(isPlaying: Boolean, currentSong: Song?) -> Unit>()
 
+    // NUOVO: Listener specifico per cambiamenti di coda (shuffle/reorder)
+    private val queueChangeListeners = mutableListOf<() -> Unit>()
+
     init {
         initializePlayer()
     }
 
-    // Aggiungi listener
+    // Aggiungi listener per stato
     fun addStateChangeListener(listener: (isPlaying: Boolean, currentSong: Song?) -> Unit) {
         stateChangeListeners.add(listener)
-        Log.d("MusicPlayer", "Listener aggiunto, totale: ${stateChangeListeners.size}")
+        Log.d("MusicPlayer", "State listener aggiunto, totale: ${stateChangeListeners.size}")
     }
 
-    // Rimuovi listener
+    // Rimuovi listener per stato
     fun removeStateChangeListener(listener: (isPlaying: Boolean, currentSong: Song?) -> Unit) {
         stateChangeListeners.remove(listener)
-        Log.d("MusicPlayer", "Listener rimosso, totale: ${stateChangeListeners.size}")
+        Log.d("MusicPlayer", "State listener rimosso, totale: ${stateChangeListeners.size}")
     }
 
-    // Notifica tutti i listener
+    // NUOVO: Gestione listener per cambiamenti coda
+    fun addQueueChangeListener(listener: () -> Unit) {
+        queueChangeListeners.add(listener)
+        Log.d("MusicPlayer", "Queue listener aggiunto, totale: ${queueChangeListeners.size}")
+    }
+
+    fun removeQueueChangeListener(listener: () -> Unit) {
+        queueChangeListeners.remove(listener)
+        Log.d("MusicPlayer", "Queue listener rimosso, totale: ${queueChangeListeners.size}")
+    }
+
+    // Notifica tutti i listener di stato
     private fun notifyStateChanged(isPlaying: Boolean, currentSong: Song?) {
-        Log.d("MusicPlayer", "Notifying ${stateChangeListeners.size} listeners")
+        Log.d("MusicPlayer", "Notifying ${stateChangeListeners.size} state listeners")
         stateChangeListeners.forEach { listener ->
             try {
                 listener.invoke(isPlaying, currentSong)
             } catch (e: Exception) {
-                Log.e("MusicPlayer", "Error notifying listener: $e")
+                Log.e("MusicPlayer", "Error notifying state listener: $e")
             }
         }
     }
 
-    // NUOVO: Notifica per cambiamenti di stato shuffle/repeat
-    private fun notifyShuffleRepeatChanged() {
-        val isPlaying = exoPlayer?.isPlaying ?: false
-        val currentSong = getCurrentSong()
-        notifyStateChanged(isPlaying, currentSong)
-        Log.d("MusicPlayer", "Shuffle/Repeat state change notified")
+    // NUOVO: Notifica cambiamenti della coda
+    private fun notifyQueueChanged() {
+        Log.d("MusicPlayer", "Notifying ${queueChangeListeners.size} queue listeners")
+        queueChangeListeners.forEach { listener ->
+            try {
+                listener.invoke()
+            } catch (e: Exception) {
+                Log.e("MusicPlayer", "Error notifying queue listener: $e")
+            }
+        }
     }
 
     // DEPRECATO ma mantenuto per compatibilità
@@ -116,7 +137,14 @@ class MusicPlayer(private val context: Context) {
         currentQueue.clear()
         currentQueue.addAll(songs)
 
+        // NUOVO: Salva l'ordine originale
+        originalQueueOrder = songs.toList()
+
         currentSongIndex = startIndex.coerceIn(0, songs.size - 1)
+
+        // IMPORTANTE: Notifica il cambiamento della coda
+        notifyQueueChanged()
+
         Log.d("MusicPlayer", "Playlist set: ${songs.size} songs, queue: ${currentQueue.size}, starting at $currentSongIndex")
     }
 
@@ -163,7 +191,8 @@ class MusicPlayer(private val context: Context) {
         if (currentQueue.isEmpty()) return
 
         currentSongIndex = if (isShuffleEnabled) {
-            currentQueue.indices.random()
+            // Con shuffle, prendi la prossima nella coda già mescolata
+            (currentSongIndex + 1) % currentQueue.size
         } else {
             (currentSongIndex + 1) % currentQueue.size
         }
@@ -190,11 +219,15 @@ class MusicPlayer(private val context: Context) {
 
     fun addToQueue(song: Song) {
         currentQueue.add(song)
+        // IMPORTANTE: Notifica il cambiamento
+        notifyQueueChanged()
         Log.d("MusicPlayer", "Added '${song.title}' to queue. Queue size: ${currentQueue.size}")
     }
 
     fun addToQueue(songs: List<Song>) {
         currentQueue.addAll(songs)
+        // IMPORTANTE: Notifica il cambiamento
+        notifyQueueChanged()
         Log.d("MusicPlayer", "Added ${songs.size} songs to queue. Queue size: ${currentQueue.size}")
     }
 
@@ -223,6 +256,9 @@ class MusicPlayer(private val context: Context) {
             }
         }
 
+        // IMPORTANTE: Notifica il cambiamento
+        notifyQueueChanged()
+
         Log.d("MusicPlayer", "Removed '${removedSong.title}' from position $position. Queue size: ${currentQueue.size}")
         return true
     }
@@ -249,6 +285,9 @@ class MusicPlayer(private val context: Context) {
                 currentSongIndex++
             }
         }
+
+        // IMPORTANTE: Notifica il cambiamento
+        notifyQueueChanged()
 
         Log.d("MusicPlayer", "Moved '${movedSong.title}' from $fromPosition to $toPosition. Current index: $currentSongIndex")
         return true
@@ -279,6 +318,9 @@ class MusicPlayer(private val context: Context) {
             currentSongIndex = -1
         }
 
+        // IMPORTANTE: Notifica il cambiamento
+        notifyQueueChanged()
+
         Log.d("MusicPlayer", "Queue cleared. Remaining songs: ${currentQueue.size}")
     }
 
@@ -292,25 +334,64 @@ class MusicPlayer(private val context: Context) {
         return exoPlayer?.isPlaying ?: false
     }
 
-    // AGGIORNATO: Toggle shuffle con sincronizzazione
+    // COMPLETAMENTE RISCRITTO: Toggle shuffle con sincronizzazione perfetta
     fun toggleShuffle(): Boolean {
         isShuffleEnabled = !isShuffleEnabled
 
-        // Se shuffle è attivato, rimescola solo le canzoni DOPO quella corrente
-        if (isShuffleEnabled && currentQueue.size > currentSongIndex + 1) {
-            val beforeCurrent = currentQueue.take(currentSongIndex + 1) // Include la corrente
-            val afterCurrent = currentQueue.drop(currentSongIndex + 1).shuffled()
+        Log.d("MusicPlayer", "=== TOGGLE SHUFFLE START ===")
+        Log.d("MusicPlayer", "Shuffle enabled: $isShuffleEnabled")
 
-            currentQueue.clear()
-            currentQueue.addAll(beforeCurrent)
-            currentQueue.addAll(afterCurrent)
+        val currentSong = getCurrentSong()
 
-            Log.d("MusicPlayer", "Queue shuffled - new order applied")
+        if (isShuffleEnabled) {
+            // ATTIVA SHUFFLE: Mescola tutto tranne la canzone corrente
+            Log.d("MusicPlayer", "Attivando shuffle...")
+
+            if (currentSong != null && currentQueue.size > 1) {
+                // Rimuovi la canzone corrente temporaneamente
+                val songsToShuffle = currentQueue.toMutableList()
+                songsToShuffle.removeAt(currentSongIndex)
+
+                // Mescola le altre canzoni
+                songsToShuffle.shuffle()
+
+                // Ricostruisci la coda: canzone corrente + canzoni mescolate
+                currentQueue.clear()
+                currentQueue.add(currentSong)
+                currentQueue.addAll(songsToShuffle)
+
+                // La canzone corrente è ora all'indice 0
+                currentSongIndex = 0
+
+                Log.d("MusicPlayer", "Shuffle applicato. Current song ora all'indice 0")
+            }
+
+        } else {
+            // DISATTIVA SHUFFLE: Ripristina ordine originale
+            Log.d("MusicPlayer", "Disattivando shuffle...")
+
+            if (originalQueueOrder.isNotEmpty() && currentSong != null) {
+                // Trova la posizione della canzone corrente nell'ordine originale
+                val originalIndex = originalQueueOrder.indexOf(currentSong)
+
+                // Ripristina l'ordine originale
+                currentQueue.clear()
+                currentQueue.addAll(originalQueueOrder)
+
+                // Aggiorna l'indice corrente
+                currentSongIndex = if (originalIndex != -1) originalIndex else 0
+
+                Log.d("MusicPlayer", "Ordine originale ripristinato. Current song all'indice $currentSongIndex")
+            }
         }
 
-        // IMPORTANTE: Notifica il cambiamento
-        notifyShuffleRepeatChanged()
-        Log.d("MusicPlayer", "Shuffle: $isShuffleEnabled")
+        // FONDAMENTALE: Notifica TUTTI i listener che la coda è cambiata
+        notifyQueueChanged()
+        notifyStateChanged(isPlaying(), currentSong)
+
+        Log.d("MusicPlayer", "=== TOGGLE SHUFFLE END ===")
+        Log.d("MusicPlayer", "Final queue size: ${currentQueue.size}, current index: $currentSongIndex")
+
         return isShuffleEnabled
     }
 
@@ -327,7 +408,8 @@ class MusicPlayer(private val context: Context) {
         exoPlayer?.repeatMode = repeatMode
 
         // IMPORTANTE: Notifica il cambiamento
-        notifyShuffleRepeatChanged()
+        notifyStateChanged(isPlaying(), getCurrentSong())
+
         Log.d("MusicPlayer", "Repeat mode: $repeatMode")
         return repeatMode
     }
@@ -371,6 +453,7 @@ class MusicPlayer(private val context: Context) {
 
     fun release() {
         stateChangeListeners.clear()
+        queueChangeListeners.clear() // NUOVO: Pulisci anche i queue listeners
         onPlayerStateChanged = null
 
         exoPlayer?.release()

@@ -83,7 +83,18 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    // NUOVO: Listener per la bottom bar
+    // NUOVO: Listener separato per cambiamenti della coda
+    private val mainQueueChangeListener: () -> Unit = {
+        runOnUiThread {
+            Log.d("MainActivity", "🔄 Queue changed in MainActivity - updating bottom bar")
+            // Aggiorna la bottom bar con i nuovi dati della coda
+            val currentSong = musicPlayer.getCurrentSong()
+            val isPlaying = musicPlayer.isPlaying()
+            updatePlayerBottomBar(isPlaying, currentSong)
+        }
+    }
+
+    // Listener per cambiamenti di stato del player (play/pause/song change)
     private val mainActivityPlayerListener: (Boolean, Song?) -> Unit = { isPlaying, currentSong ->
         runOnUiThread {
             updatePlayerBottomBar(isPlaying, currentSong)
@@ -127,8 +138,9 @@ class MainActivity : AppCompatActivity() {
         musicScanner = MusicScanner(this)
         musicPlayer = MusicPlayerManager.getInstance().getMusicPlayer(this)
 
-        // NUOVO: Usa addStateChangeListener invece di onPlayerStateChanged
+        // AGGIORNATO: Aggiungi entrambi i listener
         musicPlayer.addStateChangeListener(mainActivityPlayerListener)
+        musicPlayer.addQueueChangeListener(mainQueueChangeListener)
 
         checkPermissionsAndLoadMusic()
 
@@ -374,17 +386,21 @@ class MainActivity : AppCompatActivity() {
         Log.d("MainActivity", "Opening playlist: ${playlist.name}")
     }
 
-    // Player UI updates
+    // Player UI updates - MIGLIORATO per sincronizzazione
     private fun updatePlayerBottomBar(isPlaying: Boolean, currentSong: Song?) {
         Log.d("MainActivity", "🔄 Updating bottom bar: playing=$isPlaying, song=${currentSong?.title}")
 
         if (currentSong != null) {
             showPlayerBottomBar()
 
-            currentSongTitle.text = currentSong.title
-            currentSongArtist.text = currentSong.artist
-            bottomTotalTime.text = currentSong.getFormattedDuration()
-            bottomSeekBar.max = (currentSong.duration / 1000).toInt()
+            // NUOVO: Verifica che stiamo mostrando la canzone corretta
+            val realCurrentSong = musicPlayer.getCurrentSong()
+            val songToShow = realCurrentSong ?: currentSong
+
+            currentSongTitle.text = songToShow.title
+            currentSongArtist.text = songToShow.artist
+            bottomTotalTime.text = songToShow.getFormattedDuration()
+            bottomSeekBar.max = (songToShow.duration / 1000).toInt()
 
             val iconRes = if (isPlaying) {
                 android.R.drawable.ic_media_pause
@@ -396,9 +412,12 @@ class MainActivity : AppCompatActivity() {
             if (isPlaying) {
                 startBottomProgressUpdates()
             }
+
+            Log.d("MainActivity", "✅ Bottom bar updated with: ${songToShow.title}")
         } else {
             hidePlayerBottomBar()
             stopBottomProgressUpdates()
+            Log.d("MainActivity", "❌ No song - hiding bottom bar")
         }
     }
 
@@ -540,9 +559,10 @@ class MainActivity : AppCompatActivity() {
         super.onDestroy()
         stopBottomProgressUpdates()
 
-        // NUOVO: Rimuovi il listener per evitare memory leak
+        // AGGIORNATO: Rimuovi entrambi i listener per evitare memory leak
         musicPlayer.removeStateChangeListener(mainActivityPlayerListener)
+        musicPlayer.removeQueueChangeListener(mainQueueChangeListener)
 
-        Log.d("MainActivity", "MainActivity destroyed, listener removed")
+        Log.d("MainActivity", "MainActivity destroyed, all listeners removed")
     }
 }

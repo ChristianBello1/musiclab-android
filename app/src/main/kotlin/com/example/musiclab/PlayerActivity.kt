@@ -38,7 +38,17 @@ class PlayerActivity : AppCompatActivity() {
     private val progressHandler = Handler(Looper.getMainLooper())
     private var isUpdatingProgress = false
 
-    // Listener specifico per questa Activity
+    // NUOVO: Listener per cambiamenti della coda (shuffle)
+    private val playerQueueChangeListener: () -> Unit = {
+        runOnUiThread {
+            Log.d("PlayerActivity", "🔄 Queue changed - updating shuffle/repeat UI")
+            updateShuffleButton(musicPlayer.isShuffleEnabled())
+            updateRepeatButton(musicPlayer.getRepeatMode())
+            updateSongInfo() // Potrebbe essere cambiata la canzone corrente
+        }
+    }
+
+    // Listener per cambiamenti di stato del player
     private val playerActivityListener: (Boolean, Song?) -> Unit = { isPlaying, currentSong ->
         runOnUiThread {
             updatePlayPauseButton()
@@ -183,30 +193,31 @@ class PlayerActivity : AppCompatActivity() {
             musicPlayer.skipForward(10000)
         }
 
-        // Click listeners per shuffle e repeat con logging esteso
+        // MIGLIORATO: Click listeners per shuffle e repeat
         try {
             shuffleButton.setOnClickListener {
-                Log.d("PlayerActivity", "SHUFFLE BUTTON CLICKED!")
+                Log.d("PlayerActivity", "🔀 SHUFFLE BUTTON CLICKED!")
                 val isShuffleEnabled = musicPlayer.toggleShuffle()
-                updateShuffleButton(isShuffleEnabled)
-                Log.d("PlayerActivity", "Shuffle now: $isShuffleEnabled")
+                Log.d("PlayerActivity", "✅ Shuffle toggled to: $isShuffleEnabled")
+                // Non chiamare updateShuffleButton qui - il listener se ne occuperà
             }
 
             repeatButton.setOnClickListener {
-                Log.d("PlayerActivity", "REPEAT BUTTON CLICKED!")
+                Log.d("PlayerActivity", "🔁 REPEAT BUTTON CLICKED!")
                 val repeatMode = musicPlayer.toggleRepeat()
-                updateRepeatButton(repeatMode)
-                Log.d("PlayerActivity", "Repeat mode now: $repeatMode")
+                Log.d("PlayerActivity", "✅ Repeat toggled to mode: $repeatMode")
+                // Non chiamare updateRepeatButton qui - il listener se ne occuperà
             }
 
-            Log.d("PlayerActivity", "Shuffle/Repeat click listeners configurati")
+            Log.d("PlayerActivity", "✅ Shuffle/Repeat click listeners configurati")
 
         } catch (e: Exception) {
-            Log.e("PlayerActivity", "Error setting up shuffle/repeat listeners: $e")
+            Log.e("PlayerActivity", "❌ Error setting up shuffle/repeat listeners: $e")
         }
 
-        // Aggiungi il listener per aggiornamenti del player
+        // AGGIORNATO: Aggiungi entrambi i listener
         musicPlayer.addStateChangeListener(playerActivityListener)
+        musicPlayer.addQueueChangeListener(playerQueueChangeListener)
 
         Log.d("PlayerActivity", "=== SETUP CLICK LISTENERS END ===")
     }
@@ -250,8 +261,9 @@ class PlayerActivity : AppCompatActivity() {
         Log.d("PlayerActivity", "Play/Pause updated: playing=$isPlaying")
     }
 
+    // MIGLIORATO: Aggiornamento UI con logging esteso
     private fun updateShuffleButton(isEnabled: Boolean) {
-        Log.d("PlayerActivity", "Updating shuffle button: enabled=$isEnabled")
+        Log.d("PlayerActivity", "🔄 Updating shuffle button: enabled=$isEnabled")
 
         try {
             val colorRes = if (isEnabled) {
@@ -261,14 +273,14 @@ class PlayerActivity : AppCompatActivity() {
             }
             shuffleButton.setColorFilter(colorRes)
 
-            Log.d("PlayerActivity", "Shuffle button color set to: ${if (isEnabled) "purple" else "gray"}")
+            Log.d("PlayerActivity", "✅ Shuffle button updated - color: ${if (isEnabled) "purple" else "gray"}")
         } catch (e: Exception) {
-            Log.e("PlayerActivity", "Error updating shuffle button: $e")
+            Log.e("PlayerActivity", "❌ Error updating shuffle button: $e")
         }
     }
 
     private fun updateRepeatButton(repeatMode: Int) {
-        Log.d("PlayerActivity", "Updating repeat button: mode=$repeatMode")
+        Log.d("PlayerActivity", "🔄 Updating repeat button: mode=$repeatMode")
 
         try {
             val colorRes = if (repeatMode != androidx.media3.common.Player.REPEAT_MODE_OFF) {
@@ -278,9 +290,17 @@ class PlayerActivity : AppCompatActivity() {
             }
             repeatButton.setColorFilter(colorRes)
 
-            Log.d("PlayerActivity", "Repeat button color set to: ${if (repeatMode != 0) "purple" else "gray"}")
+            // NUOVO: Cambia anche l'icona in base al modo repeat
+            val iconRes = when (repeatMode) {
+                androidx.media3.common.Player.REPEAT_MODE_ONE -> android.R.drawable.ic_menu_revert
+                androidx.media3.common.Player.REPEAT_MODE_ALL -> android.R.drawable.ic_menu_rotate
+                else -> android.R.drawable.ic_menu_revert
+            }
+            repeatButton.setImageResource(iconRes)
+
+            Log.d("PlayerActivity", "✅ Repeat button updated - mode: $repeatMode, color: ${if (repeatMode != 0) "purple" else "gray"}")
         } catch (e: Exception) {
-            Log.e("PlayerActivity", "Error updating repeat button: $e")
+            Log.e("PlayerActivity", "❌ Error updating repeat button: $e")
         }
     }
 
@@ -312,10 +332,11 @@ class PlayerActivity : AppCompatActivity() {
         super.onDestroy()
         stopProgressUpdates()
 
-        // Rimuovi il listener per evitare memory leak
+        // AGGIORNATO: Rimuovi entrambi i listener per evitare memory leak
         musicPlayer.removeStateChangeListener(playerActivityListener)
+        musicPlayer.removeQueueChangeListener(playerQueueChangeListener)
 
-        Log.d("PlayerActivity", "PlayerActivity destroyed, listener removed")
+        Log.d("PlayerActivity", "PlayerActivity destroyed, all listeners removed")
     }
 
     override fun onPause() {
@@ -341,4 +362,3 @@ class PlayerActivity : AppCompatActivity() {
         }
     }
 }
-//yes
