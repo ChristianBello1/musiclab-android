@@ -1,16 +1,17 @@
 package com.example.musiclab
 
+import android.util.Log
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.FragmentActivity
 import androidx.viewpager2.adapter.FragmentStateAdapter
 
 class MainViewPagerAdapter(
     fragmentActivity: FragmentActivity,
-    private val songs: List<Song>
+    private var songs: List<Song>  // Cambiato da private val a private var
 ) : FragmentStateAdapter(fragmentActivity) {
 
-    private lateinit var foldersFragment: FoldersFragment
-    private lateinit var playlistsFragment: PlaylistsFragment
+    private var foldersFragment: FoldersFragment? = null
+    private var playlistsFragment: PlaylistsFragment? = null
 
     override fun getItemCount(): Int = 2
 
@@ -18,29 +19,38 @@ class MainViewPagerAdapter(
         return when (position) {
             0 -> {
                 foldersFragment = FoldersFragment.newInstance(songs)
-                foldersFragment
+                foldersFragment!!
             }
             1 -> {
                 playlistsFragment = PlaylistsFragment.newInstance()
-                playlistsFragment
+                playlistsFragment!!
             }
             else -> throw IllegalStateException("Invalid position $position")
         }
     }
 
     fun getFoldersFragment(): FoldersFragment? {
-        return if (::foldersFragment.isInitialized) foldersFragment else null
+        return foldersFragment
     }
 
     fun getPlaylistsFragment(): PlaylistsFragment? {
-        return if (::playlistsFragment.isInitialized) playlistsFragment else null
+        return playlistsFragment
     }
 
+    // AGGIORNATO: Ora aggiorna la variabile locale e i fragment
     fun updateSongs(newSongs: List<Song>) {
-        getFoldersFragment()?.updateSongs(newSongs)
+        Log.d("MainViewPagerAdapter", "🔄 Updating songs: ${newSongs.size}")
+
+        // Aggiorna la lista locale
+        songs = newSongs
+
+        // Aggiorna il fragment delle cartelle se esiste
+        foldersFragment?.updateSongs(newSongs)
+
+        Log.d("MainViewPagerAdapter", "✅ Songs updated in adapter")
     }
 
     fun setLoginState(loggedIn: Boolean) {
-        getPlaylistsFragment()?.setLoginState(loggedIn)
+        playlistsFragment?.setLoginState(loggedIn)
     }
 }

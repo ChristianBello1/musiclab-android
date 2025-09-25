@@ -27,8 +27,21 @@ import androidx.viewpager2.widget.ViewPager2
 import com.google.android.material.tabs.TabLayout
 import com.google.android.material.tabs.TabLayoutMediator
 import java.util.Locale
+import androidx.activity.result.contract.ActivityResultContracts
+import com.google.android.gms.auth.api.signin.GoogleSignInAccount
 
 class MainActivity : AppCompatActivity() {
+
+    // NUOVO: Enum per i tipi di ordinamento
+    enum class SortType {
+        TITLE_ASC,      // Nome A-Z
+        ARTIST_ASC,     // Artista A-Z
+        ALBUM_ASC,      // Album A-Z
+        DURATION_ASC,   // Durata crescente
+        DATE_ADDED_DESC // Data aggiunta (più recenti prima)
+    }
+
+    private lateinit var googleAuthManager: GoogleAuthManager
 
     // Core components
     private lateinit var musicScanner: MusicScanner
@@ -70,7 +83,21 @@ class MainActivity : AppCompatActivity() {
     private lateinit var bottomTotalTime: TextView
 
     // State management
-    private var isLoggedIn = false
+    private var currentGoogleUser: GoogleSignInAccount? = null
+
+    // NUOVO: Ordinamento corrente
+    private var currentSortType = SortType.TITLE_ASC
+
+    private val googleSignInLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        val success = googleAuthManager.handleSignInResult(result.data)
+        if (success) {
+            Toast.makeText(this, "Login effettuato con successo!", Toast.LENGTH_SHORT).show()
+        } else {
+            Toast.makeText(this, "Login fallito", Toast.LENGTH_SHORT).show()
+        }
+    }
 
     // Progress handler
     private val progressHandler = Handler(Looper.getMainLooper())
@@ -83,18 +110,17 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    // NUOVO: Listener separato per cambiamenti della coda
+    // Listener separato per cambiamenti della coda
     private val mainQueueChangeListener: () -> Unit = {
         runOnUiThread {
             Log.d("MainActivity", "🔄 Queue changed in MainActivity - updating bottom bar")
-            // Aggiorna la bottom bar con i nuovi dati della coda
             val currentSong = musicPlayer.getCurrentSong()
             val isPlaying = musicPlayer.isPlaying()
             updatePlayerBottomBar(isPlaying, currentSong)
         }
     }
 
-    // Listener per cambiamenti di stato del player (play/pause/song change)
+    // Listener per cambiamenti di stato del player
     private val mainActivityPlayerListener: (Boolean, Song?) -> Unit = { isPlaying, currentSong ->
         runOnUiThread {
             updatePlayerBottomBar(isPlaying, currentSong)
@@ -138,7 +164,7 @@ class MainActivity : AppCompatActivity() {
         musicScanner = MusicScanner(this)
         musicPlayer = MusicPlayerManager.getInstance().getMusicPlayer(this)
 
-        // AGGIORNATO: Aggiungi entrambi i listener
+        // Aggiungi entrambi i listener
         musicPlayer.addStateChangeListener(mainActivityPlayerListener)
         musicPlayer.addQueueChangeListener(mainQueueChangeListener)
 
@@ -169,10 +195,16 @@ class MainActivity : AppCompatActivity() {
 
         // Setup search RecyclerView
         searchResultsRecycler.layoutManager = LinearLayoutManager(this)
-        searchAdapter = SongAdapter(emptyList()) { song ->
-            onSongClick(song)
-            closeSearch()
-        }
+        searchAdapter = SongAdapter(
+            songs = emptyList(),
+            onSongClick = { song ->
+                onSongClick(song)
+                closeSearch()
+            },
+            onSongMenuClick = { song, action -> // NUOVO: callback menu
+                handleSongMenuAction(song, action)
+            }
+        )
         searchResultsRecycler.adapter = searchAdapter
 
         // Setup Player Bottom Bar
@@ -218,7 +250,7 @@ class MainActivity : AppCompatActivity() {
         btnSearch.setOnClickListener { toggleSearch() }
         btnLogin.setOnClickListener { toggleLogin() }
         btnSettings.setOnClickListener { openSettings() }
-        btnSort.setOnClickListener { showSortOptions() }
+        btnSort.setOnClickListener { showSortOptions() } // Ora funziona davvero!
 
         // Search listeners
         btnCloseSearch.setOnClickListener { closeSearch() }
@@ -363,9 +395,108 @@ class MainActivity : AppCompatActivity() {
         Toast.makeText(this, "Impostazioni (coming soon!)", Toast.LENGTH_SHORT).show()
     }
 
-    // Sort functionality
+    // NUOVO: Sistema di ordinamento completo
     private fun showSortOptions() {
-        Toast.makeText(this, "Opzioni ordinamento (coming soon!)", Toast.LENGTH_SHORT).show()
+        Log.d("MainActivity", "🔄 Opening sort options")
+
+        val sortOptions = arrayOf(
+            getString(R.string.sort_by_title),
+            getString(R.string.sort_by_artist),
+            getString(R.string.sort_by_album),
+            getString(R.string.sort_by_duration),
+            getString(R.string.sort_by_date_added)
+        )
+
+        val currentSelection = when (currentSortType) {
+            SortType.TITLE_ASC -> 0
+            SortType.ARTIST_ASC -> 1
+            SortType.ALBUM_ASC -> 2
+            SortType.DURATION_ASC -> 3
+            SortType.DATE_ADDED_DESC -> 4
+        }
+
+        androidx.appcompat.app.AlertDialog.Builder(this)
+            .setTitle(getString(R.string.sort_dialog_title))
+            .setSingleChoiceItems(sortOptions, currentSelection) { dialog, which ->
+                val newSortType = when (which) {
+                    0 -> SortType.TITLE_ASC
+                    1 -> SortType.ARTIST_ASC
+                    2 -> SortType.ALBUM_ASC
+                    3 -> SortType.DURATION_ASC
+                    4 -> SortType.DATE_ADDED_DESC
+                    else -> SortType.TITLE_ASC
+                }
+
+                if (newSortType != currentSortType) {
+                    currentSortType = newSortType
+                    applySorting()
+                    updateSortButtonIcon()
+                }
+
+                dialog.dismiss()
+            }
+            .setNegativeButton(getString(R.string.cancel), null)
+            .show()
+    }
+
+    // NUOVO: Applica l'ordinamento alle canzoni
+    private fun applySorting() {
+        Log.d("MainActivity", "🔄 Applying sort: $currentSortType")
+
+        val sortedSongs = when (currentSortType) {
+            SortType.TITLE_ASC -> songs.sortedBy { it.title.lowercase() }
+            SortType.ARTIST_ASC -> songs.sortedBy { it.artist.lowercase() }
+            SortType.ALBUM_ASC -> songs.sortedBy { it.album.lowercase() }
+            SortType.DURATION_ASC -> songs.sortedBy { it.duration }
+            SortType.DATE_ADDED_DESC -> songs.sortedByDescending { it.id } // ID più alto = aggiunto più di recente
+        }
+
+        // Aggiorna la lista locale
+        songs = sortedSongs
+
+        // Aggiorna il ViewPager con le canzoni ordinate
+        viewPagerAdapter.updateSongs(sortedSongs)
+
+        // Aggiorna anche l'adapter di ricerca se attivo
+        if (isSearchActive && searchInput.text.isNotEmpty()) {
+            performSearch(searchInput.text.toString())
+        }
+
+        // Mostra toast con conferma
+        val sortName = when (currentSortType) {
+            SortType.TITLE_ASC -> getString(R.string.sorted_by_title)
+            SortType.ARTIST_ASC -> getString(R.string.sorted_by_artist)
+            SortType.ALBUM_ASC -> getString(R.string.sorted_by_album)
+            SortType.DURATION_ASC -> getString(R.string.sorted_by_duration)
+            SortType.DATE_ADDED_DESC -> getString(R.string.sorted_by_date)
+        }
+
+        Toast.makeText(this, sortName, Toast.LENGTH_SHORT).show()
+        Log.d("MainActivity", "✅ Sorting applied: $sortName")
+    }
+
+    // NUOVO: Aggiorna l'icona del pulsante sort
+    private fun updateSortButtonIcon() {
+        val iconRes = when (currentSortType) {
+            SortType.TITLE_ASC -> android.R.drawable.ic_menu_sort_alphabetically
+            SortType.ARTIST_ASC -> android.R.drawable.ic_menu_info_details
+            SortType.ALBUM_ASC -> android.R.drawable.ic_menu_gallery
+            SortType.DURATION_ASC -> android.R.drawable.ic_menu_recent_history
+            SortType.DATE_ADDED_DESC -> android.R.drawable.ic_menu_today
+        }
+
+        btnSort.setImageResource(iconRes)
+
+        // Cambia anche il colore per indicare che un ordinamento è attivo
+        val colorRes = if (currentSortType == SortType.TITLE_ASC) {
+            // Ordinamento di default - colore normale
+            ContextCompat.getColor(this, android.R.color.black)
+        } else {
+            // Ordinamento personalizzato - colore primario
+            ContextCompat.getColor(this, R.color.purple_500)
+        }
+
+        btnSort.setColorFilter(colorRes)
     }
 
     private fun onSongClick(song: Song) {
@@ -386,14 +517,13 @@ class MainActivity : AppCompatActivity() {
         Log.d("MainActivity", "Opening playlist: ${playlist.name}")
     }
 
-    // Player UI updates - MIGLIORATO per sincronizzazione
+    // Player UI updates
     private fun updatePlayerBottomBar(isPlaying: Boolean, currentSong: Song?) {
         Log.d("MainActivity", "🔄 Updating bottom bar: playing=$isPlaying, song=${currentSong?.title}")
 
         if (currentSong != null) {
             showPlayerBottomBar()
 
-            // NUOVO: Verifica che stiamo mostrando la canzone corretta
             val realCurrentSong = musicPlayer.getCurrentSong()
             val songToShow = realCurrentSong ?: currentSong
 
@@ -490,6 +620,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    // AGGIORNATO: Ora applica ordinamento dopo il caricamento
     private fun loadMusicFiles() {
         Log.d("MainActivity", "=== INIZIO CARICAMENTO MUSICA ===")
 
@@ -511,7 +642,11 @@ class MainActivity : AppCompatActivity() {
             viewPager.post {
                 Log.d("MainActivity", "🔄 Aggiornamento ViewPager...")
 
-                // Aggiorna l'adapter con le nuove canzoni
+                // NUOVO: Applica ordinamento di default dopo il caricamento
+                applySorting()
+                updateSortButtonIcon()
+
+                // Aggiorna l'adapter con le nuove canzoni (già ordinate)
                 viewPagerAdapter = MainViewPagerAdapter(this@MainActivity, songs)
                 viewPager.adapter = viewPagerAdapter
 
@@ -539,6 +674,110 @@ class MainActivity : AppCompatActivity() {
         Log.d("MainActivity", "=== FINE CARICAMENTO MUSICA ===")
     }
 
+    private fun handleSongMenuAction(song: Song, action: SongAdapter.MenuAction) {
+        when (action) {
+            SongAdapter.MenuAction.ADD_TO_PLAYLIST -> {
+                showAddToPlaylistDialog(song)
+            }
+            SongAdapter.MenuAction.SONG_DETAILS -> {
+                showSongDetails(song)
+            }
+            SongAdapter.MenuAction.DELETE_FROM_DEVICE -> {
+                showDeleteSongConfirmation(song)
+            }
+        }
+    }
+
+    private fun showAddToPlaylistDialog(song: Song) {
+        // Per ora mostra un toast, dopo implementeremo le playlist
+        Toast.makeText(
+            this,
+            "Aggiungi '${song.title}' a playlist (coming soon!)",
+            Toast.LENGTH_SHORT
+        ).show()
+        Log.d("MainActivity", "Add to playlist requested for: ${song.title}")
+    }
+
+    private fun showSongDetails(song: Song) {
+        val fileSize = formatFileSize(song.size)
+        val message = """
+        Titolo: ${song.title}
+        Artista: ${song.artist}
+        Album: ${song.album}
+        Durata: ${song.getFormattedDuration()}
+        Dimensione: $fileSize
+        Percorso: ${song.path}
+    """.trimIndent()
+
+        androidx.appcompat.app.AlertDialog.Builder(this)
+            .setTitle(getString(R.string.song_details_title))
+            .setMessage(message)
+            .setPositiveButton(getString(R.string.close)) { dialog, _ ->
+                dialog.dismiss()
+            }
+            .show()
+
+        Log.d("MainActivity", "Song details shown for: ${song.title}")
+    }
+
+    private fun showDeleteSongConfirmation(song: Song) {
+        val message = getString(R.string.delete_song_message, song.title)
+
+        androidx.appcompat.app.AlertDialog.Builder(this)
+            .setTitle(getString(R.string.delete_song_title))
+            .setMessage(message)
+            .setPositiveButton(getString(R.string.delete_confirm)) { dialog, _ ->
+                deleteSongFromDevice(song)
+                dialog.dismiss()
+            }
+            .setNegativeButton(getString(R.string.cancel)) { dialog, _ ->
+                dialog.dismiss()
+            }
+            .show()
+
+        Log.d("MainActivity", "Delete confirmation shown for: ${song.title}")
+    }
+
+    private fun deleteSongFromDevice(song: Song) {
+        try {
+            val file = java.io.File(song.path)
+            if (file.exists() && file.delete()) {
+                // Rimuovi dalla lista locale
+                songs = songs.filter { it.id != song.id }
+
+                // Aggiorna UI
+                applySorting()
+
+                // Aggiorna anche la ricerca se attiva
+                if (isSearchActive && searchInput.text.isNotEmpty()) {
+                    performSearch(searchInput.text.toString())
+                }
+
+                Toast.makeText(this, "Canzone eliminata", Toast.LENGTH_SHORT).show()
+                Log.d("MainActivity", "Song deleted successfully: ${song.title}")
+            } else {
+                Toast.makeText(this, "Errore durante l'eliminazione", Toast.LENGTH_SHORT).show()
+                Log.e("MainActivity", "Failed to delete song: ${song.title}")
+            }
+        } catch (e: Exception) {
+            Toast.makeText(this, "Errore: ${e.message}", Toast.LENGTH_SHORT).show()
+            Log.e("MainActivity", "Error deleting song: $e")
+        }
+    }
+
+    private fun formatFileSize(bytes: Long): String {
+        val kb = bytes / 1024.0
+        val mb = kb / 1024.0
+        val gb = mb / 1024.0
+
+        return when {
+            gb >= 1.0 -> String.format("%.1f GB", gb)
+            mb >= 1.0 -> String.format("%.1f MB", mb)
+            kb >= 1.0 -> String.format("%.1f KB", kb)
+            else -> "$bytes bytes"
+        }
+    }
+
     override fun onResume() {
         super.onResume()
         Log.d("MainActivity", "=== ON RESUME ===")
@@ -559,7 +798,7 @@ class MainActivity : AppCompatActivity() {
         super.onDestroy()
         stopBottomProgressUpdates()
 
-        // AGGIORNATO: Rimuovi entrambi i listener per evitare memory leak
+        // Rimuovi entrambi i listener per evitare memory leak
         musicPlayer.removeStateChangeListener(mainActivityPlayerListener)
         musicPlayer.removeQueueChangeListener(mainQueueChangeListener)
 

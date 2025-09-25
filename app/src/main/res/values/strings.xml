@@ -64,11 +64,17 @@
     <string name="folder_menu">Menu cartella</string>
 
     <!-- Sort Options -->
-    <string name="sort_by_title">Ordina per titolo</string>
-    <string name="sort_by_artist">Ordina per artista</string>
-    <string name="sort_by_album">Ordina per album</string>
-    <string name="sort_by_duration">Ordina per durata</string>
-    <string name="sort_by_date_added">Ordina per data aggiunta</string>
+    <string name="sort_by_title">Nome (A-Z)</string>
+    <string name="sort_by_artist">Artista (A-Z)</string>
+    <string name="sort_by_album">Album (A-Z)</string>
+    <string name="sort_by_duration">Durata (brevi → lunghe)</string>
+    <string name="sort_by_date_added">Aggiunte di recente</string>
+    <string name="sort_dialog_title">Ordina canzoni per:</string>
+    <string name="sorted_by_title">Ordinate per nome</string>
+    <string name="sorted_by_artist">Ordinate per artista</string>
+    <string name="sorted_by_album">Ordinate per album</string>
+    <string name="sorted_by_duration">Ordinate per durata</string>
+    <string name="sorted_by_date">Ordinate per data aggiunta</string>
 
     <!-- Login & Cloud -->
     <string name="login_required">Login richiesto</string>
@@ -112,4 +118,29 @@
     <!-- Queue Position -->
     <string name="queue_position_format">Posizione %d</string>
     <string name="next_up_format">Prossima #%d</string>
+
+    <!-- Song Menu Options -->
+    <string name="song_menu">Menu canzone</string>
+    <string name="song_details">Dettagli canzone</string>
+    <string name="delete_from_device">Elimina dal dispositivo</string>
+
+    <!-- Dialog confirmations -->
+    <string name="delete_song_title">Elimina canzone</string>
+    <string name="delete_song_message">Sei sicuro di voler eliminare "%s" dal dispositivo? Questa azione non può essere annullata.</string>
+    <string name="delete_confirm">Elimina</string>
+
+    <!-- Song details -->
+    <string name="song_details_title">Dettagli canzone</string>
+    <string name="song_details_file_path">Percorso: %s</string>
+    <string name="song_details_file_size">Dimensione: %s</string>
+    <string name="song_details_duration">Durata: %s</string>
+    <string name="close">Chiudi</string>
+
+    <!-- Google Auth -->
+    <string name="google_sign_in_failed">Login Google fallito</string>
+    <string name="google_sign_out_failed">Logout fallito</string>
+    <string name="login_required_title">Accesso richiesto</string>
+    <string name="login_required_message">Per creare e gestire playlist devi effettuare l'accesso con Google.</string>
+    <string name="sign_in">Accedi</string>
+
 </resources>
