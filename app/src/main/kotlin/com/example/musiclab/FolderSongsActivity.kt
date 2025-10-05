@@ -1,11 +1,11 @@
 package com.example.musiclab
 
-import android.content.Intent
 import android.os.Bundle
 import android.util.Log
 import android.widget.ImageButton
 import android.widget.TextView
 import android.widget.Toast
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -81,14 +81,18 @@ class FolderSongsActivity : AppCompatActivity() {
         musicPlayer.playSong(song)
 
         Log.d("FolderSongsActivity", "Playing song, returning to main")
-        finish() // Torna indietro dopo aver avviato la riproduzione
+        finish()
     }
 
-    // Gestisce le azioni del menu canzone
     private fun handleSongMenuAction(song: Song, action: SongAdapter.MenuAction) {
         when (action) {
             SongAdapter.MenuAction.ADD_TO_PLAYLIST -> {
-                showAddToPlaylistDialog(song)
+                Toast.makeText(
+                    this,
+                    "Per aggiungere a playlist, usa il menu dalla schermata principale",
+                    Toast.LENGTH_LONG
+                ).show()
+                Log.d("FolderSongsActivity", "Add to playlist requested for: ${song.title}")
             }
             SongAdapter.MenuAction.SONG_DETAILS -> {
                 showSongDetails(song)
@@ -97,16 +101,6 @@ class FolderSongsActivity : AppCompatActivity() {
                 showDeleteSongConfirmation(song)
             }
         }
-    }
-
-    private fun showAddToPlaylistDialog(song: Song) {
-        // Per ora mostra un toast, dopo implementeremo le playlist
-        Toast.makeText(
-            this,
-            "Aggiungi '${song.title}' a playlist (coming soon!)",
-            Toast.LENGTH_SHORT
-        ).show()
-        Log.d("FolderSongsActivity", "Add to playlist requested for: ${song.title}")
     }
 
     private fun showSongDetails(song: Song) {
@@ -120,7 +114,7 @@ class FolderSongsActivity : AppCompatActivity() {
         Percorso: ${song.path}
     """.trimIndent()
 
-        androidx.appcompat.app.AlertDialog.Builder(this)
+        AlertDialog.Builder(this)
             .setTitle(getString(R.string.song_details_title))
             .setMessage(message)
             .setPositiveButton(getString(R.string.close)) { dialog, _ ->
@@ -134,7 +128,7 @@ class FolderSongsActivity : AppCompatActivity() {
     private fun showDeleteSongConfirmation(song: Song) {
         val message = getString(R.string.delete_song_message, song.title)
 
-        androidx.appcompat.app.AlertDialog.Builder(this)
+        AlertDialog.Builder(this)
             .setTitle(getString(R.string.delete_song_title))
             .setMessage(message)
             .setPositiveButton(getString(R.string.delete_confirm)) { dialog, _ ->
@@ -153,17 +147,14 @@ class FolderSongsActivity : AppCompatActivity() {
         try {
             val file = java.io.File(song.path)
             if (file.exists() && file.delete()) {
-                // Rimuovi dalla lista locale e aggiorna adapter
                 folderSongs = folderSongs.filter { it.id != song.id }
                 songAdapter.updateSongs(folderSongs)
 
-                // Aggiorna il contatore
                 songCountText.text = getString(R.string.songs_in_folder, folderSongs.size)
 
                 Toast.makeText(this, "Canzone eliminata", Toast.LENGTH_SHORT).show()
                 Log.d("FolderSongsActivity", "Song deleted successfully: ${song.title}")
 
-                // Se non ci sono più canzoni, chiudi l'activity
                 if (folderSongs.isEmpty()) {
                     Toast.makeText(this, "Cartella vuota", Toast.LENGTH_SHORT).show()
                     finish()

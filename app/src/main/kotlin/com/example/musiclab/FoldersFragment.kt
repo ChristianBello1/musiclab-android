@@ -1,7 +1,6 @@
-// Sostituisci il FoldersFragment.kt con questa versione debug:
-
 package com.example.musiclab
 
+import android.content.Intent
 import android.os.Bundle
 import android.util.Log
 import android.view.LayoutInflater
@@ -11,7 +10,6 @@ import android.widget.TextView
 import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import android.content.Intent
 
 data class MusicFolder(
     val name: String,
@@ -87,12 +85,10 @@ class FoldersFragment : Fragment() {
             return
         }
 
-        // Mostra qualche canzone per debug
         songs.take(3).forEachIndexed { index, song ->
             Log.d("FoldersFragment", "Song $index: ${song.title} - Path: ${song.path}")
         }
 
-        // Raggruppa le canzoni per cartella (usando il path)
         val songsByFolder = songs.groupBy { song ->
             val path = song.path
             val lastSlashIndex = path.lastIndexOf('/')
@@ -107,7 +103,6 @@ class FoldersFragment : Fragment() {
 
         Log.d("FoldersFragment", "Cartelle trovate: ${songsByFolder.keys}")
 
-        // Crea oggetti MusicFolder
         folders = songsByFolder.map { (folderName, songsInFolder) ->
             val folderPath = if (songsInFolder.isNotEmpty()) {
                 val path = songsInFolder.first().path
@@ -150,7 +145,6 @@ class FoldersFragment : Fragment() {
     private fun onFolderClick(folder: MusicFolder) {
         Log.d("FoldersFragment", "🔊 Clicked folder: ${folder.name} with ${folder.songCount} songs")
 
-        // Apri la FolderSongsActivity con le canzoni complete
         val intent = Intent(requireContext(), FolderSongsActivity::class.java)
         intent.putExtra("FOLDER_NAME", folder.name)
         intent.putParcelableArrayListExtra("FOLDER_SONGS", ArrayList(folder.songs))

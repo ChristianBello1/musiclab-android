@@ -253,22 +253,69 @@ class PlaylistsFragment : Fragment() {
     fun addSongToPlaylist(song: Song, playlistId: String) {
         val playlist = playlists.find { it.id == playlistId }
         if (playlist != null) {
-            if (playlist.songs.none { it.id == song.id }) {
-                playlist.songs.add(song)
-                playlistAdapter.notifyDataSetChanged()
+            Log.d("PlaylistsFragment", "Adding song ${song.title} to playlist ${playlist.name}")
 
-                savePlaylistToCloud(playlist)
+            // Controlla se la canzone è già nella playlist
+            firestore.collection("playlists")
+                .document(playlistId)
+                .collection("songs")
+                .document(song.id.toString())
+                .get()
+                .addOnSuccessListener { document ->
+                    if (document.exists()) {
+                        Toast.makeText(
+                            requireContext(),
+                            "'${song.title}' è già in '${playlist.name}'",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    } else {
+                        // Aggiungi la canzone a Firestore
+                        val songData = hashMapOf(
+                            "id" to song.id,
+                            "title" to song.title,
+                            "artist" to song.artist,
+                            "album" to song.album,
+                            "duration" to song.duration,
+                            "path" to song.path,
+                            "size" to song.size,
+                            "addedAt" to System.currentTimeMillis()
+                        )
 
-                Toast.makeText(requireContext(),
-                    "Aggiunta '${song.title}' a '${playlist.name}'",
-                    Toast.LENGTH_SHORT).show()
+                        firestore.collection("playlists")
+                            .document(playlistId)
+                            .collection("songs")
+                            .document(song.id.toString())
+                            .set(songData)
+                            .addOnSuccessListener {
+                                playlist.songs.add(song)
+                                playlistAdapter.notifyDataSetChanged()
 
-                Log.d("PlaylistsFragment", "Added song to playlist")
-            } else {
-                Toast.makeText(requireContext(),
-                    "'${song.title}' è già in '${playlist.name}'",
-                    Toast.LENGTH_SHORT).show()
-            }
+                                Toast.makeText(
+                                    requireContext(),
+                                    "✅ '${song.title}' aggiunta a '${playlist.name}'",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+
+                                Log.d("PlaylistsFragment", "✅ Song added successfully to Firestore")
+                            }
+                            .addOnFailureListener { e ->
+                                Log.e("PlaylistsFragment", "Error adding song: ${e.message}")
+                                Toast.makeText(
+                                    requireContext(),
+                                    "Errore aggiunta canzone",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                            }
+                    }
+                }
+                .addOnFailureListener { e ->
+                    Log.e("PlaylistsFragment", "Error checking song: ${e.message}")
+                    Toast.makeText(
+                        requireContext(),
+                        "Errore controllo canzone",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
         }
     }
 

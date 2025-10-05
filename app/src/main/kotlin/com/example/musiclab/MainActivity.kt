@@ -663,7 +663,19 @@ class MainActivity : AppCompatActivity() {
     private fun handleSongMenuAction(song: Song, action: SongAdapter.MenuAction) {
         when (action) {
             SongAdapter.MenuAction.ADD_TO_PLAYLIST -> {
-                showAddToPlaylistDialog(song)
+                // Ottieni il fragment playlist dal ViewPager
+                val playlistsFragment = viewPagerAdapter.getPlaylistsFragment()
+
+                if (playlistsFragment != null) {
+                    playlistsFragment.showAddToPlaylistDialog(song)
+                } else {
+                    Toast.makeText(
+                        this,
+                        "Caricamento playlist in corso...",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                    Log.w("MainActivity", "PlaylistsFragment not yet initialized")
+                }
             }
             SongAdapter.MenuAction.SONG_DETAILS -> {
                 showSongDetails(song)

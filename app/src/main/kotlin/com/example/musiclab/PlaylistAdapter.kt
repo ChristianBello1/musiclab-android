@@ -1,5 +1,6 @@
 package com.example.musiclab
 
+import android.content.Intent
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -37,15 +38,19 @@ class PlaylistAdapter(
         )
         holder.duration.text = playlist.getFormattedDuration()
 
-        // Click listener per aprire la playlist
+        // Click listener per aprire PlaylistSongsActivity
         holder.itemView.setOnClickListener {
-            onPlaylistClick(playlist)
+            val context = holder.itemView.context
+            val intent = Intent(context, PlaylistSongsActivity::class.java).apply {
+                putExtra("PLAYLIST_ID", playlist.id)
+                putExtra("PLAYLIST_NAME", playlist.name)
+                putExtra("PLAYLIST_OWNER_ID", playlist.ownerId)
+            }
+            context.startActivity(intent)
         }
 
-        // Menu button per opzioni (modifica, elimina, etc)
-        holder.menuButton.setOnClickListener {
-            // TODO: Implementare menu contestuale
-        }
+        // Nascondi il menu button (gestito ora in PlaylistSongsActivity)
+        holder.menuButton.visibility = View.GONE
     }
 
     override fun getItemCount(): Int = playlists.size
