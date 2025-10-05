@@ -7,7 +7,7 @@ import androidx.viewpager2.adapter.FragmentStateAdapter
 
 class MainViewPagerAdapter(
     fragmentActivity: FragmentActivity,
-    private var songs: List<Song>  // Cambiato da private val a private var
+    private var songs: List<Song>
 ) : FragmentStateAdapter(fragmentActivity) {
 
     private var foldersFragment: FoldersFragment? = null
@@ -50,7 +50,9 @@ class MainViewPagerAdapter(
         Log.d("MainViewPagerAdapter", "✅ Songs updated in adapter")
     }
 
-    fun setLoginState(loggedIn: Boolean) {
-        playlistsFragment?.setLoginState(loggedIn)
+    // AGGIORNATO: Ora accetta anche userId per passarlo al PlaylistsFragment
+    fun setLoginState(loggedIn: Boolean, userId: String = "") {
+        playlistsFragment?.setLoginState(loggedIn, userId)
+        Log.d("MainViewPagerAdapter", "Login state updated: $loggedIn, userId: $userId")
     }
 }

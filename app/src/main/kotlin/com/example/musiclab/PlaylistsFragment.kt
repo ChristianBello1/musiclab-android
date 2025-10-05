@@ -1,22 +1,29 @@
 package com.example.musiclab
 
+import android.app.AlertDialog
 import android.os.Bundle
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.EditText
 import android.widget.TextView
 import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.floatingactionbutton.FloatingActionButton
+import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.ktx.firestore
+import com.google.firebase.ktx.Firebase
 
 data class Playlist(
     val id: String,
     val name: String,
     val songs: MutableList<Song> = mutableListOf(),
-    val createdAt: Long = System.currentTimeMillis()
+    val createdAt: Long = System.currentTimeMillis(),
+    val ownerId: String = "",
+    val isLocal: Boolean = false
 ) {
     fun getSongCount(): Int = songs.size
 
@@ -44,6 +51,9 @@ class PlaylistsFragment : Fragment() {
 
     private var playlists: MutableList<Playlist> = mutableListOf()
     private var isLoggedIn = false
+    private var currentUserId: String = ""
+
+    private lateinit var firestore: FirebaseFirestore
 
     companion object {
         fun newInstance(): PlaylistsFragment {
@@ -62,6 +72,8 @@ class PlaylistsFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
+        firestore = Firebase.firestore
+
         setupViews(view)
         setupRecyclerView()
         updateUI()
@@ -73,7 +85,11 @@ class PlaylistsFragment : Fragment() {
         fabCreatePlaylist = view.findViewById(R.id.fab_create_playlist)
 
         fabCreatePlaylist.setOnClickListener {
-            createNewPlaylist()
+            if (isLoggedIn) {
+                showCreatePlaylistDialog()
+            } else {
+                showLoginRequiredDialog()
+            }
         }
     }
 
@@ -90,6 +106,7 @@ class PlaylistsFragment : Fragment() {
         if (playlists.isEmpty()) {
             recyclerView.visibility = View.GONE
             emptyStateText.visibility = View.VISIBLE
+
             emptyStateText.text = if (isLoggedIn) {
                 getString(R.string.no_playlists_create)
             } else {
@@ -104,71 +121,190 @@ class PlaylistsFragment : Fragment() {
     }
 
     private fun onPlaylistClick(playlist: Playlist) {
-        // Apri la playlist per visualizzare/riprodurre le canzoni
         (activity as? MainActivity)?.openPlaylist(playlist)
         Log.d("PlaylistsFragment", "Opened playlist: ${playlist.name}")
     }
 
-    private fun createNewPlaylist() {
+    private fun showCreatePlaylistDialog() {
+        val editText = EditText(requireContext())
+        editText.hint = "Nome della playlist"
+
+        AlertDialog.Builder(requireContext())
+            .setTitle("Crea Nuova Playlist")
+            .setMessage("Inserisci il nome della playlist:")
+            .setView(editText)
+            .setPositiveButton("Crea") { _, _ ->
+                val playlistName = editText.text.toString().trim()
+                if (playlistName.isNotEmpty()) {
+                    createNewPlaylist(playlistName)
+                } else {
+                    Toast.makeText(requireContext(), "Nome playlist non può essere vuoto", Toast.LENGTH_SHORT).show()
+                }
+            }
+            .setNegativeButton("Annulla", null)
+            .show()
+    }
+
+    private fun showLoginRequiredDialog() {
+        AlertDialog.Builder(requireContext())
+            .setTitle(getString(R.string.login_required_title))
+            .setMessage(getString(R.string.login_required_message))
+            .setPositiveButton(getString(R.string.sign_in)) { _, _ ->
+                Toast.makeText(requireContext(), "Usa il pulsante login nell'header", Toast.LENGTH_LONG).show()
+            }
+            .setNegativeButton(getString(R.string.cancel), null)
+            .show()
+    }
+
+    private fun createNewPlaylist(name: String) {
         if (!isLoggedIn) {
-            Toast.makeText(requireContext(), getString(R.string.login_required), Toast.LENGTH_SHORT).show()
+            showLoginRequiredDialog()
             return
         }
 
-        // TODO: Implementare dialog per creare nuova playlist
         val newPlaylist = Playlist(
             id = "playlist_${System.currentTimeMillis()}",
-            name = "Nuova Playlist ${playlists.size + 1}"
+            name = name,
+            ownerId = currentUserId,
+            isLocal = false
         )
 
         playlists.add(newPlaylist)
         playlistAdapter.notifyItemInserted(playlists.size - 1)
         updateUI()
 
-        Toast.makeText(requireContext(), "Playlist '${newPlaylist.name}' creata!", Toast.LENGTH_SHORT).show()
-        Log.d("PlaylistsFragment", "Created new playlist: ${newPlaylist.name}")
+        savePlaylistToCloud(newPlaylist)
+
+        Toast.makeText(requireContext(), "Playlist '$name' creata!", Toast.LENGTH_SHORT).show()
+        Log.d("PlaylistsFragment", "Created playlist: $name")
     }
 
-    fun setLoginState(loggedIn: Boolean) {
+    fun setLoginState(loggedIn: Boolean, userId: String = "") {
         isLoggedIn = loggedIn
+        currentUserId = userId
+
         updateUI()
 
         if (loggedIn) {
-            // TODO: Caricare playlist dal cloud
             loadPlaylistsFromCloud()
         } else {
-            // Rimuovi playlist quando logout
-            playlists.clear()
+            playlists.removeAll { !it.isLocal }
             playlistAdapter.notifyDataSetChanged()
             updateUI()
         }
     }
 
     private fun loadPlaylistsFromCloud() {
-        // TODO: Implementare caricamento dal cloud
-        Log.d("PlaylistsFragment", "Loading playlists from cloud...")
+        Log.d("PlaylistsFragment", "Loading playlists for user: $currentUserId")
 
-        // Esempio playlist di test quando loggato
-        val testPlaylist = Playlist(
-            id = "test_playlist_1",
-            name = "I miei preferiti"
+        firestore.collection("playlists")
+            .whereEqualTo("ownerId", currentUserId)
+            .get()
+            .addOnSuccessListener { documents ->
+                playlists.clear()
+
+                Log.d("PlaylistsFragment", "Firestore returned ${documents.size()} documents")
+
+                for (document in documents) {
+                    val playlist = Playlist(
+                        id = document.id,
+                        name = document.getString("name") ?: "Playlist",
+                        ownerId = document.getString("ownerId") ?: "",
+                        createdAt = document.getLong("createdAt") ?: System.currentTimeMillis(),
+                        isLocal = false
+                    )
+                    playlists.add(playlist)
+                    Log.d("PlaylistsFragment", "Loaded playlist: ${playlist.name}")
+                }
+
+                playlistAdapter.notifyDataSetChanged()
+                updateUI()
+
+                Log.d("PlaylistsFragment", "Successfully loaded ${playlists.size} playlists from cloud")
+            }
+            .addOnFailureListener { e ->
+                Log.e("PlaylistsFragment", "Error loading playlists: ${e.message}", e)
+                Toast.makeText(requireContext(), "Errore caricamento playlist: ${e.message}", Toast.LENGTH_SHORT).show()
+            }
+    }
+
+    private fun savePlaylistToCloud(playlist: Playlist) {
+        Log.d("PlaylistsFragment", "Saving playlist: ${playlist.name}")
+
+        val playlistData = hashMapOf(
+            "name" to playlist.name,
+            "ownerId" to playlist.ownerId,
+            "createdAt" to playlist.createdAt,
+            "isLocal" to playlist.isLocal
         )
-        playlists.add(testPlaylist)
-        playlistAdapter.notifyItemInserted(playlists.size - 1)
-        updateUI()
+
+        firestore.collection("playlists")
+            .document(playlist.id)
+            .set(playlistData)
+            .addOnSuccessListener {
+                Log.d("PlaylistsFragment", "Playlist saved successfully to Firestore")
+            }
+            .addOnFailureListener { e ->
+                Log.e("PlaylistsFragment", "Error saving playlist: ${e.message}", e)
+                Toast.makeText(requireContext(), "Errore salvataggio playlist: ${e.message}", Toast.LENGTH_SHORT).show()
+            }
     }
 
     fun addSongToPlaylist(song: Song, playlistId: String) {
         val playlist = playlists.find { it.id == playlistId }
         if (playlist != null) {
-            playlist.songs.add(song)
-            playlistAdapter.notifyDataSetChanged()
-            Toast.makeText(requireContext(),
-                "Aggiunta '${song.title}' a '${playlist.name}'",
-                Toast.LENGTH_SHORT).show()
-            Log.d("PlaylistsFragment", "Added song '${song.title}' to playlist '${playlist.name}'")
+            if (playlist.songs.none { it.id == song.id }) {
+                playlist.songs.add(song)
+                playlistAdapter.notifyDataSetChanged()
+
+                savePlaylistToCloud(playlist)
+
+                Toast.makeText(requireContext(),
+                    "Aggiunta '${song.title}' a '${playlist.name}'",
+                    Toast.LENGTH_SHORT).show()
+
+                Log.d("PlaylistsFragment", "Added song to playlist")
+            } else {
+                Toast.makeText(requireContext(),
+                    "'${song.title}' è già in '${playlist.name}'",
+                    Toast.LENGTH_SHORT).show()
+            }
         }
     }
 
+    fun showAddToPlaylistDialog(song: Song) {
+        if (!isLoggedIn) {
+            showLoginRequiredDialog()
+            return
+        }
+
+        if (playlists.isEmpty()) {
+            Toast.makeText(requireContext(), "Crea prima una playlist!", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        val playlistNames = playlists.map { it.name }.toTypedArray()
+
+        AlertDialog.Builder(requireContext())
+            .setTitle("Aggiungi a Playlist")
+            .setItems(playlistNames) { _, which ->
+                val selectedPlaylist = playlists[which]
+                addSongToPlaylist(song, selectedPlaylist.id)
+            }
+            .setNegativeButton("Annulla", null)
+            .show()
+    }
+
     fun getPlaylists(): List<Playlist> = playlists
+
+    fun deletePlaylist(playlistId: String) {
+        val playlist = playlists.find { it.id == playlistId }
+        if (playlist != null && playlist.ownerId == currentUserId) {
+            playlists.remove(playlist)
+            playlistAdapter.notifyDataSetChanged()
+            updateUI()
+
+            Toast.makeText(requireContext(), "Playlist '${playlist.name}' eliminata", Toast.LENGTH_SHORT).show()
+        }
+    }
 }

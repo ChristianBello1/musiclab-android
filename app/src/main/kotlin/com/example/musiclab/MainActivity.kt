@@ -27,21 +27,21 @@ import androidx.viewpager2.widget.ViewPager2
 import com.google.android.material.tabs.TabLayout
 import com.google.android.material.tabs.TabLayoutMediator
 import java.util.Locale
-import androidx.activity.result.contract.ActivityResultContracts
 import com.google.android.gms.auth.api.signin.GoogleSignInAccount
 
 class MainActivity : AppCompatActivity() {
 
-    // NUOVO: Enum per i tipi di ordinamento
     enum class SortType {
-        TITLE_ASC,      // Nome A-Z
-        ARTIST_ASC,     // Artista A-Z
-        ALBUM_ASC,      // Album A-Z
-        DURATION_ASC,   // Durata crescente
-        DATE_ADDED_DESC // Data aggiunta (più recenti prima)
+        TITLE_ASC,
+        ARTIST_ASC,
+        ALBUM_ASC,
+        DURATION_ASC,
+        DATE_ADDED_DESC
     }
 
+    // NUOVO: Google Auth
     private lateinit var googleAuthManager: GoogleAuthManager
+    private var isLoggedIn = false
 
     // Core components
     private lateinit var musicScanner: MusicScanner
@@ -76,30 +76,28 @@ class MainActivity : AppCompatActivity() {
     private lateinit var btnBottomPlayPause: ImageButton
     private lateinit var btnBottomNext: ImageButton
     private lateinit var btnExpandPlayer: ImageButton
-
-    // Progress bar views
     private lateinit var bottomSeekBar: SeekBar
     private lateinit var bottomCurrentTime: TextView
     private lateinit var bottomTotalTime: TextView
 
-    // State management
-    private var currentGoogleUser: GoogleSignInAccount? = null
-
-    // NUOVO: Ordinamento corrente
     private var currentSortType = SortType.TITLE_ASC
 
+    // NUOVO: Launcher per Google Sign-In
+    @Suppress("DEPRECATION")
     private val googleSignInLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
     ) { result ->
         val success = googleAuthManager.handleSignInResult(result.data)
         if (success) {
-            Toast.makeText(this, "Login effettuato con successo!", Toast.LENGTH_SHORT).show()
+            val user = googleAuthManager.getCurrentUser()
+            Toast.makeText(this, "Benvenuto ${user?.displayName}!", Toast.LENGTH_SHORT).show()
+            Log.d("MainActivity", "Login successful: ${user?.email}")
         } else {
             Toast.makeText(this, "Login fallito", Toast.LENGTH_SHORT).show()
+            Log.e("MainActivity", "Login failed")
         }
     }
 
-    // Progress handler
     private val progressHandler = Handler(Looper.getMainLooper())
     private var isUpdatingBottomProgress = false
 
@@ -110,21 +108,19 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    // Listener separato per cambiamenti della coda
     private val mainQueueChangeListener: () -> Unit = {
         runOnUiThread {
-            Log.d("MainActivity", "🔄 Queue changed in MainActivity - updating bottom bar")
+            Log.d("MainActivity", "🔄 Queue changed in MainActivity")
             val currentSong = musicPlayer.getCurrentSong()
             val isPlaying = musicPlayer.isPlaying()
             updatePlayerBottomBar(isPlaying, currentSong)
         }
     }
 
-    // Listener per cambiamenti di stato del player
     private val mainActivityPlayerListener: (Boolean, Song?) -> Unit = { isPlaying, currentSong ->
         runOnUiThread {
             updatePlayerBottomBar(isPlaying, currentSong)
-            Log.d("MainActivity", "📱 Bottom bar updated: playing=$isPlaying, song=${currentSong?.title}")
+            Log.d("MainActivity", "📱 Bottom bar updated: playing=$isPlaying")
         }
     }
 
@@ -150,7 +146,9 @@ class MainActivity : AppCompatActivity() {
         setupViewPager()
         setupListeners()
 
-        // Setup modern back handling
+        // IMPORTANTE: Inizializza Google Auth DOPO setupViews()
+        initializeGoogleAuth()
+
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
                 if (isSearchActive) {
@@ -164,7 +162,6 @@ class MainActivity : AppCompatActivity() {
         musicScanner = MusicScanner(this)
         musicPlayer = MusicPlayerManager.getInstance().getMusicPlayer(this)
 
-        // Aggiungi entrambi i listener
         musicPlayer.addStateChangeListener(mainActivityPlayerListener)
         musicPlayer.addQueueChangeListener(mainQueueChangeListener)
 
@@ -173,27 +170,44 @@ class MainActivity : AppCompatActivity() {
         Log.d("MainActivity", "=== MAIN ACTIVITY SETUP COMPLETE ===")
     }
 
+    // NUOVO: Inizializza Google Authentication
+    private fun initializeGoogleAuth() {
+        googleAuthManager = GoogleAuthManager.getInstance()
+        googleAuthManager.initialize(this)
+
+        googleAuthManager.addAuthStateListener { loggedIn, user ->
+            runOnUiThread {
+                isLoggedIn = loggedIn
+                updateLoginButton()
+
+                val userId = user?.id ?: ""
+                viewPagerAdapter.getPlaylistsFragment()?.setLoginState(loggedIn, userId)
+
+                Log.d("MainActivity", "Auth state: logged in = $loggedIn")
+                if (user != null) {
+                    Log.d("MainActivity", "User: ${user.displayName} (${user.email})")
+                }
+            }
+        }
+    }
+
     private fun setupViews() {
         Log.d("MainActivity", "Setting up views...")
 
-        // Header components
         btnSearch = findViewById(R.id.btn_search)
         btnLogin = findViewById(R.id.btn_login)
         btnSettings = findViewById(R.id.btn_settings)
         btnSort = findViewById(R.id.btn_sort)
         songCountText = findViewById(R.id.song_count)
 
-        // Navigation components
         tabLayout = findViewById(R.id.tab_layout)
         viewPager = findViewById(R.id.view_pager)
 
-        // Search components
         searchContainer = findViewById(R.id.search_container)
         searchInput = findViewById(R.id.search_input)
         btnCloseSearch = findViewById(R.id.btn_close_search)
         searchResultsRecycler = findViewById(R.id.search_results_recycler)
 
-        // Setup search RecyclerView
         searchResultsRecycler.layoutManager = LinearLayoutManager(this)
         searchAdapter = SongAdapter(
             songs = emptyList(),
@@ -201,13 +215,12 @@ class MainActivity : AppCompatActivity() {
                 onSongClick(song)
                 closeSearch()
             },
-            onSongMenuClick = { song, action -> // NUOVO: callback menu
+            onSongMenuClick = { song, action ->
                 handleSongMenuAction(song, action)
             }
         )
         searchResultsRecycler.adapter = searchAdapter
 
-        // Setup Player Bottom Bar
         playerBottomContainer = findViewById(R.id.player_bottom_container)
         currentSongTitle = findViewById(R.id.current_song_title)
         currentSongArtist = findViewById(R.id.current_song_artist)
@@ -216,7 +229,6 @@ class MainActivity : AppCompatActivity() {
         btnBottomNext = findViewById(R.id.btn_next)
         btnExpandPlayer = findViewById(R.id.btn_expand_player)
 
-        // Setup Progress bar views
         bottomSeekBar = findViewById(R.id.seek_bar)
         bottomCurrentTime = findViewById(R.id.current_time)
         bottomTotalTime = findViewById(R.id.total_time)
@@ -227,11 +239,9 @@ class MainActivity : AppCompatActivity() {
     private fun setupViewPager() {
         Log.d("MainActivity", "Setting up ViewPager...")
 
-        // Inizializza l'adapter con lista vuota
         viewPagerAdapter = MainViewPagerAdapter(this, emptyList())
         viewPager.adapter = viewPagerAdapter
 
-        // Connect TabLayout with ViewPager2
         TabLayoutMediator(tabLayout, viewPager) { tab, position ->
             tab.text = when (position) {
                 0 -> getString(R.string.tab_folders)
@@ -246,13 +256,11 @@ class MainActivity : AppCompatActivity() {
     private fun setupListeners() {
         Log.d("MainActivity", "Setting up listeners...")
 
-        // Header buttons
         btnSearch.setOnClickListener { toggleSearch() }
         btnLogin.setOnClickListener { toggleLogin() }
         btnSettings.setOnClickListener { openSettings() }
-        btnSort.setOnClickListener { showSortOptions() } // Ora funziona davvero!
+        btnSort.setOnClickListener { showSortOptions() }
 
-        // Search listeners
         btnCloseSearch.setOnClickListener { closeSearch() }
         searchInput.addTextChangedListener(object : TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
@@ -286,18 +294,16 @@ class MainActivity : AppCompatActivity() {
         }
 
         btnExpandPlayer.setOnClickListener {
-            Log.d("MainActivity", "📱 Queue button clicked - opening QueueActivity")
+            Log.d("MainActivity", "📱 Queue button clicked")
             val intent = Intent(this, QueueActivity::class.java)
             startActivity(intent)
         }
 
-        // Click su tutta la barra per aprire il player
         playerBottomContainer.setOnClickListener {
             Log.d("MainActivity", "📱 Bottom bar clicked - opening player")
             openPlayerActivity()
         }
 
-        // Setup SeekBar
         bottomSeekBar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
             override fun onStartTrackingTouch(seekBar: SeekBar?) {
                 isUpdatingBottomProgress = true
@@ -319,7 +325,6 @@ class MainActivity : AppCompatActivity() {
         })
     }
 
-    // Search functionality
     private fun toggleSearch() {
         if (isSearchActive) {
             closeSearch()
@@ -356,29 +361,36 @@ class MainActivity : AppCompatActivity() {
         Log.d("MainActivity", "🔍 Search for '$query' returned ${searchResults.size} results")
     }
 
-    // Login functionality
+    // AGGIORNATO: Login functionality con Google reale
     private fun toggleLogin() {
         if (isLoggedIn) {
-            logout()
+            performLogout()
         } else {
-            login()
+            performLogin()
         }
     }
 
-    private fun login() {
-        isLoggedIn = true
-        updateLoginButton()
-        viewPagerAdapter.setLoginState(true)
-        Toast.makeText(this, "Login simulato!", Toast.LENGTH_SHORT).show()
-        Log.d("MainActivity", "User logged in")
+    private fun performLogin() {
+        val signInIntent = googleAuthManager.signIn()
+        if (signInIntent != null) {
+            googleSignInLauncher.launch(signInIntent)
+            Log.d("MainActivity", "Google Sign-In launched")
+        } else {
+            Toast.makeText(this, "Errore inizializzazione login", Toast.LENGTH_SHORT).show()
+            Log.e("MainActivity", "Failed to get sign-in intent")
+        }
     }
 
-    private fun logout() {
-        isLoggedIn = false
-        updateLoginButton()
-        viewPagerAdapter.setLoginState(false)
-        Toast.makeText(this, "Logout effettuato", Toast.LENGTH_SHORT).show()
-        Log.d("MainActivity", "User logged out")
+    private fun performLogout() {
+        googleAuthManager.signOut(this) { success ->
+            if (success) {
+                Toast.makeText(this, "Logout effettuato", Toast.LENGTH_SHORT).show()
+                Log.d("MainActivity", "Logout successful")
+            } else {
+                Toast.makeText(this, "Errore durante il logout", Toast.LENGTH_SHORT).show()
+                Log.e("MainActivity", "Logout failed")
+            }
+        }
     }
 
     private fun updateLoginButton() {
@@ -390,12 +402,10 @@ class MainActivity : AppCompatActivity() {
         btnLogin.setImageResource(iconRes)
     }
 
-    // Settings functionality
     private fun openSettings() {
         Toast.makeText(this, "Impostazioni (coming soon!)", Toast.LENGTH_SHORT).show()
     }
 
-    // NUOVO: Sistema di ordinamento completo
     private fun showSortOptions() {
         Log.d("MainActivity", "🔄 Opening sort options")
 
@@ -439,7 +449,6 @@ class MainActivity : AppCompatActivity() {
             .show()
     }
 
-    // NUOVO: Applica l'ordinamento alle canzoni
     private fun applySorting() {
         Log.d("MainActivity", "🔄 Applying sort: $currentSortType")
 
@@ -448,21 +457,16 @@ class MainActivity : AppCompatActivity() {
             SortType.ARTIST_ASC -> songs.sortedBy { it.artist.lowercase() }
             SortType.ALBUM_ASC -> songs.sortedBy { it.album.lowercase() }
             SortType.DURATION_ASC -> songs.sortedBy { it.duration }
-            SortType.DATE_ADDED_DESC -> songs.sortedByDescending { it.id } // ID più alto = aggiunto più di recente
+            SortType.DATE_ADDED_DESC -> songs.sortedByDescending { it.id }
         }
 
-        // Aggiorna la lista locale
         songs = sortedSongs
-
-        // Aggiorna il ViewPager con le canzoni ordinate
         viewPagerAdapter.updateSongs(sortedSongs)
 
-        // Aggiorna anche l'adapter di ricerca se attivo
         if (isSearchActive && searchInput.text.isNotEmpty()) {
             performSearch(searchInput.text.toString())
         }
 
-        // Mostra toast con conferma
         val sortName = when (currentSortType) {
             SortType.TITLE_ASC -> getString(R.string.sorted_by_title)
             SortType.ARTIST_ASC -> getString(R.string.sorted_by_artist)
@@ -475,7 +479,6 @@ class MainActivity : AppCompatActivity() {
         Log.d("MainActivity", "✅ Sorting applied: $sortName")
     }
 
-    // NUOVO: Aggiorna l'icona del pulsante sort
     private fun updateSortButtonIcon() {
         val iconRes = when (currentSortType) {
             SortType.TITLE_ASC -> android.R.drawable.ic_menu_sort_alphabetically
@@ -487,12 +490,9 @@ class MainActivity : AppCompatActivity() {
 
         btnSort.setImageResource(iconRes)
 
-        // Cambia anche il colore per indicare che un ordinamento è attivo
         val colorRes = if (currentSortType == SortType.TITLE_ASC) {
-            // Ordinamento di default - colore normale
             ContextCompat.getColor(this, android.R.color.black)
         } else {
-            // Ordinamento personalizzato - colore primario
             ContextCompat.getColor(this, R.color.purple_500)
         }
 
@@ -509,7 +509,7 @@ class MainActivity : AppCompatActivity() {
         startBottomProgressUpdates()
 
         Toast.makeText(this, getString(R.string.now_playing_format, song.title), Toast.LENGTH_SHORT).show()
-        Log.d("MainActivity", "▶️ Playing: ${song.title} - ${song.artist}")
+        Log.d("MainActivity", "▶️ Playing: ${song.title}")
     }
 
     fun openPlaylist(playlist: Playlist) {
@@ -517,9 +517,8 @@ class MainActivity : AppCompatActivity() {
         Log.d("MainActivity", "Opening playlist: ${playlist.name}")
     }
 
-    // Player UI updates
     private fun updatePlayerBottomBar(isPlaying: Boolean, currentSong: Song?) {
-        Log.d("MainActivity", "🔄 Updating bottom bar: playing=$isPlaying, song=${currentSong?.title}")
+        Log.d("MainActivity", "🔄 Updating bottom bar: playing=$isPlaying")
 
         if (currentSong != null) {
             showPlayerBottomBar()
@@ -543,7 +542,7 @@ class MainActivity : AppCompatActivity() {
                 startBottomProgressUpdates()
             }
 
-            Log.d("MainActivity", "✅ Bottom bar updated with: ${songToShow.title}")
+            Log.d("MainActivity", "✅ Bottom bar updated")
         } else {
             hidePlayerBottomBar()
             stopBottomProgressUpdates()
@@ -597,7 +596,6 @@ class MainActivity : AppCompatActivity() {
         Log.d("MainActivity", "🎵 PlayerActivity opened")
     }
 
-    // Permissions and music loading
     private fun checkPermissionsAndLoadMusic() {
         val permissionsNeeded = mutableListOf<String>()
 
@@ -620,7 +618,6 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    // AGGIORNATO: Ora applica ordinamento dopo il caricamento
     private fun loadMusicFiles() {
         Log.d("MainActivity", "=== INIZIO CARICAMENTO MUSICA ===")
 
@@ -629,28 +626,18 @@ class MainActivity : AppCompatActivity() {
 
             Log.d("MainActivity", "✅ MUSICA CARICATA: ${songs.size} canzoni")
 
-            // Stampa le prime 5 canzoni per debug
-            songs.take(5).forEachIndexed { index, song ->
-                Log.d("MainActivity", "$index: ${song.title} - ${song.artist}")
-            }
-
-            // Aggiorna UI
             songCountText.text = getString(R.string.song_count_format, songs.size)
-            Log.d("MainActivity", "📊 UI aggiornata - contatore: ${songs.size}")
+            Log.d("MainActivity", "📊 UI aggiornata")
 
-            // IMPORTANTE: Aspetta che il ViewPager sia pronto, poi aggiorna
             viewPager.post {
                 Log.d("MainActivity", "🔄 Aggiornamento ViewPager...")
 
-                // NUOVO: Applica ordinamento di default dopo il caricamento
                 applySorting()
                 updateSortButtonIcon()
 
-                // Aggiorna l'adapter con le nuove canzoni (già ordinate)
                 viewPagerAdapter = MainViewPagerAdapter(this@MainActivity, songs)
                 viewPager.adapter = viewPagerAdapter
 
-                // Riattacca le tab
                 TabLayoutMediator(tabLayout, viewPager) { tab, position ->
                     tab.text = when (position) {
                         0 -> getString(R.string.tab_folders)
@@ -659,19 +646,18 @@ class MainActivity : AppCompatActivity() {
                     }
                 }.attach()
 
-                Log.d("MainActivity", "📱 ViewPager completamente aggiornato!")
+                Log.d("MainActivity", "📱 ViewPager aggiornato!")
             }
 
             Toast.makeText(this, getString(R.string.songs_loaded_format, songs.size), Toast.LENGTH_SHORT).show()
-            Log.d("MainActivity", "🎉 Toast mostrato")
 
         } catch (e: Exception) {
-            Log.e("MainActivity", "💥 ERRORE caricamento musica: $e")
+            Log.e("MainActivity", "💥 ERRORE caricamento: $e")
             e.printStackTrace()
             Toast.makeText(this, getString(R.string.error_loading_music, e.message), Toast.LENGTH_LONG).show()
         }
 
-        Log.d("MainActivity", "=== FINE CARICAMENTO MUSICA ===")
+        Log.d("MainActivity", "=== FINE CARICAMENTO ===")
     }
 
     private fun handleSongMenuAction(song: Song, action: SongAdapter.MenuAction) {
@@ -689,13 +675,12 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun showAddToPlaylistDialog(song: Song) {
-        // Per ora mostra un toast, dopo implementeremo le playlist
         Toast.makeText(
             this,
             "Aggiungi '${song.title}' a playlist (coming soon!)",
             Toast.LENGTH_SHORT
         ).show()
-        Log.d("MainActivity", "Add to playlist requested for: ${song.title}")
+        Log.d("MainActivity", "Add to playlist: ${song.title}")
     }
 
     private fun showSongDetails(song: Song) {
@@ -716,8 +701,6 @@ class MainActivity : AppCompatActivity() {
                 dialog.dismiss()
             }
             .show()
-
-        Log.d("MainActivity", "Song details shown for: ${song.title}")
     }
 
     private fun showDeleteSongConfirmation(song: Song) {
@@ -734,34 +717,27 @@ class MainActivity : AppCompatActivity() {
                 dialog.dismiss()
             }
             .show()
-
-        Log.d("MainActivity", "Delete confirmation shown for: ${song.title}")
     }
 
     private fun deleteSongFromDevice(song: Song) {
         try {
             val file = java.io.File(song.path)
             if (file.exists() && file.delete()) {
-                // Rimuovi dalla lista locale
                 songs = songs.filter { it.id != song.id }
-
-                // Aggiorna UI
                 applySorting()
 
-                // Aggiorna anche la ricerca se attiva
                 if (isSearchActive && searchInput.text.isNotEmpty()) {
                     performSearch(searchInput.text.toString())
                 }
 
                 Toast.makeText(this, "Canzone eliminata", Toast.LENGTH_SHORT).show()
-                Log.d("MainActivity", "Song deleted successfully: ${song.title}")
+                Log.d("MainActivity", "Song deleted: ${song.title}")
             } else {
                 Toast.makeText(this, "Errore durante l'eliminazione", Toast.LENGTH_SHORT).show()
-                Log.e("MainActivity", "Failed to delete song: ${song.title}")
             }
         } catch (e: Exception) {
             Toast.makeText(this, "Errore: ${e.message}", Toast.LENGTH_SHORT).show()
-            Log.e("MainActivity", "Error deleting song: $e")
+            Log.e("MainActivity", "Error deleting: $e")
         }
     }
 
@@ -782,7 +758,6 @@ class MainActivity : AppCompatActivity() {
         super.onResume()
         Log.d("MainActivity", "=== ON RESUME ===")
 
-        // Aggiorna la UI del player quando si torna alla MainActivity
         val currentSong = musicPlayer.getCurrentSong()
         val isPlaying = musicPlayer.isPlaying()
         updatePlayerBottomBar(isPlaying, currentSong)
@@ -798,10 +773,9 @@ class MainActivity : AppCompatActivity() {
         super.onDestroy()
         stopBottomProgressUpdates()
 
-        // Rimuovi entrambi i listener per evitare memory leak
         musicPlayer.removeStateChangeListener(mainActivityPlayerListener)
         musicPlayer.removeQueueChangeListener(mainQueueChangeListener)
 
-        Log.d("MainActivity", "MainActivity destroyed, all listeners removed")
+        Log.d("MainActivity", "MainActivity destroyed")
     }
 }

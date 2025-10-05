@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "830578813899",
+    "project_id": "musiclab-e2a0a",
+    "storage_bucket": "musiclab-e2a0a.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:830578813899:android:aa5b092e630dca80ffa44e",
+        "android_client_info": {
+          "package_name": "com.example.musiclab"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDfYWJBsQjqauMD26co4v6kkUI9beu340I"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

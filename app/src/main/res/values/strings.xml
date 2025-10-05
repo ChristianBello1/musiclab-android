@@ -139,8 +139,14 @@
     <!-- Google Auth -->
     <string name="google_sign_in_failed">Login Google fallito</string>
     <string name="google_sign_out_failed">Logout fallito</string>
+
+    <!-- Login Dialog -->
     <string name="login_required_title">Accesso richiesto</string>
-    <string name="login_required_message">Per creare e gestire playlist devi effettuare l'accesso con Google.</string>
+    <string name="login_required_message">Per creare e gestire playlist devi effettuare l\'accesso con Google.</string>
     <string name="sign_in">Accedi</string>
+
+    <!-- Playlist -->
+    <string name="create_playlist_title">Crea Nuova Playlist</string>
+    <string name="playlist_name_hint">Nome della playlist</string>
 
 </resources>
