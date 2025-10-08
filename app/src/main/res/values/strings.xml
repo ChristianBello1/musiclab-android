@@ -149,4 +149,7 @@
     <string name="create_playlist_title">Crea Nuova Playlist</string>
     <string name="playlist_name_hint">Nome della playlist</string>
 
+    <!-- Firebase Web Client ID -->
+    <string name="default_web_client_id" translatable="false">830578813899-904297acp02tfboiujk01ahbl2v3133l.apps.googleusercontent.com</string>
+
 </resources>

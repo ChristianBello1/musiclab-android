@@ -14,6 +14,14 @@
       },
       "oauth_client": [
         {
+          "client_id": "830578813899-rr12u8dtfehhik251n0og6qs3crniads.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.musiclab",
+            "certificate_hash": "7f1e4e6fde55e1c74e24387b1f45b456344928d9"
+          }
+        },
+        {
           "client_id": "830578813899-904297acp02tfboiujk01ahbl2v3133l.apps.googleusercontent.com",
           "client_type": 3
         }

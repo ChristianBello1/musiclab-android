@@ -3,7 +3,6 @@ package com.example.musiclab
 import android.content.Context
 import android.content.Intent
 import android.util.Log
-import androidx.appcompat.app.AppCompatActivity
 import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignInAccount
 import com.google.android.gms.auth.api.signin.GoogleSignInClient
@@ -30,35 +29,37 @@ class GoogleAuthManager private constructor() {
 
     private var googleSignInClient: GoogleSignInClient? = null
     private var currentUser: GoogleSignInAccount? = null
-
-    // NUOVO: Firebase Auth
     private val firebaseAuth: FirebaseAuth = FirebaseAuth.getInstance()
 
-    // Listeners per cambiamenti di stato login
     private val authStateListeners = mutableListOf<(Boolean, GoogleSignInAccount?) -> Unit>()
 
     fun initialize(context: Context) {
+        Log.d(TAG, "=== INITIALIZING WITH FIREBASE AUTH ===")
+
         val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
-            .requestIdToken("830578813899-904297acp02tfboiujk01ahbl2v3133l.apps.googleusercontent.com")
+            .requestIdToken(context.getString(R.string.default_web_client_id))
             .requestEmail()
             .requestProfile()
-            .requestId()
             .build()
 
         googleSignInClient = GoogleSignIn.getClient(context, gso)
-
-        // Controlla se c'è già un utente loggato
         currentUser = GoogleSignIn.getLastSignedInAccount(context)
-        Log.d(TAG, "Initialized - Current user: ${currentUser?.email}")
+
+        Log.d(TAG, "Google user: ${currentUser?.email}")
         Log.d(TAG, "Firebase user: ${firebaseAuth.currentUser?.uid}")
 
-        // Notifica lo stato iniziale
+        if (currentUser != null && firebaseAuth.currentUser == null) {
+            currentUser?.idToken?.let { token ->
+                Log.d(TAG, "Re-authenticating with Firebase...")
+                firebaseAuthWithGoogle(token)
+            }
+        }
+
         notifyAuthStateChanged()
     }
 
     fun addAuthStateListener(listener: (Boolean, GoogleSignInAccount?) -> Unit) {
         authStateListeners.add(listener)
-        // Notifica immediatamente lo stato corrente
         listener.invoke(isLoggedIn(), currentUser)
     }
 
@@ -71,91 +72,112 @@ class GoogleAuthManager private constructor() {
         authStateListeners.forEach { listener ->
             listener.invoke(isLoggedIn, currentUser)
         }
-        Log.d(TAG, "Auth state changed - Logged in: $isLoggedIn, User: ${currentUser?.email}")
+
+        Log.d(TAG, "=== AUTH STATE ===")
+        Log.d(TAG, "Logged in: $isLoggedIn")
+        Log.d(TAG, "Google user: ${currentUser?.email}")
         Log.d(TAG, "Firebase UID: ${firebaseAuth.currentUser?.uid}")
     }
 
     fun signIn(): Intent? {
+        Log.d(TAG, "Starting sign-in...")
         return googleSignInClient?.signInIntent
     }
 
     fun handleSignInResult(data: Intent?): Boolean {
+        Log.d(TAG, "=== HANDLING SIGN IN ===")
+
         try {
             val task: Task<GoogleSignInAccount> = GoogleSignIn.getSignedInAccountFromIntent(data)
             val account = task.getResult(ApiException::class.java)
 
+            Log.d(TAG, "✅ Google Sign-In successful")
+            Log.d(TAG, "Email: ${account.email}")
+            Log.d(TAG, "ID Token: ${if (account.idToken != null) "Present" else "NULL"}")
+
+            if (account.idToken == null) {
+                Log.e(TAG, "❌ ID Token is NULL!")
+                currentUser = null
+                notifyAuthStateChanged()
+                return false
+            }
+
             currentUser = account
-            Log.d(TAG, "Google Sign in successful - User: ${account.email}")
-
-            // NUOVO: Autentica anche con Firebase
             firebaseAuthWithGoogle(account.idToken!!)
-
             return true
 
         } catch (e: ApiException) {
-            Log.e(TAG, "Sign in failed with code: ${e.statusCode}", e)
+            Log.e(TAG, "❌ Google Sign-In failed: ${e.statusCode}")
             currentUser = null
             notifyAuthStateChanged()
             return false
         }
     }
 
-    // NUOVO: Metodo per autenticare con Firebase usando il Google token
     private fun firebaseAuthWithGoogle(idToken: String) {
-        Log.d(TAG, "Authenticating with Firebase...")
+        Log.d(TAG, "=== FIREBASE AUTH START ===")
 
         val credential = GoogleAuthProvider.getCredential(idToken, null)
+
         firebaseAuth.signInWithCredential(credential)
-            .addOnCompleteListener { task ->
-                if (task.isSuccessful) {
-                    Log.d(TAG, "✅ Firebase authentication successful!")
-                    Log.d(TAG, "Firebase UID: ${firebaseAuth.currentUser?.uid}")
-                    notifyAuthStateChanged()
-                } else {
-                    Log.e(TAG, "❌ Firebase authentication failed", task.exception)
-                    currentUser = null
-                    notifyAuthStateChanged()
-                }
+            .addOnSuccessListener { authResult ->
+                Log.d(TAG, "✅ Firebase Auth SUCCESS!")
+                Log.d(TAG, "Firebase UID: ${authResult.user?.uid}")
+                Log.d(TAG, "Email: ${authResult.user?.email}")
+                notifyAuthStateChanged()
+            }
+            .addOnFailureListener { exception ->
+                Log.e(TAG, "❌ Firebase Auth FAILED", exception)
+                Log.e(TAG, "Error: ${exception.message}")
+                currentUser = null
+                notifyAuthStateChanged()
             }
     }
 
     fun signOut(context: Context, onComplete: (Boolean) -> Unit) {
-        // Sign out da Google
-        googleSignInClient?.signOut()?.addOnCompleteListener { task ->
-            val success = task.isSuccessful
+        Log.d(TAG, "=== SIGNING OUT ===")
 
-            // Sign out da Firebase
-            if (success) {
+        googleSignInClient?.signOut()?.addOnCompleteListener { task ->
+            if (task.isSuccessful) {
                 firebaseAuth.signOut()
                 currentUser = null
-                Log.d(TAG, "Sign out successful (Google + Firebase)")
+                Log.d(TAG, "✅ Sign out successful")
             } else {
-                Log.e(TAG, "Sign out failed", task.exception)
+                Log.e(TAG, "❌ Sign out failed", task.exception)
             }
 
             notifyAuthStateChanged()
-            onComplete(success)
+            onComplete(task.isSuccessful)
         }
     }
 
     fun getCurrentUser(): GoogleSignInAccount? = currentUser
 
     fun isLoggedIn(): Boolean {
-        // Verifica sia Google che Firebase
-        return currentUser != null && firebaseAuth.currentUser != null
+        val googleOk = currentUser != null
+        val firebaseOk = firebaseAuth.currentUser != null
+        Log.d(TAG, "isLoggedIn check - Google: $googleOk, Firebase: $firebaseOk")
+        return googleOk && firebaseOk
     }
 
     fun getUserEmail(): String? = currentUser?.email
 
     fun getUserName(): String? = currentUser?.displayName
 
-    // NUOVO: Restituisce il Firebase UID invece del Google ID
-    fun getUserId(): String? = firebaseAuth.currentUser?.uid
+    fun getUserId(): String? {
+        val uid = firebaseAuth.currentUser?.uid
+        Log.d(TAG, "Getting Firebase UID: $uid")
+        return uid
+    }
 
-    // Per debugging
     fun getAuthStatus(): String {
         return if (isLoggedIn()) {
-            "Logged in as: ${getUserName()} (${getUserEmail()})\nFirebase UID: ${getUserId()}"
+            """
+            Logged in
+            Name: ${getUserName()}
+            Email: ${getUserEmail()}
+            Firebase UID: ${getUserId()}
+            """.trimIndent()
         } else {
             "Not logged in"
         }

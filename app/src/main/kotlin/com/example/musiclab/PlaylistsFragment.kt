@@ -1,6 +1,8 @@
 package com.example.musiclab
 
+import android.app.Activity
 import android.app.AlertDialog
+import android.content.Intent
 import android.os.Bundle
 import android.util.Log
 import android.view.LayoutInflater
@@ -9,6 +11,7 @@ import android.view.ViewGroup
 import android.widget.EditText
 import android.widget.TextView
 import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -54,6 +57,16 @@ class PlaylistsFragment : Fragment() {
     private var currentUserId: String = ""
 
     private lateinit var firestore: FirebaseFirestore
+
+    // Launcher per aspettare il risultato da PlaylistSongsActivity
+    private val playlistActivityLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            // La playlist è stata modificata/eliminata, ricarica
+            refreshPlaylists()
+        }
+    }
 
     companion object {
         fun newInstance(): PlaylistsFragment {
@@ -102,6 +115,15 @@ class PlaylistsFragment : Fragment() {
         recyclerView.adapter = playlistAdapter
     }
 
+    private fun onPlaylistClick(playlist: Playlist) {
+        val intent = Intent(requireContext(), PlaylistSongsActivity::class.java).apply {
+            putExtra("PLAYLIST_ID", playlist.id)
+            putExtra("PLAYLIST_NAME", playlist.name)
+            putExtra("PLAYLIST_OWNER_ID", playlist.ownerId)
+        }
+        playlistActivityLauncher.launch(intent)
+    }
+
     private fun updateUI() {
         if (playlists.isEmpty()) {
             recyclerView.visibility = View.GONE
@@ -118,11 +140,6 @@ class PlaylistsFragment : Fragment() {
         }
 
         fabCreatePlaylist.visibility = if (isLoggedIn) View.VISIBLE else View.GONE
-    }
-
-    private fun onPlaylistClick(playlist: Playlist) {
-        (activity as? MainActivity)?.openPlaylist(playlist)
-        Log.d("PlaylistsFragment", "Opened playlist: ${playlist.name}")
     }
 
     private fun showCreatePlaylistDialog() {
@@ -203,7 +220,7 @@ class PlaylistsFragment : Fragment() {
             .addOnSuccessListener { documents ->
                 playlists.clear()
 
-                Log.d("PlaylistsFragment", "Firestore returned ${documents.size()} documents")
+                Log.d("PlaylistsFragment", "Firestore returned ${documents.count()} documents")
 
                 for (document in documents) {
                     val playlist = Playlist(
@@ -352,6 +369,14 @@ class PlaylistsFragment : Fragment() {
             updateUI()
 
             Toast.makeText(requireContext(), "Playlist '${playlist.name}' eliminata", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    // NUOVO: Funzione per ricaricare le playlist
+    fun refreshPlaylists() {
+        if (isLoggedIn) {
+            loadPlaylistsFromCloud()
+            Log.d("PlaylistsFragment", "🔄 Playlists refreshed")
         }
     }
 }

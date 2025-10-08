@@ -40,13 +40,7 @@ class PlaylistAdapter(
 
         // Click listener per aprire PlaylistSongsActivity
         holder.itemView.setOnClickListener {
-            val context = holder.itemView.context
-            val intent = Intent(context, PlaylistSongsActivity::class.java).apply {
-                putExtra("PLAYLIST_ID", playlist.id)
-                putExtra("PLAYLIST_NAME", playlist.name)
-                putExtra("PLAYLIST_OWNER_ID", playlist.ownerId)
-            }
-            context.startActivity(intent)
+            onPlaylistClick(playlist)
         }
 
         // Nascondi il menu button (gestito ora in PlaylistSongsActivity)

@@ -180,7 +180,7 @@ class MainActivity : AppCompatActivity() {
                 isLoggedIn = loggedIn
                 updateLoginButton()
 
-                val userId = user?.id ?: ""
+                val userId = googleAuthManager.getUserId() ?: ""
                 viewPagerAdapter.getPlaylistsFragment()?.setLoginState(loggedIn, userId)
 
                 Log.d("MainActivity", "Auth state: logged in = $loggedIn")

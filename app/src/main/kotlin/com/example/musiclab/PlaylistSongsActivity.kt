@@ -309,6 +309,7 @@ class PlaylistSongsActivity : AppCompatActivity() {
                         .addOnSuccessListener {
                             Toast.makeText(this, "Playlist eliminata", Toast.LENGTH_SHORT).show()
                             Log.d("PlaylistSongsActivity", "✅ Playlist deleted successfully")
+                            setResult(RESULT_OK)
                             finish()
                         }
                         .addOnFailureListener { e ->
