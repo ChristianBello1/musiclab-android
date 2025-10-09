@@ -151,6 +151,13 @@ class QueueAdapter(
     }
 
     fun onItemDismiss(position: Int) {
+        if (position < 0 || position >= songs.size) {
+            return
+        }
+
+        // IMPORTANTE: Chiama il callback PRIMA di rimuovere
+        onRemoveFromQueue(position)
+
         songs.removeAt(position)
         notifyItemRemoved(position)
 

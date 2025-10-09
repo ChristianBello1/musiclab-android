@@ -18,6 +18,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.firebase.firestore.FirebaseFirestore
+import androidx.activity.OnBackPressedCallback
 
 class FolderSongsActivity : AppCompatActivity() {
 
@@ -62,6 +63,16 @@ class FolderSongsActivity : AppCompatActivity() {
 
         setupViews()
         setupRecyclerView()
+
+        onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
+            override fun handleOnBackPressed() {
+                if (isSelectionMode) {
+                    exitSelectionMode()
+                } else {
+                    finish()
+                }
+            }
+        })
 
         // Carica playlist se l'utente è loggato
         if (currentUserId.isNotEmpty()) {
@@ -121,7 +132,8 @@ class FolderSongsActivity : AppCompatActivity() {
             onSelectionChanged = { count ->
                 // NUOVO: Aggiorna contatore
                 updateSelectionUI(count)
-            }
+            },
+            contextType = SongAdapter.ContextType.FOLDER // ← AGGIUNGI questa riga
         )
         songsRecyclerView.adapter = songAdapter
 
@@ -160,6 +172,10 @@ class FolderSongsActivity : AppCompatActivity() {
                     // Mostra dialog per scegliere la playlist
                     showAddToPlaylistDialog(song)
                 }
+            }
+            SongAdapter.MenuAction.REMOVE_FROM_PLAYLIST -> {
+                // NUOVO: In FolderSongsActivity non ha senso rimuovere da playlist
+                Toast.makeText(this, "Operazione non disponibile qui", Toast.LENGTH_SHORT).show()
             }
             SongAdapter.MenuAction.SONG_DETAILS -> {
                 showSongDetails(song)
@@ -537,15 +553,6 @@ class FolderSongsActivity : AppCompatActivity() {
             mb >= 1.0 -> String.format("%.1f MB", mb)
             kb >= 1.0 -> String.format("%.1f KB", kb)
             else -> "$bytes bytes"
-        }
-    }
-
-    @Deprecated("Deprecated in Java")
-    override fun onBackPressed() {
-        if (isSelectionMode) {
-            exitSelectionMode()
-        } else {
-            super.onBackPressed()
         }
     }
 }

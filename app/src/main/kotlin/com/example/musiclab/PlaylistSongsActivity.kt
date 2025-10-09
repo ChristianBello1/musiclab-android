@@ -206,21 +206,29 @@ class PlaylistSongsActivity : AppCompatActivity() {
                 .document(song.id.toString())
                 .delete()
                 .addOnSuccessListener {
+                    // Rimuovi dalla lista locale
                     playlistSongs.remove(song)
-                    songAdapter.updateSongs(playlistSongs)
-                    updateSongCount()
 
-                    Toast.makeText(this, "Canzone rimossa dalla playlist", Toast.LENGTH_SHORT).show()
-                    Log.d("PlaylistSongsActivity", "✅ Song removed successfully")
+                    // IMPORTANTE: Usa runOnUiThread per sicurezza
+                    runOnUiThread {
+                        songAdapter.updateSongs(playlistSongs)
+                        updateSongCount()
 
-                    // Se non ci sono più canzoni, torna indietro
-                    if (playlistSongs.isEmpty()) {
-                        finish()
+                        Toast.makeText(this, "Canzone rimossa dalla playlist", Toast.LENGTH_SHORT).show()
+                        Log.d("PlaylistSongsActivity", "✅ Song removed successfully")
+
+                        // Se non ci sono più canzoni, torna indietro
+                        if (playlistSongs.isEmpty()) {
+                            Toast.makeText(this, "Playlist vuota", Toast.LENGTH_SHORT).show()
+                            finish()
+                        }
                     }
                 }
                 .addOnFailureListener { e ->
-                    Log.e("PlaylistSongsActivity", "Error removing song: ${e.message}")
-                    Toast.makeText(this, "Errore rimozione canzone", Toast.LENGTH_SHORT).show()
+                    runOnUiThread {
+                        Log.e("PlaylistSongsActivity", "Error removing song: ${e.message}")
+                        Toast.makeText(this, "Errore rimozione canzone: ${e.message}", Toast.LENGTH_SHORT).show()
+                    }
                 }
         }
     }

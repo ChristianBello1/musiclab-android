@@ -677,6 +677,10 @@ class MainActivity : AppCompatActivity() {
                     Log.w("MainActivity", "PlaylistsFragment not yet initialized")
                 }
             }
+            SongAdapter.MenuAction.REMOVE_FROM_PLAYLIST -> {
+                // NUOVO: In MainActivity non ha senso rimuovere da playlist
+                Toast.makeText(this, "Operazione non disponibile qui", Toast.LENGTH_SHORT).show()
+            }
             SongAdapter.MenuAction.SONG_DETAILS -> {
                 showSongDetails(song)
             }
