@@ -149,6 +149,14 @@ class FoldersFragment : Fragment() {
         intent.putExtra("FOLDER_NAME", folder.name)
         intent.putParcelableArrayListExtra("FOLDER_SONGS", ArrayList(folder.songs))
 
+        // NUOVO: Passa l'userId se disponibile
+        val mainActivity = activity as? MainActivity
+        if (mainActivity != null) {
+            val userId = mainActivity.getCurrentUserId()
+            intent.putExtra("USER_ID", userId)
+            Log.d("FoldersFragment", "Passing UserID: $userId")
+        }
+
         Log.d("FoldersFragment", "🚀 Starting FolderSongsActivity")
         startActivity(intent)
     }

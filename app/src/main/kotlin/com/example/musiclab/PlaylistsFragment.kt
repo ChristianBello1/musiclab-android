@@ -222,22 +222,90 @@ class PlaylistsFragment : Fragment() {
 
                 Log.d("PlaylistsFragment", "Firestore returned ${documents.count()} documents")
 
-                for (document in documents) {
-                    val playlist = Playlist(
-                        id = document.id,
-                        name = document.getString("name") ?: "Playlist",
-                        ownerId = document.getString("ownerId") ?: "",
-                        createdAt = document.getLong("createdAt") ?: System.currentTimeMillis(),
-                        isLocal = false
-                    )
-                    playlists.add(playlist)
-                    Log.d("PlaylistsFragment", "Loaded playlist: ${playlist.name}")
+                // Conta totale playlist da caricare
+                val totalPlaylists = documents.size()
+                var loadedCount = 0
+
+                if (totalPlaylists == 0) {
+                    // Nessuna playlist
+                    playlistAdapter.notifyDataSetChanged()
+                    updateUI()
+                    return@addOnSuccessListener
                 }
 
-                playlistAdapter.notifyDataSetChanged()
-                updateUI()
+                for (document in documents) {
+                    val playlistId = document.id
+                    val playlistName = document.getString("name") ?: "Playlist"
+                    val ownerId = document.getString("ownerId") ?: ""
+                    val createdAt = document.getLong("createdAt") ?: System.currentTimeMillis()
 
-                Log.d("PlaylistsFragment", "Successfully loaded ${playlists.size} playlists from cloud")
+                    // NUOVO: Carica le canzoni per questa playlist
+                    firestore.collection("playlists")
+                        .document(playlistId)
+                        .collection("songs")
+                        .get()
+                        .addOnSuccessListener { songDocs ->
+                            val songs = mutableListOf<Song>()
+
+                            for (songDoc in songDocs) {
+                                try {
+                                    val song = Song(
+                                        id = songDoc.getLong("id") ?: 0L,
+                                        title = songDoc.getString("title") ?: "Unknown",
+                                        artist = songDoc.getString("artist") ?: "Unknown",
+                                        album = songDoc.getString("album") ?: "Unknown",
+                                        duration = songDoc.getLong("duration") ?: 0L,
+                                        path = songDoc.getString("path") ?: "",
+                                        size = songDoc.getLong("size") ?: 0L
+                                    )
+                                    songs.add(song)
+                                } catch (e: Exception) {
+                                    Log.e("PlaylistsFragment", "Error parsing song: ${e.message}")
+                                }
+                            }
+
+                            // Crea playlist con le canzoni caricate
+                            val playlist = Playlist(
+                                id = playlistId,
+                                name = playlistName,
+                                ownerId = ownerId,
+                                createdAt = createdAt,
+                                songs = songs, // ← IMPORTANTE: Le canzoni vengono caricate
+                                isLocal = false
+                            )
+
+                            playlists.add(playlist)
+                            loadedCount++
+
+                            Log.d("PlaylistsFragment", "Loaded playlist: $playlistName with ${songs.size} songs")
+
+                            // Quando tutte le playlist sono caricate
+                            if (loadedCount == totalPlaylists) {
+                                playlistAdapter.notifyDataSetChanged()
+                                updateUI()
+                                Log.d("PlaylistsFragment", "✅ All playlists loaded with songs")
+                            }
+                        }
+                        .addOnFailureListener { e ->
+                            Log.e("PlaylistsFragment", "Error loading songs for $playlistName: ${e.message}")
+
+                            // Anche in caso di errore, crea la playlist (vuota)
+                            val playlist = Playlist(
+                                id = playlistId,
+                                name = playlistName,
+                                ownerId = ownerId,
+                                createdAt = createdAt,
+                                isLocal = false
+                            )
+                            playlists.add(playlist)
+                            loadedCount++
+
+                            if (loadedCount == totalPlaylists) {
+                                playlistAdapter.notifyDataSetChanged()
+                                updateUI()
+                            }
+                        }
+                }
             }
             .addOnFailureListener { e ->
                 Log.e("PlaylistsFragment", "Error loading playlists: ${e.message}", e)

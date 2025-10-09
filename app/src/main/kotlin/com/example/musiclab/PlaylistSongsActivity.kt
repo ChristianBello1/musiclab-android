@@ -80,7 +80,8 @@ class PlaylistSongsActivity : AppCompatActivity() {
             },
             onSongMenuClick = { song, action ->
                 handleSongMenuAction(song, action)
-            }
+            },
+            contextType = SongAdapter.ContextType.PLAYLIST // NUOVO: Specifica che siamo in una playlist
         )
         songsRecyclerView.adapter = songAdapter
 
@@ -148,6 +149,10 @@ class PlaylistSongsActivity : AppCompatActivity() {
         when (action) {
             SongAdapter.MenuAction.ADD_TO_PLAYLIST -> {
                 Toast.makeText(this, "Canzone già in una playlist", Toast.LENGTH_SHORT).show()
+            }
+            SongAdapter.MenuAction.REMOVE_FROM_PLAYLIST -> {
+                // NUOVO: Gestisci rimozione da playlist
+                showRemoveFromPlaylistConfirmation(song)
             }
             SongAdapter.MenuAction.SONG_DETAILS -> {
                 showSongDetails(song)

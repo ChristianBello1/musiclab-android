@@ -7,6 +7,7 @@ import android.graphics.drawable.Drawable
 import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.RecyclerView
+import android.util.Log
 
 class QueueItemTouchHelperCallback(
     private val adapter: QueueAdapter,
@@ -88,7 +89,9 @@ class QueueItemTouchHelperCallback(
     }
 
     override fun onSwiped(viewHolder: RecyclerView.ViewHolder, direction: Int) {
-        adapter.onItemDismiss(viewHolder.adapterPosition)
+        val position = viewHolder.adapterPosition
+        Log.d("QueueItemTouchHelper", "Swiped at position: $position")
+        adapter.onItemDismiss(position)
     }
 
     override fun onChildDraw(

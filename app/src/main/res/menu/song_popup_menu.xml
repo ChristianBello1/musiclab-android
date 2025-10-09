@@ -1,11 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Crea questo file in: app/src/main/res/menu/song_popup_menu.xml -->
 <menu xmlns:android="http://schemas.android.com/apk/res/android">
 
     <item
         android:id="@+id/menu_add_to_playlist"
         android:title="@string/add_to_playlist"
         android:icon="@android:drawable/ic_input_add" />
+
+    <item
+        android:id="@+id/menu_remove_from_playlist"
+        android:title="@string/remove_from_playlist"
+        android:icon="@android:drawable/ic_menu_close_clear_cancel" />
 
     <item
         android:id="@+id/menu_song_details"
@@ -18,3 +22,7 @@
         android:icon="@android:drawable/ic_menu_delete" />
 
 </menu>
+
+    <!-- 3. Salva il file
+    4. Vai in SongAdapter.kt e controlla se l'errore è sparito
+    5. Dimmi "fatto fix 1" -->

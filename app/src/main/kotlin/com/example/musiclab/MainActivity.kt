@@ -790,4 +790,10 @@ class MainActivity : AppCompatActivity() {
 
         Log.d("MainActivity", "MainActivity destroyed")
     }
+
+    fun getCurrentUserId(): String {
+        val userId = googleAuthManager.getUserId() ?: ""
+        Log.d("MainActivity", "getCurrentUserId: $userId")
+        return userId
+    }
 }
