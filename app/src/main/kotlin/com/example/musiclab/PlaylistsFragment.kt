@@ -1,7 +1,15 @@
+/* ISTRUZIONI:
+1. Apri app/src/main/kotlin/com/example/musiclab/PlaylistsFragment.kt
+2. SOSTITUISCI TUTTO IL CONTENUTO con questo file
+3. Salva
+4. Compila
+5. Testa
+6. Dimmi "testato file completo"
+*/
+
 package com.example.musiclab
 
 import android.app.Activity
-import android.app.AlertDialog
 import android.content.Intent
 import android.os.Bundle
 import android.util.Log
@@ -12,6 +20,7 @@ import android.widget.EditText
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.appcompat.app.AlertDialog
 import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -55,6 +64,7 @@ class PlaylistsFragment : Fragment() {
     private var playlists: MutableList<Playlist> = mutableListOf()
     private var isLoggedIn = false
     private var currentUserId: String = ""
+    private var isLoading = false  // NUOVO: Flag per evitare caricamenti multipli
 
     private lateinit var firestore: FirebaseFirestore
 
@@ -63,7 +73,7 @@ class PlaylistsFragment : Fragment() {
         ActivityResultContracts.StartActivityForResult()
     ) { result ->
         if (result.resultCode == Activity.RESULT_OK) {
-            // La playlist è stata modificata/eliminata, ricarica
+            Log.d("PlaylistsFragment", "🔄 Activity returned RESULT_OK, refreshing")
             refreshPlaylists()
         }
     }
@@ -212,24 +222,32 @@ class PlaylistsFragment : Fragment() {
     }
 
     private fun loadPlaylistsFromCloud() {
+        // NUOVO: Evita caricamenti multipli
+        if (isLoading) {
+            Log.d("PlaylistsFragment", "⏳ Already loading, skipping")
+            return
+        }
+
+        isLoading = true
+
         Log.d("PlaylistsFragment", "Loading playlists for user: $currentUserId")
+
+        // Pulisci PRIMA di caricare per evitare duplicati
+        playlists.clear()
 
         firestore.collection("playlists")
             .whereEqualTo("ownerId", currentUserId)
             .get()
             .addOnSuccessListener { documents ->
-                playlists.clear()
-
                 Log.d("PlaylistsFragment", "Firestore returned ${documents.count()} documents")
 
-                // Conta totale playlist da caricare
                 val totalPlaylists = documents.size()
                 var loadedCount = 0
 
                 if (totalPlaylists == 0) {
-                    // Nessuna playlist
                     playlistAdapter.notifyDataSetChanged()
                     updateUI()
+                    isLoading = false  // NUOVO: Sblocca
                     return@addOnSuccessListener
                 }
 
@@ -239,7 +257,7 @@ class PlaylistsFragment : Fragment() {
                     val ownerId = document.getString("ownerId") ?: ""
                     val createdAt = document.getLong("createdAt") ?: System.currentTimeMillis()
 
-                    // NUOVO: Carica le canzoni per questa playlist
+                    // Carica le canzoni per questa playlist
                     firestore.collection("playlists")
                         .document(playlistId)
                         .collection("songs")
@@ -264,13 +282,12 @@ class PlaylistsFragment : Fragment() {
                                 }
                             }
 
-                            // Crea playlist con le canzoni caricate
                             val playlist = Playlist(
                                 id = playlistId,
                                 name = playlistName,
                                 ownerId = ownerId,
                                 createdAt = createdAt,
-                                songs = songs, // ← IMPORTANTE: Le canzoni vengono caricate
+                                songs = songs,
                                 isLocal = false
                             )
 
@@ -279,17 +296,16 @@ class PlaylistsFragment : Fragment() {
 
                             Log.d("PlaylistsFragment", "Loaded playlist: $playlistName with ${songs.size} songs")
 
-                            // Quando tutte le playlist sono caricate
                             if (loadedCount == totalPlaylists) {
                                 playlistAdapter.notifyDataSetChanged()
                                 updateUI()
-                                Log.d("PlaylistsFragment", "✅ All playlists loaded with songs")
+                                isLoading = false  // NUOVO: Sblocca
+                                Log.d("PlaylistsFragment", "✅ All playlists loaded")
                             }
                         }
                         .addOnFailureListener { e ->
                             Log.e("PlaylistsFragment", "Error loading songs for $playlistName: ${e.message}")
 
-                            // Anche in caso di errore, crea la playlist (vuota)
                             val playlist = Playlist(
                                 id = playlistId,
                                 name = playlistName,
@@ -303,11 +319,13 @@ class PlaylistsFragment : Fragment() {
                             if (loadedCount == totalPlaylists) {
                                 playlistAdapter.notifyDataSetChanged()
                                 updateUI()
+                                isLoading = false  // NUOVO: Sblocca
                             }
                         }
                 }
             }
             .addOnFailureListener { e ->
+                isLoading = false  // NUOVO: Sblocca anche in caso di errore
                 Log.e("PlaylistsFragment", "Error loading playlists: ${e.message}", e)
                 Toast.makeText(requireContext(), "Errore caricamento playlist: ${e.message}", Toast.LENGTH_SHORT).show()
             }
@@ -340,7 +358,6 @@ class PlaylistsFragment : Fragment() {
         if (playlist != null) {
             Log.d("PlaylistsFragment", "Adding song ${song.title} to playlist ${playlist.name}")
 
-            // Controlla se la canzone è già nella playlist
             firestore.collection("playlists")
                 .document(playlistId)
                 .collection("songs")
@@ -354,7 +371,6 @@ class PlaylistsFragment : Fragment() {
                             Toast.LENGTH_SHORT
                         ).show()
                     } else {
-                        // Aggiungi la canzone a Firestore
                         val songData = hashMapOf(
                             "id" to song.id,
                             "title" to song.title,
@@ -372,8 +388,8 @@ class PlaylistsFragment : Fragment() {
                             .document(song.id.toString())
                             .set(songData)
                             .addOnSuccessListener {
-                                playlist.songs.add(song)
-                                playlistAdapter.notifyDataSetChanged()
+                                // NUOVO: Ricarica tutto da Firestore
+                                loadPlaylistsFromCloud()
 
                                 Toast.makeText(
                                     requireContext(),
@@ -381,7 +397,7 @@ class PlaylistsFragment : Fragment() {
                                     Toast.LENGTH_SHORT
                                 ).show()
 
-                                Log.d("PlaylistsFragment", "✅ Song added successfully to Firestore")
+                                Log.d("PlaylistsFragment", "✅ Song added, reloading playlists")
                             }
                             .addOnFailureListener { e ->
                                 Log.e("PlaylistsFragment", "Error adding song: ${e.message}")
@@ -440,11 +456,21 @@ class PlaylistsFragment : Fragment() {
         }
     }
 
-    // NUOVO: Funzione per ricaricare le playlist
     fun refreshPlaylists() {
+        Log.d("PlaylistsFragment", "🔄 Refreshing playlists manually")
+
         if (isLoggedIn) {
             loadPlaylistsFromCloud()
-            Log.d("PlaylistsFragment", "🔄 Playlists refreshed")
+        }
+    }
+
+    // NUOVO: Ricarica quando torni alla schermata
+    override fun onResume() {
+        super.onResume()
+
+        if (isLoggedIn && currentUserId.isNotEmpty()) {
+            Log.d("PlaylistsFragment", "🔄 onResume - reloading playlists")
+            loadPlaylistsFromCloud()
         }
     }
 }

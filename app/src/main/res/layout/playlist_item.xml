@@ -43,44 +43,23 @@
                 android:maxLines="1"
                 android:ellipsize="end" />
 
-            <LinearLayout
+            <!-- SEMPLIFICATO: Solo conteggio canzoni -->
+            <TextView
+                android:id="@+id/playlist_song_count"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:layout_marginTop="4dp">
-
-                <TextView
-                    android:id="@+id/playlist_song_count"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="@string/songs_in_playlist"
-                    android:textSize="12sp"
-                    android:textColor="?android:attr/textColorSecondary" />
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text=" • "
-                    android:textSize="12sp"
-                    android:textColor="?android:attr/textColorSecondary" />
-
-                <TextView
-                    android:id="@+id/playlist_duration"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="@string/duration_placeholder"
-                    android:textSize="12sp"
-                    android:textColor="?android:attr/textColorSecondary" />
-
-            </LinearLayout>
+                android:text="@string/songs_in_playlist"
+                android:textSize="12sp"
+                android:textColor="?android:attr/textColorSecondary"
+                android:layout_marginTop="4dp" />
 
         </LinearLayout>
 
         <!-- Menu Button -->
         <ImageButton
             android:id="@+id/playlist_menu"
-            android:layout_width="40dp"
-            android:layout_height="40dp"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
             android:src="@android:drawable/ic_menu_more"
             android:background="?attr/selectableItemBackgroundBorderless"
             android:contentDescription="@string/playlist_menu"

@@ -140,6 +140,7 @@ class FolderSongsActivity : AppCompatActivity() {
         Log.d("FolderSongsActivity", "RecyclerView setup with ${folderSongs.size} songs")
     }
 
+
     private fun onSongClick(song: Song) {
         Log.d("FolderSongsActivity", "Song clicked: ${song.title}")
 
@@ -267,6 +268,7 @@ class FolderSongsActivity : AppCompatActivity() {
                                 Toast.LENGTH_SHORT
                             ).show()
                             Log.d("FolderSongsActivity", "✅ Song added successfully")
+                            setResult(RESULT_OK)
                         }
                         .addOnFailureListener { e ->
                             Toast.makeText(
@@ -475,6 +477,11 @@ class FolderSongsActivity : AppCompatActivity() {
             .show()
 
         Log.d("FolderSongsActivity", "✅ Completed: added=$added, skipped=$skipped, errors=$errors")
+
+        // NUOVO: Se sono state aggiunte canzoni, segnala il cambiamento
+        if (added > 0) {
+            setResult(RESULT_OK)
+        }
     }
 
     private fun showSongDetails(song: Song) {

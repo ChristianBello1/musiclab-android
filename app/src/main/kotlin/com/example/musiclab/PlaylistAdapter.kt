@@ -8,6 +8,7 @@ import android.widget.ImageButton
 import android.widget.ImageView
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
+import android.util.Log
 
 class PlaylistAdapter(
     private var playlists: List<Playlist>,
@@ -18,7 +19,6 @@ class PlaylistAdapter(
         val playlistIcon: ImageView = itemView.findViewById(R.id.playlist_icon)
         val playlistName: TextView = itemView.findViewById(R.id.playlist_name)
         val songCount: TextView = itemView.findViewById(R.id.playlist_song_count)
-        val duration: TextView = itemView.findViewById(R.id.playlist_duration)
         val menuButton: ImageButton = itemView.findViewById(R.id.playlist_menu)
     }
 
@@ -32,11 +32,15 @@ class PlaylistAdapter(
         val playlist = playlists[position]
 
         holder.playlistName.text = playlist.name
+
+        // SEMPLIFICATO: Solo conteggio canzoni
+        val songCount = playlist.songs.size
         holder.songCount.text = holder.itemView.context.getString(
             R.string.songs_in_playlist,
-            playlist.getSongCount()
+            songCount
         )
-        holder.duration.text = playlist.getFormattedDuration()
+
+        Log.d("PlaylistAdapter", "Playlist '${playlist.name}': $songCount songs")
 
         // Click listener per aprire PlaylistSongsActivity
         holder.itemView.setOnClickListener {

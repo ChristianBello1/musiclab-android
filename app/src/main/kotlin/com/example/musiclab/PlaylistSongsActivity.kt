@@ -209,13 +209,15 @@ class PlaylistSongsActivity : AppCompatActivity() {
                     // Rimuovi dalla lista locale
                     playlistSongs.remove(song)
 
-                    // IMPORTANTE: Usa runOnUiThread per sicurezza
                     runOnUiThread {
                         songAdapter.updateSongs(playlistSongs)
                         updateSongCount()
 
                         Toast.makeText(this, "Canzone rimossa dalla playlist", Toast.LENGTH_SHORT).show()
                         Log.d("PlaylistSongsActivity", "✅ Song removed successfully")
+
+                        // NUOVO: Segnala che la playlist è cambiata
+                        setResult(RESULT_OK)
 
                         // Se non ci sono più canzoni, torna indietro
                         if (playlistSongs.isEmpty()) {
@@ -281,6 +283,7 @@ class PlaylistSongsActivity : AppCompatActivity() {
 
                     Toast.makeText(this, "Playlist rinominata", Toast.LENGTH_SHORT).show()
                     Log.d("PlaylistSongsActivity", "✅ Playlist renamed successfully")
+                    setResult(RESULT_OK)
                 }
                 .addOnFailureListener { e ->
                     Log.e("PlaylistSongsActivity", "Error renaming playlist: ${e.message}")
