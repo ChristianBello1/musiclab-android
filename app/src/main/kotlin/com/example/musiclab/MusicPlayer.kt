@@ -232,34 +232,78 @@ class MusicPlayer(private val context: Context) {
     }
 
     fun removeFromQueue(position: Int): Boolean {
+        Log.d("MusicPlayer", "=== REMOVE FROM QUEUE START ===")
+        Log.d("MusicPlayer", "🎯 Requested position: $position")
+        Log.d("MusicPlayer", "📊 Before removal:")
+        Log.d("MusicPlayer", "   Queue size: ${currentQueue.size}")
+        Log.d("MusicPlayer", "   Current index: $currentSongIndex")
+        Log.d("MusicPlayer", "   Current song: ${getCurrentSong()?.title}")
+
+        // Mostra le canzoni intorno alla posizione
+        if (position > 0 && position < currentQueue.size) {
+            Log.d("MusicPlayer", "   Position ${position-1}: ${currentQueue[position-1].title}")
+        }
+        if (position < currentQueue.size) {
+            Log.d("MusicPlayer", "   Position $position (TO REMOVE): ${currentQueue[position].title}")
+        }
+        if (position + 1 < currentQueue.size) {
+            Log.d("MusicPlayer", "   Position ${position+1}: ${currentQueue[position+1].title}")
+        }
+
         if (position < 0 || position >= currentQueue.size) {
-            Log.w("MusicPlayer", "Invalid position for removal: $position")
+            Log.w("MusicPlayer", "❌ Invalid position for removal: $position")
             return false
         }
 
         val removedSong = currentQueue.removeAt(position)
+        Log.d("MusicPlayer", "🗑️ Removed: ${removedSong.title}")
 
-        // Aggiusta l'indice corrente se necessario
+        // Aggiorna l'indice
+        val oldIndex = currentSongIndex
+
         when {
             position < currentSongIndex -> {
                 currentSongIndex--
+                Log.d("MusicPlayer", "📍 Removed song BEFORE current, index: $oldIndex → $currentSongIndex")
             }
             position == currentSongIndex -> {
-                // Se rimuoviamo la canzone corrente
+                Log.d("MusicPlayer", "📍 Removed CURRENT song")
                 if (currentSongIndex >= currentQueue.size) {
                     currentSongIndex = maxOf(0, currentQueue.size - 1)
                 }
-                // Se la coda non è vuota, riproduci la prossima canzone
+
                 if (currentQueue.isNotEmpty() && exoPlayer?.isPlaying == true) {
+                    Log.d("MusicPlayer", "▶️ Playing next song at index: $currentSongIndex")
                     playCurrentSong()
                 }
             }
+            else -> {
+                Log.d("MusicPlayer", "📍 Removed song AFTER current, index stays: $currentSongIndex")
+            }
         }
 
-        // IMPORTANTE: Notifica il cambiamento
+        Log.d("MusicPlayer", "📊 After removal:")
+        Log.d("MusicPlayer", "   Queue size: ${currentQueue.size}")
+        Log.d("MusicPlayer", "   Current index: $currentSongIndex")
+        Log.d("MusicPlayer", "   Current song: ${getCurrentSong()?.title}")
+
+        // Mostra le nuove canzoni intorno all'indice corrente
+        if (currentSongIndex > 0 && currentSongIndex <= currentQueue.size) {
+            Log.d("MusicPlayer", "   Position ${currentSongIndex-1}: ${currentQueue[currentSongIndex-1].title}")
+        }
+        if (currentSongIndex < currentQueue.size) {
+            Log.d("MusicPlayer", "   Position $currentSongIndex (CURRENT): ${currentQueue[currentSongIndex].title}")
+        }
+        if (currentSongIndex + 1 < currentQueue.size) {
+            Log.d("MusicPlayer", "   Position ${currentSongIndex+1} (NEXT): ${currentQueue[currentSongIndex+1].title}")
+        }
+
+        // Notifica DOPO aver stampato tutto
+        Log.d("MusicPlayer", "🔔 Notifying ${queueChangeListeners.size} listeners")
         notifyQueueChanged()
 
-        Log.d("MusicPlayer", "Removed '${removedSong.title}' from position $position. Queue size: ${currentQueue.size}")
+        Log.d("MusicPlayer", "=== REMOVE FROM QUEUE END ===")
+
         return true
     }
 

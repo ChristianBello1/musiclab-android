@@ -181,8 +181,10 @@ class SongAdapter(
                 popupMenu.menu.add(0, R.id.menu_song_details, 1, view.context.getString(R.string.song_details))
             }
             ContextType.FOLDER, ContextType.MAIN -> {
-                // In cartelle/main: mostra menu normale
-                popupMenu.menuInflater.inflate(R.menu.song_popup_menu, popupMenu.menu)
+                // In cartelle/main: mostra menu normale SENZA "Rimuovi da playlist"
+                popupMenu.menu.add(0, R.id.menu_add_to_playlist, 0, view.context.getString(R.string.add_to_playlist))
+                popupMenu.menu.add(0, R.id.menu_song_details, 1, view.context.getString(R.string.song_details))
+                popupMenu.menu.add(0, R.id.menu_delete_from_device, 2, view.context.getString(R.string.delete_from_device))
             }
         }
 

@@ -36,14 +36,6 @@ class QueueActivity : AppCompatActivity() {
         }
     }
 
-    // NUOVO: Listener specifico per cambiamenti della coda
-    private val queueChangeListener: () -> Unit = {
-        runOnUiThread {
-            Log.d("QueueActivity", "🔄 Queue changed - reloading from MusicPlayer")
-            loadCurrentQueue()
-        }
-    }
-
     // Listener per cambiamenti del player
     private val playerStateListener: (Boolean, Song?) -> Unit = { isPlaying, currentSong ->
         runOnUiThread {
@@ -67,8 +59,7 @@ class QueueActivity : AppCompatActivity() {
         setupClickListeners()
         loadCurrentQueue()
 
-        // NUOVO: Aggiungi entrambi i listener
-        musicPlayer.addQueueChangeListener(queueChangeListener)
+        // Registra SOLO il listener di stato
         musicPlayer.addStateChangeListener(playerStateListener)
 
         startUpdates()
@@ -81,7 +72,6 @@ class QueueActivity : AppCompatActivity() {
         queueRecyclerView = findViewById(R.id.queue_recycler_view)
         clearQueueButton = findViewById(R.id.btn_clear_queue)
 
-        // Trova l'empty state container (se esiste nel layout)
         emptyStateContainer = findViewById<View?>(R.id.empty_queue_container) ?: View(this)
 
         queueTitle.text = getString(R.string.playback_queue)
@@ -90,6 +80,7 @@ class QueueActivity : AppCompatActivity() {
     private fun setupRecyclerView() {
         queueRecyclerView.layoutManager = LinearLayoutManager(this)
 
+        // IMPORTANTE: Passa la stessa lista (currentQueue)
         queueAdapter = QueueAdapter(
             songs = currentQueue,
             currentSongIndex = currentSongIndex,
@@ -99,7 +90,7 @@ class QueueActivity : AppCompatActivity() {
 
         queueRecyclerView.adapter = queueAdapter
 
-        // Setup drag & drop con callback corretto
+        // Setup drag & drop
         val itemTouchHelper = ItemTouchHelper(
             QueueItemTouchHelperCallback(queueAdapter) { fromPos, toPos ->
                 Log.d("QueueActivity", "Drag completed: $fromPos -> $toPos")
@@ -126,23 +117,23 @@ class QueueActivity : AppCompatActivity() {
     private fun loadCurrentQueue() {
         Log.d("QueueActivity", "=== LOADING CURRENT QUEUE ===")
 
-        // Ottieni la coda reale dal MusicPlayer - SEMPRE aggiornata
+        // Ottieni la coda reale dal MusicPlayer
         val realQueue = musicPlayer.getCurrentQueue()
         currentSongIndex = musicPlayer.getCurrentIndex()
 
-        // IMPORTANTE: Sincronizza completamente
+        // Sincronizza completamente
         currentQueue.clear()
         currentQueue.addAll(realQueue)
 
         Log.d("QueueActivity", "✅ Queue synchronized: ${currentQueue.size} songs, current index: $currentSongIndex")
 
-        // Debug: stampa le prime 3 canzoni per verifica
+        // Debug: stampa le prime 3 canzoni
         currentQueue.take(3).forEachIndexed { index, song ->
             val isCurrent = if (index == currentSongIndex) "🎵 PLAYING" else ""
             Log.d("QueueActivity", "  $index: ${song.title} $isCurrent")
         }
 
-        // Aggiorna l'adapter con i dati sincronizzati
+        // Aggiorna l'adapter
         queueAdapter.updateQueue(currentQueue, currentSongIndex)
         updateCurrentSong()
         updateEmptyState()
@@ -158,7 +149,7 @@ class QueueActivity : AppCompatActivity() {
         if (currentSong != null) {
             currentSongTitle.text = "${getString(R.string.currently_playing)}: ${currentSong.title}"
 
-            // SINCRONIZZA l'indice locale con quello reale
+            // Sincronizza l'indice
             if (realIndex != currentSongIndex) {
                 Log.d("QueueActivity", "🔄 Index sync: local=$currentSongIndex, real=$realIndex")
                 currentSongIndex = realIndex
@@ -184,66 +175,101 @@ class QueueActivity : AppCompatActivity() {
     private fun onQueueSongClick(song: Song, position: Int) {
         Log.d("QueueActivity", "🎵 Queue song clicked: ${song.title} at position $position")
 
-        // Salta alla canzone selezionata
         val success = musicPlayer.jumpToIndex(position)
 
         if (success) {
-            // Non aggiornare manualmente - il listener se ne occuperà
-            Log.d("QueueActivity", "✅ Jump successful - waiting for listener update")
+            Log.d("QueueActivity", "✅ Jump successful")
         } else {
             Log.e("QueueActivity", "❌ Failed to jump to song")
         }
     }
 
     private fun removeFromQueue(position: Int) {
-        Log.d("QueueActivity", "🗑️ Removing from queue at position: $position")
+        Log.d("QueueActivity", "🗑️ SWIPE REMOVE at position: $position")
+        Log.d("QueueActivity", "📊 BEFORE - size: ${currentQueue.size}, index: $currentSongIndex")
 
         if (position < 0 || position >= currentQueue.size) {
-            Log.w("QueueActivity", "❌ Invalid position for removal")
+            Log.w("QueueActivity", "❌ Invalid position")
             return
         }
 
         val removedSong = currentQueue[position]
+        Log.d("QueueActivity", "🎵 Removing: ${removedSong.title}")
 
-        // Rimuovi dal MusicPlayer - il listener aggiornerà automaticamente
+        // Rimuovi dal MusicPlayer PRIMA
         val success = musicPlayer.removeFromQueue(position)
 
-        if (success) {
-            Log.d("QueueActivity", "✅ Song '${removedSong.title}' removed - listener will update UI")
-        } else {
-            Log.e("QueueActivity", "❌ Failed to remove song")
+        if (!success) {
+            Log.e("QueueActivity", "❌ MusicPlayer failed, reloading")
+            loadCurrentQueue()
+            return
         }
+
+        Log.d("QueueActivity", "✅ MusicPlayer confirmed removal")
+
+        // Rimuovi dalla lista locale
+        currentQueue.removeAt(position)
+
+        // Aggiorna indice locale
+        val oldIndex = currentSongIndex
+        when {
+            position < currentSongIndex -> {
+                currentSongIndex--
+            }
+            position == currentSongIndex -> {
+                if (currentSongIndex >= currentQueue.size) {
+                    currentSongIndex = maxOf(0, currentQueue.size - 1)
+                }
+            }
+        }
+
+        Log.d("QueueActivity", "📊 AFTER - size: ${currentQueue.size}, index: $oldIndex → $currentSongIndex")
+
+        // Notifica l'adapter della rimozione
+        queueAdapter.notifyItemRemoved(position)
+
+        // Aggiorna gli item vicini per il testo "Up Next #X"
+        if (position > 0) {
+            queueAdapter.notifyItemChanged(position - 1)
+        }
+        if (position < currentQueue.size) {
+            queueAdapter.notifyItemChanged(position)
+        }
+
+        // Aggiorna l'indice corrente se è cambiato
+        if (oldIndex != currentSongIndex) {
+            queueAdapter.updateCurrentIndex(currentSongIndex)
+        }
+
+        updateCurrentSong()
+        updateEmptyState()
+
+        Log.d("QueueActivity", "✅ UI updated successfully")
     }
 
     private fun moveItemInQueueFinal(fromPosition: Int, toPosition: Int) {
         Log.d("QueueActivity", "🔄 Final move: $fromPosition -> $toPosition")
 
-        // Aggiorna il MusicPlayer - il listener si occuperà del resto
         val success = musicPlayer.moveInQueue(fromPosition, toPosition)
 
         if (success) {
-            Log.d("QueueActivity", "✅ Move successful - listener will update UI")
+            Log.d("QueueActivity", "✅ Move successful")
         } else {
-            Log.e("QueueActivity", "❌ Move failed - reloading to restore correct state")
-            // Se fallisce, il listener dovrebbe comunque aggiornare
+            Log.e("QueueActivity", "❌ Move failed - reloading")
+            loadCurrentQueue()
         }
     }
 
     private fun clearQueue() {
         Log.d("QueueActivity", "🗑️ Clearing entire queue")
-
-        // Svuota la coda nel MusicPlayer - il listener aggiornerà l'UI
         musicPlayer.clearQueue()
-
-        Log.d("QueueActivity", "✅ Clear command sent - listener will update UI")
+        loadCurrentQueue()
     }
 
-    // Metodo per aggiornare le info shuffle/repeat
     private fun updateShuffleRepeatInfo() {
         val isShuffleEnabled = musicPlayer.isShuffleEnabled()
         val repeatMode = musicPlayer.getRepeatMode()
 
-        // Aggiorna il titolo della coda per mostrare lo stato
         val baseTitle = getString(R.string.playback_queue)
         val shuffleText = if (isShuffleEnabled) " 🔀" else ""
         val repeatText = when (repeatMode) {
@@ -269,7 +295,6 @@ class QueueActivity : AppCompatActivity() {
         super.onResume()
         Log.d("QueueActivity", "=== ON RESUME ===")
         startUpdates()
-        // Il queue change listener si occuperà degli aggiornamenti automatici
     }
 
     override fun onPause() {
@@ -281,10 +306,9 @@ class QueueActivity : AppCompatActivity() {
         super.onDestroy()
         stopUpdates()
 
-        // IMPORTANTE: Rimuovi entrambi i listener
-        musicPlayer.removeQueueChangeListener(queueChangeListener)
+        // Rimuovi listener
         musicPlayer.removeStateChangeListener(playerStateListener)
 
-        Log.d("QueueActivity", "QueueActivity destroyed, listeners removed")
+        Log.d("QueueActivity", "QueueActivity destroyed")
     }
 }

@@ -9,6 +9,7 @@ import android.widget.ImageView
 import android.widget.TextView
 import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.RecyclerView
+import android.util.Log
 
 class QueueAdapter(
     private var songs: MutableList<Song>,
@@ -78,9 +79,6 @@ class QueueAdapter(
         holder.removeButton.setOnClickListener {
             onRemoveFromQueue(position)
         }
-
-        // Il drag handle è automaticamente gestito dal ItemTouchHelper
-        // Non serve click listener specifico
     }
 
     override fun getItemCount(): Int = songs.size
@@ -152,22 +150,15 @@ class QueueAdapter(
 
     fun onItemDismiss(position: Int) {
         if (position < 0 || position >= songs.size) {
+            Log.w("QueueAdapter", "Invalid dismiss position: $position")
             return
         }
 
-        // IMPORTANTE: Chiama il callback PRIMA di rimuovere
+        Log.d("QueueAdapter", "📍 onItemDismiss at position: $position")
+
+        // Chiama SOLO il callback - QueueActivity gestisce il resto
         onRemoveFromQueue(position)
 
-        songs.removeAt(position)
-        notifyItemRemoved(position)
-
-        // Aggiorna l'indice corrente se necessario
-        if (position < currentSongIndex) {
-            currentSongIndex--
-        } else if (position == currentSongIndex) {
-            if (currentSongIndex >= songs.size) {
-                currentSongIndex = maxOf(0, songs.size - 1)
-            }
-        }
+        Log.d("QueueAdapter", "✅ Dismiss callback invoked")
     }
 }

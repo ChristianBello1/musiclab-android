@@ -55,13 +55,7 @@ class QueueItemTouchHelperCallback(
     override fun onSelectedChanged(viewHolder: RecyclerView.ViewHolder?, actionState: Int) {
         when (actionState) {
             ItemTouchHelper.ACTION_STATE_DRAG -> {
-                // Feedback visivo più marcato per confermare il drag attivo
-                viewHolder?.itemView?.apply {
-                    alpha = 0.7f
-                    scaleX = 1.05f
-                    scaleY = 1.05f
-                    elevation = 16f
-                }
+                viewHolder?.itemView?.alpha = 0.7f
                 dragFromPosition = viewHolder?.adapterPosition ?: -1
                 dragToPosition = dragFromPosition
             }
@@ -78,20 +72,14 @@ class QueueItemTouchHelperCallback(
 
     override fun clearView(recyclerView: RecyclerView, viewHolder: RecyclerView.ViewHolder) {
         super.clearView(recyclerView, viewHolder)
-
-        // Ripristina completamente l'aspetto
-        viewHolder.itemView.apply {
-            alpha = 1.0f
-            scaleX = 1.0f
-            scaleY = 1.0f
-            elevation = 0f
-        }
+        viewHolder.itemView.alpha = 1.0f
     }
 
+    // QUESTO È IL METODO CHIAVE PER LO SWIPE
     override fun onSwiped(viewHolder: RecyclerView.ViewHolder, direction: Int) {
         val position = viewHolder.adapterPosition
         Log.d("QueueItemTouchHelper", "Swiped at position: $position")
-        adapter.onItemDismiss(position)
+        adapter.onItemDismiss(position)  // Chiama il metodo dell'adapter
     }
 
     override fun onChildDraw(
@@ -103,11 +91,10 @@ class QueueItemTouchHelperCallback(
         actionState: Int,
         isCurrentlyActive: Boolean
     ) {
-        // RIMOSSO: Tutto l'auto-scroll per evitare interferenze
-
         if (actionState == ItemTouchHelper.ACTION_STATE_SWIPE) {
             val itemView = viewHolder.itemView
 
+            // Carica l'icona del cestino se non è già caricata
             if (deleteIcon == null) {
                 deleteIcon = ContextCompat.getDrawable(
                     recyclerView.context,
@@ -120,13 +107,13 @@ class QueueItemTouchHelperCallback(
             val iconBottom = iconTop + deleteIcon!!.intrinsicHeight
 
             when {
-                dX > 0 -> {
+                dX > 0 -> { // Swipe verso destra
                     val iconLeft = itemView.left + iconMargin
                     val iconRight = iconLeft + deleteIcon!!.intrinsicWidth
                     deleteIcon!!.setBounds(iconLeft, iconTop, iconRight, iconBottom)
                     deleteBackground.setBounds(itemView.left, itemView.top, itemView.left + dX.toInt(), itemView.bottom)
                 }
-                dX < 0 -> {
+                dX < 0 -> { // Swipe verso sinistra
                     val iconLeft = itemView.right - iconMargin - deleteIcon!!.intrinsicWidth
                     val iconRight = itemView.right - iconMargin
                     deleteIcon!!.setBounds(iconLeft, iconTop, iconRight, iconBottom)
@@ -142,19 +129,5 @@ class QueueItemTouchHelperCallback(
         }
 
         super.onChildDraw(c, recyclerView, viewHolder, dX, dY, actionState, isCurrentlyActive)
-    }
-
-    override fun getAnimationDuration(
-        recyclerView: RecyclerView,
-        animationType: Int,
-        animateDx: Float,
-        animateDy: Float
-    ): Long {
-        return when (animationType) {
-            ItemTouchHelper.ANIMATION_TYPE_DRAG -> 0L // Elimina le animazioni durante il drag
-            ItemTouchHelper.ANIMATION_TYPE_SWIPE_CANCEL -> 200L
-            ItemTouchHelper.ANIMATION_TYPE_SWIPE_SUCCESS -> 150L
-            else -> super.getAnimationDuration(recyclerView, animationType, animateDx, animateDy)
-        }
     }
 }
