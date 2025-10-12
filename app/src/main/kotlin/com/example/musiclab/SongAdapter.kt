@@ -1,10 +1,3 @@
-/* ISTRUZIONI:
-1. Apri app/src/main/kotlin/com/example/musiclab/SongAdapter.kt
-2. SOSTITUISCI TUTTO IL CONTENUTO con questo file
-3. Salva
-4. Torna qui e dimmi "fatto"
-*/
-
 package com.example.musiclab
 
 import android.graphics.Color
@@ -22,8 +15,8 @@ class SongAdapter(
     private var songs: List<Song>,
     private val onSongClick: (Song) -> Unit,
     private val onSongMenuClick: (Song, MenuAction) -> Unit = { _, _ -> },
-    private val onLongPress: ((Song) -> Unit)? = null, // NUOVO: Callback long press
-    private val onSelectionChanged: ((Int) -> Unit)? = null, // NUOVO: Callback conteggio selezione
+    private val onLongPress: ((Song) -> Unit)? = null,
+    private val onSelectionChanged: ((Int) -> Unit)? = null,
     private val contextType: ContextType = ContextType.FOLDER
 ) : RecyclerView.Adapter<SongAdapter.SongViewHolder>() {
 
@@ -40,9 +33,9 @@ class SongAdapter(
         DELETE_FROM_DEVICE
     }
 
-    // NUOVO: Gestione selezione multipla
+    // Gestione selezione multipla
     private var isSelectionMode = false
-    private val selectedSongs = mutableSetOf<Long>() // Usa song.id come chiave
+    private val selectedSongs = mutableSetOf<Long>()
 
     class SongViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
         val title: TextView = itemView.findViewById(R.id.song_title)
@@ -50,7 +43,7 @@ class SongAdapter(
         val album: TextView = itemView.findViewById(R.id.song_album)
         val duration: TextView = itemView.findViewById(R.id.song_duration)
         val menuButton: ImageButton = itemView.findViewById(R.id.btn_song_menu)
-        val checkBox: CheckBox = itemView.findViewById(R.id.song_checkbox) // NUOVO
+        val checkBox: CheckBox = itemView.findViewById(R.id.song_checkbox)
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): SongViewHolder {
@@ -68,7 +61,7 @@ class SongAdapter(
         holder.album.text = song.album
         holder.duration.text = song.getFormattedDuration()
 
-        // NUOVO: Gestione checkbox e selezione visiva
+        // Gestione checkbox e selezione visiva
         if (isSelectionMode) {
             holder.checkBox.visibility = View.VISIBLE
             holder.menuButton.visibility = View.GONE
@@ -77,7 +70,7 @@ class SongAdapter(
             // Cambia background se selezionato
             if (isSelected) {
                 holder.itemView.setBackgroundColor(
-                    ContextCompat.getColor(holder.itemView.context, R.color.purple_200)
+                    ContextCompat.getColor(holder.itemView.context, R.color.selection_dark)
                 )
             } else {
                 holder.itemView.setBackgroundColor(Color.TRANSPARENT)
@@ -91,11 +84,9 @@ class SongAdapter(
         // Click normale
         holder.itemView.setOnClickListener {
             if (isSelectionMode) {
-                // In modalità selezione, toggle la canzone
                 toggleSelection(song.id)
                 notifyItemChanged(position)
             } else {
-                // Riproduci normalmente
                 onSongClick(song)
             }
         }
@@ -131,7 +122,6 @@ class SongAdapter(
         notifyItemRangeChanged(0, songs.size)
     }
 
-    // NUOVO: Metodi per gestione selezione
     private fun enterSelectionMode(firstSongId: Long) {
         isSelectionMode = true
         selectedSongs.clear()
@@ -155,7 +145,6 @@ class SongAdapter(
 
         onSelectionChanged?.invoke(selectedSongs.size)
 
-        // Esci dalla modalità selezione se non c'è più nulla selezionato
         if (selectedSongs.isEmpty()) {
             exitSelectionMode()
         }
@@ -169,20 +158,22 @@ class SongAdapter(
 
     fun getSelectedCount(): Int = selectedSongs.size
 
-    // Menu popup originale
     private fun showSongMenu(view: View, song: Song) {
         val popupMenu = PopupMenu(view.context, view)
 
-        // NUOVO: Mostra opzioni diverse in base al contesto
+        // ✅ Menu diversi in base al contesto
         when (contextType) {
             ContextType.PLAYLIST -> {
-                // In una playlist: mostra "Rimuovi da playlist"
-                popupMenu.menu.add(0, R.id.menu_remove_from_playlist, 0, "Rimuovi da playlist")
-                popupMenu.menu.add(0, R.id.menu_song_details, 1, view.context.getString(R.string.song_details))
+                // ✅ IN PLAYLIST: Aggiungi ad ALTRA + Rimuovi da QUESTA + Dettagli
+                popupMenu.menu.add(0, R.id.menu_add_to_playlist, 0, "Aggiungi ad altra playlist")
+                popupMenu.menu.add(0, R.id.menu_remove_from_playlist, 1, "Rimuovi da questa playlist")
+                popupMenu.menu.add(0, R.id.menu_song_details, 2, view.context.getString(R.string.song_details))
             }
             ContextType.FOLDER, ContextType.MAIN -> {
-                // In cartelle/main: mostra menu normale
-                popupMenu.menuInflater.inflate(R.menu.song_popup_menu, popupMenu.menu)
+                // IN CARTELLE/MAIN: Aggiungi a playlist + Dettagli + Elimina
+                popupMenu.menu.add(0, R.id.menu_add_to_playlist, 0, view.context.getString(R.string.add_to_playlist))
+                popupMenu.menu.add(0, R.id.menu_song_details, 1, view.context.getString(R.string.song_details))
+                popupMenu.menu.add(0, R.id.menu_delete_from_device, 2, view.context.getString(R.string.delete_from_device))
             }
         }
 

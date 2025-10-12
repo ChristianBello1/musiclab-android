@@ -20,6 +20,7 @@
     <string name="tab_folders">Cartelle</string>
     <string name="tab_playlists">Playlist</string>
     <string name="sort_songs">Ordina canzoni</string>
+    <string name="tab_navigation">Navigazione tra cartelle e playlist</string>
 
     <!-- Search -->
     <string name="search_songs">Cerca canzoni, artisti, album...</string>

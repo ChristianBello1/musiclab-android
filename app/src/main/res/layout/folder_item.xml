@@ -6,7 +6,8 @@
     android:layout_height="wrap_content"
     android:layout_margin="8dp"
     app:cardCornerRadius="12dp"
-    app:cardElevation="4dp">
+    app:cardElevation="4dp"
+    app:cardBackgroundColor="@color/card_dark">
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -40,6 +41,7 @@
                 android:text="@string/folder_name"
                 android:textSize="16sp"
                 android:textStyle="bold"
+                android:textColor="@color/text_primary"
                 android:maxLines="1"
                 android:ellipsize="end" />
 
@@ -49,7 +51,7 @@
                 android:layout_height="wrap_content"
                 android:text="@string/songs_in_folder"
                 android:textSize="12sp"
-                android:textColor="?android:attr/textColorSecondary"
+                android:textColor="@color/text_secondary"
                 android:layout_marginTop="4dp" />
 
         </LinearLayout>
@@ -57,12 +59,12 @@
         <!-- Menu Button -->
         <ImageButton
             android:id="@+id/folder_menu"
-            android:layout_width="40dp"
-            android:layout_height="40dp"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
             android:src="@android:drawable/ic_menu_more"
             android:background="?attr/selectableItemBackgroundBorderless"
             android:contentDescription="@string/folder_menu"
-            app:tint="?android:attr/textColorSecondary" />
+            app:tint="@color/text_secondary" />
 
     </LinearLayout>
 

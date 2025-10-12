@@ -6,7 +6,8 @@
     android:layout_height="wrap_content"
     android:layout_margin="8dp"
     app:cardCornerRadius="8dp"
-    app:cardElevation="4dp">
+    app:cardElevation="4dp"
+    app:cardBackgroundColor="@color/card_dark">
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -15,13 +16,14 @@
         android:padding="16dp"
         android:gravity="center_vertical">
 
-        <!-- NUOVO: CheckBox per selezione multipla -->
+        <!-- CheckBox per selezione multipla -->
         <CheckBox
             android:id="@+id/song_checkbox"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:visibility="gone"
-            android:layout_marginEnd="12dp" />
+            android:layout_marginEnd="12dp"
+            android:buttonTint="@color/primary_purple" />
 
         <!-- Icona Musicale -->
         <ImageView
@@ -29,7 +31,7 @@
             android:layout_height="48dp"
             android:src="@android:drawable/ic_media_play"
             android:layout_marginEnd="16dp"
-            app:tint="?attr/colorPrimary" />
+            app:tint="@color/primary_purple" />
 
         <!-- Info Canzone -->
         <LinearLayout
@@ -45,6 +47,7 @@
                 android:text="@string/song_title_placeholder"
                 android:textSize="16sp"
                 android:textStyle="bold"
+                android:textColor="@color/text_primary"
                 android:maxLines="1"
                 android:ellipsize="end" />
 
@@ -54,7 +57,7 @@
                 android:layout_height="wrap_content"
                 android:text="@string/artist_placeholder"
                 android:textSize="14sp"
-                android:textColor="?android:attr/textColorSecondary"
+                android:textColor="@color/text_secondary"
                 android:maxLines="1"
                 android:ellipsize="end" />
 
@@ -64,7 +67,7 @@
                 android:layout_height="wrap_content"
                 android:text="@string/album_placeholder"
                 android:textSize="12sp"
-                android:textColor="?android:attr/textColorTertiary"
+                android:textColor="@color/text_tertiary"
                 android:maxLines="1"
                 android:ellipsize="end" />
 
@@ -77,7 +80,7 @@
             android:layout_height="wrap_content"
             android:text="@string/duration_placeholder"
             android:textSize="12sp"
-            android:textColor="?android:attr/textColorSecondary"
+            android:textColor="@color/text_secondary"
             android:layout_marginStart="8dp"
             android:layout_marginEnd="8dp" />
 
@@ -89,7 +92,7 @@
             android:src="@android:drawable/ic_menu_more"
             android:background="?attr/selectableItemBackgroundBorderless"
             android:contentDescription="@string/song_menu"
-            app:tint="?android:attr/textColorSecondary" />
+            app:tint="@color/text_secondary" />
 
     </LinearLayout>
 

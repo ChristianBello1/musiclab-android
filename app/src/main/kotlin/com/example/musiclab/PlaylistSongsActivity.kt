@@ -4,6 +4,7 @@ import android.os.Bundle
 import android.util.Log
 import android.widget.EditText
 import android.widget.ImageButton
+import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
@@ -17,6 +18,7 @@ import androidx.activity.OnBackPressedCallback
 class PlaylistSongsActivity : AppCompatActivity() {
 
     private lateinit var backButton: ImageButton
+    private lateinit var normalInfoContainer: LinearLayout
     private lateinit var playlistNameText: TextView
     private lateinit var songCountText: TextView
     private lateinit var songsRecyclerView: RecyclerView
@@ -27,7 +29,6 @@ class PlaylistSongsActivity : AppCompatActivity() {
     // NUOVO: Per selezione multipla
     private lateinit var btnAddSelectedToOtherPlaylist: ImageButton
     private lateinit var btnRemoveSelectedFromPlaylist: ImageButton
-    private lateinit var btnCancelSelection: ImageButton
     private lateinit var selectionCountText: TextView
     private var isSelectionMode = false
 
@@ -85,15 +86,15 @@ class PlaylistSongsActivity : AppCompatActivity() {
 
     private fun setupViews() {
         backButton = findViewById(R.id.btn_back_playlist)
+        normalInfoContainer = findViewById(R.id.normal_info_container)
         playlistNameText = findViewById(R.id.playlist_name_title)
         songCountText = findViewById(R.id.playlist_song_count_text)
         songsRecyclerView = findViewById(R.id.playlist_songs_recycler)
         btnPlaylistMenu = findViewById(R.id.btn_playlist_menu)
 
-        // NUOVO: Bottoni per selezione multipla
+        // NUEVO: Bottoni per selezione multipla
         btnAddSelectedToOtherPlaylist = findViewById(R.id.btn_add_selected_to_other_playlist)
         btnRemoveSelectedFromPlaylist = findViewById(R.id.btn_remove_selected_from_playlist)
-        btnCancelSelection = findViewById(R.id.btn_cancel_selection)
         selectionCountText = findViewById(R.id.selection_count_text)
 
         playlistNameText.text = playlist?.name ?: "Playlist"
@@ -110,17 +111,13 @@ class PlaylistSongsActivity : AppCompatActivity() {
             showPlaylistMenu()
         }
 
-        // NUOVO: Click listeners per selezione multipla
+        // NUEVO: Click listeners per selezione multipla
         btnAddSelectedToOtherPlaylist.setOnClickListener {
             addSelectedSongsToOtherPlaylist()
         }
 
         btnRemoveSelectedFromPlaylist.setOnClickListener {
             removeSelectedSongsFromPlaylist()
-        }
-
-        btnCancelSelection.setOnClickListener {
-            exitSelectionMode()
         }
     }
 
@@ -138,11 +135,11 @@ class PlaylistSongsActivity : AppCompatActivity() {
                 handleSongMenuAction(song, action)
             },
             onLongPress = { song ->
-                // NUOVO: Entra in modalità selezione
+                // NUEVO: Entra in modalità selezione
                 enterSelectionMode()
             },
             onSelectionChanged = { count ->
-                // NUOVO: Aggiorna contatore
+                // NUEVO: Aggiorna contatore
                 updateSelectionUI(count)
             },
             contextType = SongAdapter.ContextType.PLAYLIST
@@ -238,19 +235,22 @@ class PlaylistSongsActivity : AppCompatActivity() {
         Log.d("PlaylistSongsActivity", "Playing song from playlist")
     }
 
-    // NUOVO: Entra in modalità selezione
+    // NUEVO: Entra in modalità selezione
     private fun enterSelectionMode() {
         isSelectionMode = true
 
-        // Nascondi elementi normali
-        playlistNameText.visibility = View.GONE
-        songCountText.visibility = View.GONE
+        // Nascondi info normale
+        normalInfoContainer.visibility = View.GONE
 
-        // Mostra elementi di selezione
+        // Mostra contatore selezione
+        selectionCountText.visibility = View.VISIBLE
+
+        // Mostra bottoni selezione
         btnAddSelectedToOtherPlaylist.visibility = View.VISIBLE
         btnRemoveSelectedFromPlaylist.visibility = View.VISIBLE
-        btnCancelSelection.visibility = View.VISIBLE
-        selectionCountText.visibility = View.VISIBLE
+
+        // Nascondi menu playlist
+        btnPlaylistMenu.visibility = View.GONE
 
         // Cambia icona back button in X
         backButton.setImageResource(android.R.drawable.ic_menu_close_clear_cancel)
@@ -258,19 +258,23 @@ class PlaylistSongsActivity : AppCompatActivity() {
         Log.d("PlaylistSongsActivity", "✅ Entered selection mode")
     }
 
-    // NUOVO: Esci dalla modalità selezione
+    // NUEVO: Esci dalla modalità selezione
     private fun exitSelectionMode() {
         isSelectionMode = false
         songAdapter.exitSelectionMode()
 
-        // Ripristina UI normale
-        playlistNameText.visibility = View.VISIBLE
-        songCountText.visibility = View.VISIBLE
+        // Ripristina info normale
+        normalInfoContainer.visibility = View.VISIBLE
 
+        // Nascondi contatore selezione
+        selectionCountText.visibility = View.GONE
+
+        // Nascondi bottoni selezione
         btnAddSelectedToOtherPlaylist.visibility = View.GONE
         btnRemoveSelectedFromPlaylist.visibility = View.GONE
-        btnCancelSelection.visibility = View.GONE
-        selectionCountText.visibility = View.GONE
+
+        // Mostra menu playlist
+        btnPlaylistMenu.visibility = View.VISIBLE
 
         // Ripristina icona back button
         backButton.setImageResource(android.R.drawable.arrow_down_float)
@@ -278,19 +282,19 @@ class PlaylistSongsActivity : AppCompatActivity() {
         Log.d("PlaylistSongsActivity", "❌ Exited selection mode")
     }
 
-    // NUOVO: Aggiorna UI contatore selezione
+    // NUEVO: Aggiorna UI contatore selezione
     private fun updateSelectionUI(count: Int) {
         selectionCountText.text = if (count == 1) {
-            "$count canzone selezionata"
+            "$count selezionata"
         } else {
-            "$count canzoni selezionate"
+            "$count selezionate"
         }
 
         btnAddSelectedToOtherPlaylist.isEnabled = count > 0
         btnRemoveSelectedFromPlaylist.isEnabled = count > 0
     }
 
-    // NUOVO: Aggiungi canzoni selezionate ad ALTRA playlist
+    // NUEVO: Aggiungi canzoni selezionate ad ALTRA playlist
     private fun addSelectedSongsToOtherPlaylist() {
         val selectedSongs = songAdapter.getSelectedSongs()
 
@@ -300,11 +304,15 @@ class PlaylistSongsActivity : AppCompatActivity() {
         }
 
         if (currentUserId.isEmpty()) {
-            Toast.makeText(this, "Devi effettuare l'accesso", Toast.LENGTH_SHORT).show()
+            AlertDialog.Builder(this)
+                .setTitle("Login Richiesto")
+                .setMessage("Devi effettuare l'accesso per usare le playlist.")
+                .setPositiveButton("OK", null)
+                .show()
             return
         }
 
-        if (userPlaylists.isEmpty()) {
+        if (userPlaylists.size <= 1) {
             Toast.makeText(
                 this,
                 "Crea prima un'altra playlist!",
@@ -313,6 +321,12 @@ class PlaylistSongsActivity : AppCompatActivity() {
             return
         }
 
+        // Mostra dialog per scegliere la playlist
+        showAddMultipleSongsDialog(selectedSongs)
+    }
+
+    // NUEVO: Dialog per aggiungere più canzoni
+    private fun showAddMultipleSongsDialog(songs: List<Song>) {
         // Filtra le playlist per escludere quella corrente
         val otherPlaylists = userPlaylists.filter { it.id != playlist?.id }
 
@@ -325,12 +339,6 @@ class PlaylistSongsActivity : AppCompatActivity() {
             return
         }
 
-        // Mostra dialog per scegliere la playlist
-        showAddToOtherPlaylistDialog(selectedSongs, otherPlaylists)
-    }
-
-    // NUOVO: Dialog per aggiungere ad altra playlist
-    private fun showAddToOtherPlaylistDialog(songs: List<Song>, otherPlaylists: List<Playlist>) {
         val playlistNames = otherPlaylists.map { it.name }.toTypedArray()
 
         AlertDialog.Builder(this)
@@ -343,7 +351,7 @@ class PlaylistSongsActivity : AppCompatActivity() {
             .show()
     }
 
-    // NUOVO: Rimuovi canzoni selezionate dalla playlist corrente
+    // NUEVO: Rimuovi canzoni selezionate dalla playlist corrente
     private fun removeSelectedSongsFromPlaylist() {
         val selectedSongs = songAdapter.getSelectedSongs()
 
@@ -363,7 +371,7 @@ class PlaylistSongsActivity : AppCompatActivity() {
             .show()
     }
 
-    // NUOVO: Esegui rimozione multipla
+    // NUEVO: Esegui rimozione multipla
     private fun performRemoveMultipleSongs(songs: List<Song>) {
         Log.d("PlaylistSongsActivity", "Removing ${songs.size} songs from playlist")
 
@@ -429,7 +437,7 @@ class PlaylistSongsActivity : AppCompatActivity() {
         }
     }
 
-    // NUOVO: Mostra risultato rimozione
+    // NUEVO: Mostra risultato rimozione
     private fun showRemovalResult(removed: Int, errors: Int) {
         val message = buildString {
             append("✅ Rimozione completata!\n\n")
@@ -524,7 +532,7 @@ class PlaylistSongsActivity : AppCompatActivity() {
         }
     }
 
-    // NUOVO: Mostra risultato aggiunta
+    // NUEVO: Mostra risultato aggiunta
     private fun showAdditionResult(added: Int, skipped: Int, errors: Int, playlistName: String) {
         val message = buildString {
             append("✅ Operazione completata!\n\n")
@@ -546,7 +554,20 @@ class PlaylistSongsActivity : AppCompatActivity() {
     private fun handleSongMenuAction(song: Song, action: SongAdapter.MenuAction) {
         when (action) {
             SongAdapter.MenuAction.ADD_TO_PLAYLIST -> {
-                Toast.makeText(this, "Canzone già in una playlist", Toast.LENGTH_SHORT).show()
+                // ✅ NUOVA FUNZIONALITÀ: Aggiungi ad ALTRA playlist
+                if (currentUserId.isEmpty()) {
+                    Toast.makeText(this, "Devi effettuare l'accesso", Toast.LENGTH_SHORT).show()
+                } else if (userPlaylists.size <= 1) {
+                    // Solo questa playlist esiste
+                    Toast.makeText(
+                        this,
+                        "Crea prima un'altra playlist!",
+                        Toast.LENGTH_LONG
+                    ).show()
+                } else {
+                    // Mostra dialog per altre playlist
+                    showAddSingleSongToOtherPlaylistDialog(song)
+                }
             }
             SongAdapter.MenuAction.REMOVE_FROM_PLAYLIST -> {
                 showRemoveFromPlaylistConfirmation(song)
@@ -555,9 +576,99 @@ class PlaylistSongsActivity : AppCompatActivity() {
                 showSongDetails(song)
             }
             SongAdapter.MenuAction.DELETE_FROM_DEVICE -> {
+                // In una playlist, questo dovrebbe rimuovere dalla playlist
                 showRemoveFromPlaylistConfirmation(song)
             }
         }
+    }
+
+    // ✅ NUEVO METODO per singola canzone
+    private fun showAddSingleSongToOtherPlaylistDialog(song: Song) {
+        // Filtra le playlist per escludere quella corrente
+        val otherPlaylists = userPlaylists.filter { it.id != playlist?.id }
+
+        if (otherPlaylists.isEmpty()) {
+            Toast.makeText(
+                this,
+                "Non hai altre playlist disponibili!",
+                Toast.LENGTH_LONG
+            ).show()
+            return
+        }
+
+        val playlistNames = otherPlaylists.map { it.name }.toTypedArray()
+
+        AlertDialog.Builder(this)
+            .setTitle("Aggiungi '${song.title}' a...")
+            .setItems(playlistNames) { _, which ->
+                val selectedPlaylist = otherPlaylists[which]
+                addSingleSongToPlaylist(song, selectedPlaylist.id, selectedPlaylist.name)
+            }
+            .setNegativeButton("Annulla", null)
+            .show()
+    }
+
+    // ✅ NUEVO METODO per singola canzone
+    private fun addSingleSongToPlaylist(song: Song, playlistId: String, playlistName: String) {
+        Log.d("PlaylistSongsActivity", "Adding '${song.title}' to playlist '$playlistName'")
+
+        // Controlla se la canzone è già nella playlist
+        firestore.collection("playlists")
+            .document(playlistId)
+            .collection("songs")
+            .document(song.id.toString())
+            .get()
+            .addOnSuccessListener { document ->
+                if (document.exists()) {
+                    Toast.makeText(
+                        this,
+                        "'${song.title}' è già in '$playlistName'",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                } else {
+                    // Aggiungi la canzone
+                    val songData = hashMapOf(
+                        "id" to song.id,
+                        "title" to song.title,
+                        "artist" to song.artist,
+                        "album" to song.album,
+                        "duration" to song.duration,
+                        "path" to song.path,
+                        "size" to song.size,
+                        "addedAt" to System.currentTimeMillis()
+                    )
+
+                    firestore.collection("playlists")
+                        .document(playlistId)
+                        .collection("songs")
+                        .document(song.id.toString())
+                        .set(songData)
+                        .addOnSuccessListener {
+                            Toast.makeText(
+                                this,
+                                "✅ '${song.title}' aggiunta a '$playlistName'",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                            Log.d("PlaylistSongsActivity", "✅ Song added successfully")
+                        }
+                        .addOnFailureListener { e ->
+                            Toast.makeText(
+                                this,
+                                "Errore aggiunta canzone",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                            Log.e("PlaylistSongsActivity", "❌ Error: ${e.message}")
+                        }
+                }
+            }
+            .addOnFailureListener { e ->
+                Toast.makeText(
+                    this,
+                    "Errore controllo canzone",
+                    Toast.LENGTH_SHORT
+                ).show()
+                Log.e("PlaylistSongsActivity", "❌ Error checking: ${e.message}")
+            }
     }
 
     private fun showSongDetails(song: Song) {

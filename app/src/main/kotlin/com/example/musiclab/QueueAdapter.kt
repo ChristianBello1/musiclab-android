@@ -51,12 +51,12 @@ class QueueAdapter(
             holder.statusText.visibility = View.VISIBLE
             holder.nowPlayingIndicator.visibility = View.VISIBLE
 
-            // Evidenzia la canzone corrente
+            // Evidenzia la canzone corrente con colore selection
             holder.itemView.setBackgroundColor(
-                ContextCompat.getColor(holder.itemView.context, R.color.purple_200)
+                ContextCompat.getColor(holder.itemView.context, R.color.selection_dark)
             )
             holder.songTitle.setTextColor(
-                ContextCompat.getColor(holder.itemView.context, R.color.black)
+                ContextCompat.getColor(holder.itemView.context, R.color.text_primary)
             )
         } else {
             val queuePosition = if (position > currentSongIndex) position - currentSongIndex else position + 1
@@ -64,10 +64,10 @@ class QueueAdapter(
             holder.statusText.visibility = View.VISIBLE
             holder.nowPlayingIndicator.visibility = View.GONE
 
-            // Sfondo normale
+            // Sfondo trasparente per le altre
             holder.itemView.setBackgroundColor(Color.TRANSPARENT)
             holder.songTitle.setTextColor(
-                ContextCompat.getColor(holder.itemView.context, android.R.color.primary_text_light)
+                ContextCompat.getColor(holder.itemView.context, R.color.text_primary)
             )
         }
 

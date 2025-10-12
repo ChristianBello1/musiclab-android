@@ -5,7 +5,7 @@
     android:layout_height="match_parent"
     android:orientation="vertical"
     android:fitsSystemWindows="true"
-    android:background="?attr/colorSurface">
+    android:background="@color/background_dark">
 
     <!-- Header della coda -->
     <LinearLayout
@@ -23,7 +23,7 @@
             android:src="@android:drawable/arrow_down_float"
             android:background="?attr/selectableItemBackgroundBorderless"
             android:contentDescription="@string/close_player"
-            app:tint="@android:color/white" />
+            app:tint="@color/text_primary" />
 
         <TextView
             android:id="@+id/queue_title"
@@ -33,7 +33,7 @@
             android:text="@string/playback_queue"
             android:textSize="18sp"
             android:textStyle="bold"
-            android:textColor="@android:color/white"
+            android:textColor="@color/text_primary"
             android:layout_marginStart="16dp"
             android:gravity="start" />
 
@@ -44,7 +44,7 @@
             android:src="@android:drawable/ic_menu_delete"
             android:background="?attr/selectableItemBackgroundBorderless"
             android:contentDescription="@string/clear_queue"
-            app:tint="@android:color/white" />
+            app:tint="@color/text_primary" />
 
     </LinearLayout>
 
@@ -54,7 +54,7 @@
         android:layout_height="wrap_content"
         android:orientation="vertical"
         android:padding="16dp"
-        android:background="@color/purple_200">
+        android:background="@color/surface_dark">
 
         <TextView
             android:id="@+id/current_song_in_queue"
@@ -63,7 +63,7 @@
             android:text="@string/currently_playing"
             android:textSize="14sp"
             android:textStyle="bold"
-            android:textColor="@color/black"
+            android:textColor="@color/text_primary"
             android:gravity="center" />
 
     </LinearLayout>
@@ -72,7 +72,8 @@
     <FrameLayout
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        android:layout_weight="1">
+        android:layout_weight="1"
+        android:background="@color/background_dark">
 
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/queue_recycler_view"
@@ -80,7 +81,8 @@
             android:layout_height="match_parent"
             android:padding="8dp"
             android:clipToPadding="false"
-            android:scrollbars="vertical" />
+            android:scrollbars="vertical"
+            android:background="@color/background_dark" />
 
         <!-- Empty state per coda vuota -->
         <LinearLayout
@@ -97,7 +99,7 @@
                 android:layout_height="64dp"
                 android:src="@android:drawable/ic_media_play"
                 android:layout_marginBottom="16dp"
-                app:tint="?android:attr/textColorSecondary"
+                app:tint="@color/text_secondary"
                 android:alpha="0.5" />
 
             <TextView
@@ -105,7 +107,7 @@
                 android:layout_height="wrap_content"
                 android:text="@string/no_songs_in_queue"
                 android:textSize="16sp"
-                android:textColor="?android:attr/textColorSecondary"
+                android:textColor="@color/text_secondary"
                 android:gravity="center" />
 
             <TextView
@@ -113,7 +115,7 @@
                 android:layout_height="wrap_content"
                 android:text="@string/add_songs_to_queue_hint"
                 android:textSize="12sp"
-                android:textColor="?android:attr/textColorSecondary"
+                android:textColor="@color/text_tertiary"
                 android:gravity="center"
                 android:layout_marginTop="8dp"
                 android:alpha="0.7" />
@@ -128,14 +130,14 @@
         android:layout_height="wrap_content"
         android:orientation="vertical"
         android:padding="12dp"
-        android:background="?attr/colorSurface">
+        android:background="@color/surface_dark">
 
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="@string/queue_help_text"
             android:textSize="11sp"
-            android:textColor="?android:attr/textColorSecondary"
+            android:textColor="@color/text_secondary"
             android:gravity="center"
             android:alpha="0.8" />
 

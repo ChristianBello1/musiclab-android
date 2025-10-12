@@ -6,7 +6,8 @@
     android:layout_height="wrap_content"
     android:layout_margin="8dp"
     app:cardCornerRadius="12dp"
-    app:cardElevation="4dp">
+    app:cardElevation="4dp"
+    app:cardBackgroundColor="@color/card_dark">
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -40,17 +41,17 @@
                 android:text="@string/playlist_name"
                 android:textSize="16sp"
                 android:textStyle="bold"
+                android:textColor="@color/text_primary"
                 android:maxLines="1"
                 android:ellipsize="end" />
 
-            <!-- SEMPLIFICATO: Solo conteggio canzoni -->
             <TextView
                 android:id="@+id/playlist_song_count"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:text="@string/songs_in_playlist"
                 android:textSize="12sp"
-                android:textColor="?android:attr/textColorSecondary"
+                android:textColor="@color/text_secondary"
                 android:layout_marginTop="4dp" />
 
         </LinearLayout>
@@ -63,7 +64,8 @@
             android:src="@android:drawable/ic_menu_more"
             android:background="?attr/selectableItemBackgroundBorderless"
             android:contentDescription="@string/playlist_menu"
-            app:tint="?android:attr/textColorSecondary" />
+            android:visibility="gone"
+            app:tint="@color/text_secondary" />
 
     </LinearLayout>
 
