@@ -45,8 +45,7 @@ dependencies {
     androidTestImplementation(libs.androidx.espresso.core)
     implementation("com.google.android.gms:play-services-auth:21.3.0")
 
-
-    // Music Player dependencies - VERSIONI AGGIORNATE
+    // Music Player dependencies
     implementation("androidx.media3:media3-exoplayer:1.8.0")
     implementation("androidx.media3:media3-ui:1.8.0")
     implementation("androidx.media3:media3-common:1.8.0")
@@ -59,10 +58,11 @@ dependencies {
     implementation("androidx.viewpager2:viewpager2:1.1.0")
     implementation("androidx.fragment:fragment-ktx:1.8.5")
 
-    // Google Sign-In (per il futuro)
-    implementation("com.google.android.gms:play-services-auth:21.3.0")
-
+    // Firebase
     implementation(platform("com.google.firebase:firebase-bom:33.7.0"))
     implementation("com.google.firebase:firebase-firestore-ktx")
     implementation("com.google.firebase:firebase-auth-ktx")
+
+    // ✅ AGGIUNGI QUESTA per la notifica media
+    implementation("androidx.media:media:1.7.0")
 }

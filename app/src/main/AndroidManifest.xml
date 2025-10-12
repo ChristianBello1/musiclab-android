@@ -4,6 +4,9 @@
     <!-- Permessi moderni per Android 13+ -->
     <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
 
+    <!-- Permesso per notifiche su Android 13+ -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
     <!-- Permesso legacy per Android 12 e precedenti -->
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"
         android:maxSdkVersion="32" />
@@ -24,6 +27,13 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.MusicLab">
+
+        <!-- Servizio per notifica media -->
+        <service
+            android:name=".MusicService"
+            android:enabled="true"
+            android:exported="false"
+            android:foregroundServiceType="mediaPlayback" />
 
         <!-- Activity principale -->
         <activity
@@ -55,7 +65,7 @@
             android:theme="@style/Theme.MusicLab"
             android:launchMode="singleTop" />
 
-        <!-- NUOVO: Activity per vedere le canzoni nella playlist -->
+        <!-- Activity per vedere le canzoni nella playlist -->
         <activity
             android:name=".PlaylistSongsActivity"
             android:exported="false"

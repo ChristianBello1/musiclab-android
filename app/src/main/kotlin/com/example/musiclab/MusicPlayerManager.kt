@@ -1,11 +1,9 @@
 package com.example.musiclab
 
 import android.content.Context
+import android.content.Intent
+import android.os.Build
 
-/**
- * Manager per gestire l'istanza globale del MusicPlayer.
- * Evita memory leak usando applicationContext.
- */
 class MusicPlayerManager private constructor() {
 
     companion object {
@@ -23,10 +21,20 @@ class MusicPlayerManager private constructor() {
 
     fun getMusicPlayer(context: Context): MusicPlayer {
         if (musicPlayer == null) {
-            // Usa solo applicationContext per evitare memory leak
             musicPlayer = MusicPlayer(context.applicationContext)
+            startMusicService(context)
         }
         return musicPlayer!!
+    }
+
+    private fun startMusicService(context: Context) {
+        val serviceIntent = Intent(context, MusicService::class.java)
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            context.startForegroundService(serviceIntent)
+        } else {
+            context.startService(serviceIntent)
+        }
     }
 
     fun release() {

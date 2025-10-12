@@ -1,5 +1,7 @@
 package com.example.musiclab
 
+
+import androidx.core.app.ActivityCompat
 import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -166,6 +168,8 @@ class MainActivity : AppCompatActivity() {
         musicPlayer.addQueueChangeListener(mainQueueChangeListener)
 
         checkPermissionsAndLoadMusic()
+
+        checkNotificationPermission()
 
         Log.d("MainActivity", "=== MAIN ACTIVITY SETUP COMPLETE ===")
     }
@@ -505,6 +509,15 @@ class MainActivity : AppCompatActivity() {
         musicPlayer.setPlaylist(songs, songs.indexOf(song))
         musicPlayer.playSong(song)
 
+        // ✅ FORZA L'AVVIO DEL SERVIZIO
+        val serviceIntent = Intent(this, MusicService::class.java)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            startForegroundService(serviceIntent)
+        } else {
+            startService(serviceIntent)
+        }
+        Log.d("MainActivity", "🚀 Service intent sent!")
+
         showPlayerBottomBar()
         startBottomProgressUpdates()
 
@@ -799,5 +812,27 @@ class MainActivity : AppCompatActivity() {
         val userId = googleAuthManager.getUserId() ?: ""
         Log.d("MainActivity", "getCurrentUserId: $userId")
         return userId
+    }
+
+    // ✅ AGGIUNGI QUESTO METODO NUOVO
+    private fun checkNotificationPermission() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (ContextCompat.checkSelfPermission(
+                    this,
+                    Manifest.permission.POST_NOTIFICATIONS
+                ) != PackageManager.PERMISSION_GRANTED
+            ) {
+                ActivityCompat.requestPermissions(
+                    this,
+                    arrayOf(Manifest.permission.POST_NOTIFICATIONS),
+                    999
+                )
+                Log.d("MainActivity", "📢 Requesting notification permission")
+            } else {
+                Log.d("MainActivity", "✅ Notification permission already granted")
+            }
+        } else {
+            Log.d("MainActivity", "📱 Android < 13, no notification permission needed")
+        }
     }
 }

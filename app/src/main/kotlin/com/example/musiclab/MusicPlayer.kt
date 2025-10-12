@@ -11,6 +11,7 @@ import androidx.core.net.toUri
 class MusicPlayer(private val context: Context) {
 
     private var exoPlayer: ExoPlayer? = null
+
     private var currentSongIndex = 0
 
     // Coda separata dalla playlist originale
