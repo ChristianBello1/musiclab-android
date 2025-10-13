@@ -835,4 +835,8 @@ class MainActivity : AppCompatActivity() {
             Log.d("MainActivity", "📱 Android < 13, no notification permission needed")
         }
     }
+
+    fun getAllSongs(): List<Song> {
+        return songs
+    }
 }

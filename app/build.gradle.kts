@@ -8,6 +8,22 @@ android {
     namespace = "com.example.musiclab"
     compileSdk = 36
 
+    packaging {
+        resources {
+            excludes += setOf(
+                "META-INF/DEPENDENCIES",
+                "META-INF/LICENSE",
+                "META-INF/LICENSE.txt",
+                "META-INF/license.txt",
+                "META-INF/NOTICE",
+                "META-INF/NOTICE.txt",
+                "META-INF/notice.txt",
+                "META-INF/ASL2.0",
+                "META-INF/*.kotlin_module"
+            )
+        }
+    }
+
     defaultConfig {
         applicationId = "com.example.musiclab"
         minSdk = 24
@@ -27,10 +43,12 @@ android {
             )
         }
     }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
     }
+
     kotlinOptions {
         jvmTarget = "11"
     }
@@ -63,6 +81,22 @@ dependencies {
     implementation("com.google.firebase:firebase-firestore-ktx")
     implementation("com.google.firebase:firebase-auth-ktx")
 
-    // ✅ AGGIUNGI QUESTA per la notifica media
+    // Media notification
     implementation("androidx.media:media:1.7.0")
+
+    // YouTube API
+    implementation("com.google.apis:google-api-services-youtube:v3-rev20230502-2.0.0")
+    implementation("com.google.http-client:google-http-client-gson:1.43.3")
+    implementation("com.google.api-client:google-api-client-android:2.2.0")
+
+    // Apache HTTP (richiesto da YouTube API)
+    implementation("org.apache.httpcomponents:httpclient:4.5.14")
+    implementation("org.apache.httpcomponents:httpcore:4.4.16")
+
+    // HTTP e JSON
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
+    implementation("com.google.code.gson:gson:2.10.1")
+
+    // Coroutines
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
 }

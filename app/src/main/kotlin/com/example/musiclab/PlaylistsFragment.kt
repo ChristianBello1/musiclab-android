@@ -1,14 +1,12 @@
-/* ISTRUZIONI:
-1. Apri app/src/main/kotlin/com/example/musiclab/PlaylistsFragment.kt
-2. SOSTITUISCI TUTTO IL CONTENUTO con questo file
-3. Salva
-4. Compila
-5. Testa
-6. Dimmi "testato file completo"
-*/
-
 package com.example.musiclab
 
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.launch
+import com.google.android.material.textfield.TextInputEditText
 import android.app.Activity
 import android.content.Intent
 import android.os.Bundle
@@ -64,16 +62,16 @@ class PlaylistsFragment : Fragment() {
     private var playlists: MutableList<Playlist> = mutableListOf()
     private var isLoggedIn = false
     private var currentUserId: String = ""
-    private var isLoading = false  // NUOVO: Flag per evitare caricamenti multipli
+    private var isLoading = false
 
     private lateinit var firestore: FirebaseFirestore
+    private lateinit var youtubeImporter: YouTubeImporter
 
-    // Launcher per aspettare il risultato da PlaylistSongsActivity
     private val playlistActivityLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
     ) { result ->
         if (result.resultCode == Activity.RESULT_OK) {
-            Log.d("PlaylistsFragment", "🔄 Activity returned RESULT_OK, refreshing")
+            Log.d("PlaylistsFragment", "Activity returned RESULT_OK, refreshing")
             refreshPlaylists()
         }
     }
@@ -96,6 +94,7 @@ class PlaylistsFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
 
         firestore = Firebase.firestore
+        youtubeImporter = YouTubeImporter(requireContext())
 
         setupViews(view)
         setupRecyclerView()
@@ -109,7 +108,7 @@ class PlaylistsFragment : Fragment() {
 
         fabCreatePlaylist.setOnClickListener {
             if (isLoggedIn) {
-                showCreatePlaylistDialog()
+                showCreatePlaylistMenu()
             } else {
                 showLoginRequiredDialog()
             }
@@ -165,7 +164,7 @@ class PlaylistsFragment : Fragment() {
                 if (playlistName.isNotEmpty()) {
                     createNewPlaylist(playlistName)
                 } else {
-                    Toast.makeText(requireContext(), "Nome playlist non può essere vuoto", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(requireContext(), "Nome playlist non puo essere vuoto", Toast.LENGTH_SHORT).show()
                 }
             }
             .setNegativeButton("Annulla", null)
@@ -222,17 +221,14 @@ class PlaylistsFragment : Fragment() {
     }
 
     private fun loadPlaylistsFromCloud() {
-        // NUOVO: Evita caricamenti multipli
         if (isLoading) {
-            Log.d("PlaylistsFragment", "⏳ Already loading, skipping")
+            Log.d("PlaylistsFragment", "Already loading, skipping")
             return
         }
 
         isLoading = true
-
         Log.d("PlaylistsFragment", "Loading playlists for user: $currentUserId")
 
-        // Pulisci PRIMA di caricare per evitare duplicati
         playlists.clear()
 
         firestore.collection("playlists")
@@ -247,7 +243,7 @@ class PlaylistsFragment : Fragment() {
                 if (totalPlaylists == 0) {
                     playlistAdapter.notifyDataSetChanged()
                     updateUI()
-                    isLoading = false  // NUOVO: Sblocca
+                    isLoading = false
                     return@addOnSuccessListener
                 }
 
@@ -257,7 +253,6 @@ class PlaylistsFragment : Fragment() {
                     val ownerId = document.getString("ownerId") ?: ""
                     val createdAt = document.getLong("createdAt") ?: System.currentTimeMillis()
 
-                    // Carica le canzoni per questa playlist
                     firestore.collection("playlists")
                         .document(playlistId)
                         .collection("songs")
@@ -299,8 +294,8 @@ class PlaylistsFragment : Fragment() {
                             if (loadedCount == totalPlaylists) {
                                 playlistAdapter.notifyDataSetChanged()
                                 updateUI()
-                                isLoading = false  // NUOVO: Sblocca
-                                Log.d("PlaylistsFragment", "✅ All playlists loaded")
+                                isLoading = false
+                                Log.d("PlaylistsFragment", "All playlists loaded")
                             }
                         }
                         .addOnFailureListener { e ->
@@ -319,13 +314,13 @@ class PlaylistsFragment : Fragment() {
                             if (loadedCount == totalPlaylists) {
                                 playlistAdapter.notifyDataSetChanged()
                                 updateUI()
-                                isLoading = false  // NUOVO: Sblocca
+                                isLoading = false
                             }
                         }
                 }
             }
             .addOnFailureListener { e ->
-                isLoading = false  // NUOVO: Sblocca anche in caso di errore
+                isLoading = false
                 Log.e("PlaylistsFragment", "Error loading playlists: ${e.message}", e)
                 Toast.makeText(requireContext(), "Errore caricamento playlist: ${e.message}", Toast.LENGTH_SHORT).show()
             }
@@ -367,7 +362,7 @@ class PlaylistsFragment : Fragment() {
                     if (document.exists()) {
                         Toast.makeText(
                             requireContext(),
-                            "'${song.title}' è già in '${playlist.name}'",
+                            "'${song.title}' e gia in '${playlist.name}'",
                             Toast.LENGTH_SHORT
                         ).show()
                     } else {
@@ -388,16 +383,15 @@ class PlaylistsFragment : Fragment() {
                             .document(song.id.toString())
                             .set(songData)
                             .addOnSuccessListener {
-                                // NUOVO: Ricarica tutto da Firestore
                                 loadPlaylistsFromCloud()
 
                                 Toast.makeText(
                                     requireContext(),
-                                    "✅ '${song.title}' aggiunta a '${playlist.name}'",
+                                    "'${song.title}' aggiunta a '${playlist.name}'",
                                     Toast.LENGTH_SHORT
                                 ).show()
 
-                                Log.d("PlaylistsFragment", "✅ Song added, reloading playlists")
+                                Log.d("PlaylistsFragment", "Song added, reloading playlists")
                             }
                             .addOnFailureListener { e ->
                                 Log.e("PlaylistsFragment", "Error adding song: ${e.message}")
@@ -457,20 +451,430 @@ class PlaylistsFragment : Fragment() {
     }
 
     fun refreshPlaylists() {
-        Log.d("PlaylistsFragment", "🔄 Refreshing playlists manually")
+        Log.d("PlaylistsFragment", "Refreshing playlists manually")
 
         if (isLoggedIn) {
             loadPlaylistsFromCloud()
         }
     }
 
-    // NUOVO: Ricarica quando torni alla schermata
     override fun onResume() {
         super.onResume()
 
         if (isLoggedIn && currentUserId.isNotEmpty()) {
-            Log.d("PlaylistsFragment", "🔄 onResume - reloading playlists")
+            Log.d("PlaylistsFragment", "onResume - reloading playlists")
             loadPlaylistsFromCloud()
+        }
+    }
+
+    private fun showCreatePlaylistMenu() {
+        val options = arrayOf(
+            "Crea Playlist Vuota",
+            "Importa da YouTube"
+        )
+
+        AlertDialog.Builder(requireContext())
+            .setTitle("Crea Nuova Playlist")
+            .setItems(options) { _, which ->
+                when (which) {
+                    0 -> showCreatePlaylistDialog()
+                    1 -> showImportYouTubeDialog()
+                }
+            }
+            .setNegativeButton("Annulla", null)
+            .show()
+    }
+
+    private fun showImportYouTubeDialog() {
+        val dialogView = LayoutInflater.from(requireContext())
+            .inflate(R.layout.dialog_import_youtube, null)
+
+        val inputUrl = dialogView.findViewById<TextInputEditText>(R.id.input_youtube_url)
+        val btnCancel = dialogView.findViewById<android.widget.Button>(R.id.btn_cancel_import)
+        val btnImport = dialogView.findViewById<android.widget.Button>(R.id.btn_start_import)
+
+        val dialog = AlertDialog.Builder(requireContext())
+            .setView(dialogView)
+            .setCancelable(true)
+            .create()
+
+        btnCancel.setOnClickListener {
+            dialog.dismiss()
+        }
+
+        btnImport.setOnClickListener {
+            val url = inputUrl.text.toString().trim()
+
+            if (url.isEmpty()) {
+                Toast.makeText(requireContext(), "Inserisci un URL", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+
+            if (!url.contains("youtube.com") && !url.contains("youtu.be")) {
+                Toast.makeText(requireContext(), "URL YouTube non valido", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+
+            dialog.dismiss()
+            startYouTubeImport(url)
+        }
+
+        dialog.show()
+    }
+
+    private fun startYouTubeImport(playlistUrl: String) {
+        Log.d("PlaylistsFragment", "Starting YouTube import: $playlistUrl")
+
+        val progressDialog = AlertDialog.Builder(requireContext())
+            .setTitle("Importazione in corso...")
+            .setMessage("Analizzando playlist YouTube...\nPotrebbe richiedere qualche minuto.")
+            .setCancelable(false)
+            .create()
+        progressDialog.show()
+
+        val mainActivity = activity as? MainActivity
+        val allSongs = mainActivity?.getAllSongs() ?: emptyList()
+
+        if (allSongs.isEmpty()) {
+            progressDialog.dismiss()
+            Toast.makeText(requireContext(), "Nessuna canzone trovata sul dispositivo", Toast.LENGTH_LONG).show()
+            return
+        }
+
+        CoroutineScope(Dispatchers.Main).launch {
+            try {
+                val result = youtubeImporter.importPlaylist(playlistUrl, allSongs)
+
+                progressDialog.dismiss()
+                showImportResults(result)
+
+            } catch (e: Exception) {
+                progressDialog.dismiss()
+                Log.e("PlaylistsFragment", "Import error: ${e.message}", e)
+
+                AlertDialog.Builder(requireContext())
+                    .setTitle("Errore Importazione")
+                    .setMessage("Impossibile importare la playlist:\n${e.message}")
+                    .setPositiveButton("OK", null)
+                    .show()
+            }
+        }
+    }
+
+    private fun showImportResults(result: YouTubeImporter.ImportResult) {
+        val message = buildString {
+            append("Playlist: ${result.playlistTitle}\n\n")
+            append("Risultati:\n")
+            append("Trovate: ${result.matchedSongs.size}\n")
+            append("Non trovate: ${result.unmatchedTitles.size}\n")
+            append("Totale video: ${result.totalVideos}\n\n")
+
+            if (result.unmatchedTitles.isNotEmpty()) {
+                append("Non trovate:\n")
+                result.unmatchedTitles.take(5).forEach {
+                    append("- $it\n")
+                }
+                if (result.unmatchedTitles.size > 5) {
+                    append("... e altre ${result.unmatchedTitles.size - 5}\n")
+                }
+            }
+        }
+
+        AlertDialog.Builder(requireContext())
+            .setTitle("Importazione Completata")
+            .setMessage(message)
+            .setPositiveButton("Crea Playlist") { _, _ ->
+                if (result.matchedSongs.isNotEmpty()) {
+                    createPlaylistFromImport(result)
+                } else {
+                    Toast.makeText(requireContext(), "Nessuna canzone da aggiungere", Toast.LENGTH_SHORT).show()
+                }
+            }
+            .setNegativeButton("Annulla", null)
+            .show()
+    }
+
+    private fun createPlaylistFromImport(result: YouTubeImporter.ImportResult) {
+        val playlistName = result.playlistTitle
+
+        val newPlaylist = Playlist(
+            id = "playlist_${System.currentTimeMillis()}",
+            name = playlistName,
+            ownerId = currentUserId,
+            isLocal = false
+        )
+
+        playlists.add(newPlaylist)
+        playlistAdapter.notifyItemInserted(playlists.size - 1)
+        updateUI()
+
+        savePlaylistToCloud(newPlaylist)
+
+        // NUOVO: Dialog con progress
+        val totalSongs = result.matchedSongs.size
+        val estimatedMinutes = (totalSongs * 0.15).toInt() // ~150ms per canzone
+
+        val progressDialog = AlertDialog.Builder(requireContext())
+            .setTitle("Aggiunta canzoni...")
+            .setMessage("0 / $totalSongs\nTempo stimato: ~$estimatedMinutes min")
+            .setCancelable(false)
+            .create()
+        progressDialog.show()
+
+        val startTime = System.currentTimeMillis()
+
+        addSongsInBatchFast(newPlaylist.id, result.matchedSongs, progressDialog) { addedCount, errorCount ->
+            progressDialog.dismiss()
+
+            val elapsedSeconds = (System.currentTimeMillis() - startTime) / 1000
+            val minutes = elapsedSeconds / 60
+            val seconds = elapsedSeconds % 60
+
+            val message = buildString {
+                append("Playlist '${playlistName}' creata!\n\n")
+                append("Canzoni aggiunte: $addedCount / $totalSongs\n")
+                if (errorCount > 0) {
+                    append("Non aggiunte: $errorCount\n")
+                }
+                append("\nTempo impiegato: ${minutes}m ${seconds}s")
+            }
+
+            Toast.makeText(requireContext(), message, Toast.LENGTH_LONG).show()
+            refreshPlaylists()
+
+            Log.d("PlaylistsFragment", "Import completed: $addedCount added, $errorCount errors in ${elapsedSeconds}s")
+        }
+    }
+
+    // NUOVO: Con aggiornamento progress
+    private fun addSongsInBatchWithProgress(
+        playlistId: String,
+        songs: List<Song>,
+        progressDialog: AlertDialog,
+        onComplete: (addedCount: Int, errorCount: Int) -> Unit
+    ) {
+        var addedCount = 0
+        var errorCount = 0
+        val totalSongs = songs.size
+        val startTime = System.currentTimeMillis()
+
+        lifecycleScope.launch {
+            songs.forEachIndexed { index, song ->
+                var retries = 3
+                var success = false
+
+                while (retries > 0 && !success) {
+                    try {
+                        val songData = hashMapOf(
+                            "id" to song.id,
+                            "title" to song.title,
+                            "artist" to song.artist,
+                            "album" to song.album,
+                            "duration" to song.duration,
+                            "path" to song.path,
+                            "size" to song.size,
+                            "addedAt" to System.currentTimeMillis()
+                        )
+
+                        withContext(Dispatchers.IO) {
+                            firestore.collection("playlists")
+                                .document(playlistId)
+                                .collection("songs")
+                                .document(song.id.toString())
+                                .set(songData)
+                                .await()
+                        }
+
+                        addedCount++
+                        success = true
+
+                        // Aggiorna progress ogni 10 canzoni
+                        if ((index + 1) % 10 == 0 || index == songs.size - 1) {
+                            withContext(Dispatchers.Main) {
+                                val elapsed = (System.currentTimeMillis() - startTime) / 1000
+                                val avgTimePerSong = if (index > 0) elapsed.toDouble() / (index + 1) else 0.15
+                                val remaining = ((totalSongs - index - 1) * avgTimePerSong).toInt()
+                                val remainingMin = remaining / 60
+                                val remainingSec = remaining % 60
+
+                                progressDialog.setMessage(
+                                    "${addedCount} / $totalSongs aggiunte\n" +
+                                            "Tempo rimanente: ~${remainingMin}m ${remainingSec}s"
+                                )
+                            }
+                        }
+
+                    } catch (e: Exception) {
+                        retries--
+                        if (retries > 0) {
+                            kotlinx.coroutines.delay(500)
+                        } else {
+                            errorCount++
+                            Log.e("PlaylistsFragment", "Failed: ${song.title}")
+                        }
+                    }
+                }
+
+                if ((index + 1) % 50 == 0 && index < songs.size - 1) {
+                    kotlinx.coroutines.delay(2000)
+                } else if (index < songs.size - 1) {
+                    kotlinx.coroutines.delay(100)
+                }
+            }
+
+            withContext(Dispatchers.Main) {
+                onComplete(addedCount, errorCount)
+            }
+        }
+    }
+
+    // NUOVO: Versione ULTRA VELOCE con batch writes
+    private fun addSongsInBatchFast(
+        playlistId: String,
+        songs: List<Song>,
+        progressDialog: AlertDialog,
+        onComplete: (addedCount: Int, errorCount: Int) -> Unit
+    ) {
+        var addedCount = 0
+        var errorCount = 0
+        val totalSongs = songs.size
+        val startTime = System.currentTimeMillis()
+
+        lifecycleScope.launch {
+            // Dividi in gruppi da 450 (sotto il limite di 500)
+            val batches = songs.chunked(450)
+
+            batches.forEachIndexed { batchIndex, batchSongs ->
+                try {
+                    withContext(Dispatchers.IO) {
+                        val batch = firestore.batch()
+
+                        batchSongs.forEach { song ->
+                            val docRef = firestore.collection("playlists")
+                                .document(playlistId)
+                                .collection("songs")
+                                .document(song.id.toString())
+
+                            val songData = hashMapOf(
+                                "id" to song.id,
+                                "title" to song.title,
+                                "artist" to song.artist,
+                                "album" to song.album,
+                                "duration" to song.duration,
+                                "path" to song.path,
+                                "size" to song.size,
+                                "addedAt" to System.currentTimeMillis()
+                            )
+
+                            batch.set(docRef, songData)
+                        }
+
+                        batch.commit().await()
+                    }
+
+                    addedCount += batchSongs.size
+
+                    // Aggiorna progress
+                    withContext(Dispatchers.Main) {
+                        val elapsed = (System.currentTimeMillis() - startTime) / 1000
+                        val progress = ((batchIndex + 1) * 450).coerceAtMost(totalSongs)
+                        val remaining = totalSongs - progress
+                        val avgTimePerBatch = elapsed.toDouble() / (batchIndex + 1)
+                        val remainingBatches = batches.size - batchIndex - 1
+                        val remainingTime = (remainingBatches * avgTimePerBatch).toInt()
+                        val remainingMin = remainingTime / 60
+                        val remainingSec = remainingTime % 60
+
+                        progressDialog.setMessage(
+                            "${progress} / $totalSongs aggiunte\n" +
+                                    "Tempo rimanente: ~${remainingMin}m ${remainingSec}s"
+                        )
+                    }
+
+                    Log.d("PlaylistsFragment", "Batch ${batchIndex + 1}/${batches.size} completed")
+
+                    // Pausa tra batch
+                    if (batchIndex < batches.size - 1) {
+                        kotlinx.coroutines.delay(1000)
+                    }
+
+                } catch (e: Exception) {
+                    errorCount += batchSongs.size
+                    Log.e("PlaylistsFragment", "Batch ${batchIndex + 1} failed: ${e.message}")
+                }
+            }
+
+            withContext(Dispatchers.Main) {
+                onComplete(addedCount, errorCount)
+            }
+        }
+    }
+
+    // NUOVO METODO: Aggiungi canzoni in batch con rate limiting
+    private fun addSongsInBatch(
+        playlistId: String,
+        songs: List<Song>,
+        onComplete: (addedCount: Int, errorCount: Int) -> Unit
+    ) {
+        var addedCount = 0
+        var errorCount = 0
+        val totalSongs = songs.size
+
+        lifecycleScope.launch {
+            songs.forEachIndexed { index, song ->
+                var retries = 3
+                var success = false
+
+                while (retries > 0 && !success) {
+                    try {
+                        val songData = hashMapOf(
+                            "id" to song.id,
+                            "title" to song.title,
+                            "artist" to song.artist,
+                            "album" to song.album,
+                            "duration" to song.duration,
+                            "path" to song.path,
+                            "size" to song.size,
+                            "addedAt" to System.currentTimeMillis()
+                        )
+
+                        withContext(Dispatchers.IO) {
+                            firestore.collection("playlists")
+                                .document(playlistId)
+                                .collection("songs")
+                                .document(song.id.toString())
+                                .set(songData)
+                                .await()
+                        }
+
+                        addedCount++
+                        success = true
+                        Log.d("PlaylistsFragment", "Added ${index + 1}/$totalSongs: ${song.title}")
+
+                    } catch (e: Exception) {
+                        retries--
+                        if (retries > 0) {
+                            Log.w("PlaylistsFragment", "Retry ${3 - retries} for: ${song.title}")
+                            kotlinx.coroutines.delay(500)
+                        } else {
+                            errorCount++
+                            Log.e("PlaylistsFragment", "Failed after 3 retries: ${song.title} - ${e.message}")
+                        }
+                    }
+                }
+
+                // Delay più lungo ogni 50 canzoni per evitare rate limit
+                if ((index + 1) % 50 == 0 && index < songs.size - 1) {
+                    Log.d("PlaylistsFragment", "Pausa dopo ${index + 1} canzoni...")
+                    kotlinx.coroutines.delay(2000)
+                } else if (index < songs.size - 1) {
+                    kotlinx.coroutines.delay(100)
+                }
+            }
+
+            withContext(Dispatchers.Main) {
+                onComplete(addedCount, errorCount)
+            }
         }
     }
 }
