@@ -1,11 +1,11 @@
 package com.example.musiclab
 
-import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.tasks.await
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.launch
+import androidx.lifecycle.lifecycleScope
 import com.google.android.material.textfield.TextInputEditText
 import android.app.Activity
 import android.content.Intent
@@ -253,70 +253,29 @@ class PlaylistsFragment : Fragment() {
                     val ownerId = document.getString("ownerId") ?: ""
                     val createdAt = document.getLong("createdAt") ?: System.currentTimeMillis()
 
-                    firestore.collection("playlists")
-                        .document(playlistId)
-                        .collection("songs")
-                        .get()
-                        .addOnSuccessListener { songDocs ->
-                            val songs = mutableListOf<Song>()
+                    // Carica TUTTE le canzoni con paginazione
+                    loadAllSongsForPlaylist(playlistId, playlistName) { songs ->
+                        val playlist = Playlist(
+                            id = playlistId,
+                            name = playlistName,
+                            ownerId = ownerId,
+                            createdAt = createdAt,
+                            songs = songs,
+                            isLocal = false
+                        )
 
-                            for (songDoc in songDocs) {
-                                try {
-                                    val song = Song(
-                                        id = songDoc.getLong("id") ?: 0L,
-                                        title = songDoc.getString("title") ?: "Unknown",
-                                        artist = songDoc.getString("artist") ?: "Unknown",
-                                        album = songDoc.getString("album") ?: "Unknown",
-                                        duration = songDoc.getLong("duration") ?: 0L,
-                                        path = songDoc.getString("path") ?: "",
-                                        size = songDoc.getLong("size") ?: 0L
-                                    )
-                                    songs.add(song)
-                                } catch (e: Exception) {
-                                    Log.e("PlaylistsFragment", "Error parsing song: ${e.message}")
-                                }
-                            }
+                        playlists.add(playlist)
+                        loadedCount++
 
-                            val playlist = Playlist(
-                                id = playlistId,
-                                name = playlistName,
-                                ownerId = ownerId,
-                                createdAt = createdAt,
-                                songs = songs,
-                                isLocal = false
-                            )
+                        Log.d("PlaylistsFragment", "Loaded playlist: $playlistName with ${songs.size} songs")
 
-                            playlists.add(playlist)
-                            loadedCount++
-
-                            Log.d("PlaylistsFragment", "Loaded playlist: $playlistName with ${songs.size} songs")
-
-                            if (loadedCount == totalPlaylists) {
-                                playlistAdapter.notifyDataSetChanged()
-                                updateUI()
-                                isLoading = false
-                                Log.d("PlaylistsFragment", "All playlists loaded")
-                            }
+                        if (loadedCount == totalPlaylists) {
+                            playlistAdapter.notifyDataSetChanged()
+                            updateUI()
+                            isLoading = false
+                            Log.d("PlaylistsFragment", "All playlists loaded")
                         }
-                        .addOnFailureListener { e ->
-                            Log.e("PlaylistsFragment", "Error loading songs for $playlistName: ${e.message}")
-
-                            val playlist = Playlist(
-                                id = playlistId,
-                                name = playlistName,
-                                ownerId = ownerId,
-                                createdAt = createdAt,
-                                isLocal = false
-                            )
-                            playlists.add(playlist)
-                            loadedCount++
-
-                            if (loadedCount == totalPlaylists) {
-                                playlistAdapter.notifyDataSetChanged()
-                                updateUI()
-                                isLoading = false
-                            }
-                        }
+                    }
                 }
             }
             .addOnFailureListener { e ->
@@ -326,6 +285,90 @@ class PlaylistsFragment : Fragment() {
             }
     }
 
+    private fun loadAllSongsForPlaylist(
+        playlistId: String,
+        playlistName: String,
+        onComplete: (MutableList<Song>) -> Unit
+    ) {
+        val allSongs = mutableListOf<Song>()
+        var batchCount = 0
+        var processedIds = mutableSetOf<String>()
+
+        Log.d("PlaylistsFragment", "Starting to load all songs for: $playlistName")
+
+        fun loadBatch(lastDocId: String? = null) {
+            batchCount++
+            Log.d("PlaylistsFragment", "Loading batch $batchCount for: $playlistName")
+
+            var query = firestore.collection("playlists")
+                .document(playlistId)
+                .collection("songs")
+                .orderBy(com.google.firebase.firestore.FieldPath.documentId())
+                .limit(500)
+
+            if (lastDocId != null) {
+                query = query.startAfter(lastDocId)
+            }
+
+            query.get()
+                .addOnSuccessListener { songDocs ->
+                    if (songDocs.isEmpty) {
+                        Log.d("PlaylistsFragment", "No more songs. Total loaded: ${allSongs.size} in $batchCount batches")
+                        onComplete(allSongs)
+                        return@addOnSuccessListener
+                    }
+
+                    Log.d("PlaylistsFragment", "Batch $batchCount: loaded ${songDocs.size()} songs")
+
+                    var newSongsCount = 0
+                    for (songDoc in songDocs) {
+                        // Evita duplicati
+                        if (processedIds.contains(songDoc.id)) {
+                            continue
+                        }
+                        processedIds.add(songDoc.id)
+
+                        try {
+                            val song = Song(
+                                id = songDoc.getLong("id") ?: 0L,
+                                title = songDoc.getString("title") ?: "Unknown",
+                                artist = songDoc.getString("artist") ?: "Unknown",
+                                album = songDoc.getString("album") ?: "Unknown",
+                                duration = songDoc.getLong("duration") ?: 0L,
+                                path = songDoc.getString("path") ?: "",
+                                size = songDoc.getLong("size") ?: 0L
+                            )
+                            allSongs.add(song)
+                            newSongsCount++
+                        } catch (e: Exception) {
+                            Log.e("PlaylistsFragment", "Error parsing song: ${e.message}")
+                        }
+                    }
+
+                    Log.d("PlaylistsFragment", "Added $newSongsCount new songs. Total: ${allSongs.size}")
+
+                    // Se il batch è pieno (500 documenti), potrebbe esserci altro
+                    if (songDocs.size() >= 500) {
+                        val lastDoc = songDocs.documents[songDocs.size() - 1]
+                        Log.d("PlaylistsFragment", "Batch full (${songDocs.size()} docs), loading next batch...")
+                        loadBatch(lastDoc.id)
+                    } else {
+                        // Ultimo batch (meno di 500 documenti)
+                        Log.d("PlaylistsFragment", "Last batch loaded. Total: ${allSongs.size} songs in $batchCount batches")
+                        onComplete(allSongs)
+                    }
+                }
+                .addOnFailureListener { e ->
+                    Log.e("PlaylistsFragment", "Error loading batch $batchCount: ${e.message}", e)
+                    // Ritorna quello che abbiamo caricato finora
+                    Log.d("PlaylistsFragment", "Returning ${allSongs.size} songs due to error")
+                    onComplete(allSongs)
+                }
+        }
+
+        // Inizia il caricamento
+        loadBatch()
+    }
     private fun savePlaylistToCloud(playlist: Playlist) {
         Log.d("PlaylistsFragment", "Saving playlist: ${playlist.name}")
 
@@ -541,7 +584,7 @@ class PlaylistsFragment : Fragment() {
             return
         }
 
-        CoroutineScope(Dispatchers.Main).launch {
+        lifecycleScope.launch {
             try {
                 val result = youtubeImporter.importPlaylist(playlistUrl, allSongs)
 
@@ -610,9 +653,8 @@ class PlaylistsFragment : Fragment() {
 
         savePlaylistToCloud(newPlaylist)
 
-        // NUOVO: Dialog con progress
         val totalSongs = result.matchedSongs.size
-        val estimatedMinutes = (totalSongs * 0.15).toInt() // ~150ms per canzone
+        val estimatedMinutes = (totalSongs * 0.15).toInt()
 
         val progressDialog = AlertDialog.Builder(requireContext())
             .setTitle("Aggiunta canzoni...")
@@ -646,234 +688,105 @@ class PlaylistsFragment : Fragment() {
         }
     }
 
-    // NUOVO: Con aggiornamento progress
-    private fun addSongsInBatchWithProgress(
-        playlistId: String,
-        songs: List<Song>,
-        progressDialog: AlertDialog,
-        onComplete: (addedCount: Int, errorCount: Int) -> Unit
-    ) {
-        var addedCount = 0
-        var errorCount = 0
-        val totalSongs = songs.size
-        val startTime = System.currentTimeMillis()
-
-        lifecycleScope.launch {
-            songs.forEachIndexed { index, song ->
-                var retries = 3
-                var success = false
-
-                while (retries > 0 && !success) {
-                    try {
-                        val songData = hashMapOf(
-                            "id" to song.id,
-                            "title" to song.title,
-                            "artist" to song.artist,
-                            "album" to song.album,
-                            "duration" to song.duration,
-                            "path" to song.path,
-                            "size" to song.size,
-                            "addedAt" to System.currentTimeMillis()
-                        )
-
-                        withContext(Dispatchers.IO) {
-                            firestore.collection("playlists")
-                                .document(playlistId)
-                                .collection("songs")
-                                .document(song.id.toString())
-                                .set(songData)
-                                .await()
-                        }
-
-                        addedCount++
-                        success = true
-
-                        // Aggiorna progress ogni 10 canzoni
-                        if ((index + 1) % 10 == 0 || index == songs.size - 1) {
-                            withContext(Dispatchers.Main) {
-                                val elapsed = (System.currentTimeMillis() - startTime) / 1000
-                                val avgTimePerSong = if (index > 0) elapsed.toDouble() / (index + 1) else 0.15
-                                val remaining = ((totalSongs - index - 1) * avgTimePerSong).toInt()
-                                val remainingMin = remaining / 60
-                                val remainingSec = remaining % 60
-
-                                progressDialog.setMessage(
-                                    "${addedCount} / $totalSongs aggiunte\n" +
-                                            "Tempo rimanente: ~${remainingMin}m ${remainingSec}s"
-                                )
-                            }
-                        }
-
-                    } catch (e: Exception) {
-                        retries--
-                        if (retries > 0) {
-                            kotlinx.coroutines.delay(500)
-                        } else {
-                            errorCount++
-                            Log.e("PlaylistsFragment", "Failed: ${song.title}")
-                        }
-                    }
-                }
-
-                if ((index + 1) % 50 == 0 && index < songs.size - 1) {
-                    kotlinx.coroutines.delay(2000)
-                } else if (index < songs.size - 1) {
-                    kotlinx.coroutines.delay(100)
-                }
-            }
-
-            withContext(Dispatchers.Main) {
-                onComplete(addedCount, errorCount)
-            }
-        }
-    }
-
-    // NUOVO: Versione ULTRA VELOCE con batch writes
     private fun addSongsInBatchFast(
         playlistId: String,
         songs: List<Song>,
         progressDialog: AlertDialog,
         onComplete: (addedCount: Int, errorCount: Int) -> Unit
     ) {
+        Log.d("PlaylistsFragment", "=== START BATCH IMPORT ===")
+        Log.d("PlaylistsFragment", "Playlist ID: $playlistId")
+        Log.d("PlaylistsFragment", "Total songs to add: ${songs.size}")
+        Log.d("PlaylistsFragment", "Current user ID: $currentUserId")
+
         var addedCount = 0
         var errorCount = 0
         val totalSongs = songs.size
         val startTime = System.currentTimeMillis()
 
         lifecycleScope.launch {
-            // Dividi in gruppi da 450 (sotto il limite di 500)
-            val batches = songs.chunked(450)
+            try {
+                val batches = songs.chunked(400)
+                Log.d("PlaylistsFragment", "Created ${batches.size} batches")
 
-            batches.forEachIndexed { batchIndex, batchSongs ->
-                try {
-                    withContext(Dispatchers.IO) {
-                        val batch = firestore.batch()
+                batches.forEachIndexed { batchIndex, batchSongs ->
+                    Log.d("PlaylistsFragment", "Processing batch ${batchIndex + 1}/${batches.size} with ${batchSongs.size} songs")
 
-                        batchSongs.forEach { song ->
-                            val docRef = firestore.collection("playlists")
-                                .document(playlistId)
-                                .collection("songs")
-                                .document(song.id.toString())
-
-                            val songData = hashMapOf(
-                                "id" to song.id,
-                                "title" to song.title,
-                                "artist" to song.artist,
-                                "album" to song.album,
-                                "duration" to song.duration,
-                                "path" to song.path,
-                                "size" to song.size,
-                                "addedAt" to System.currentTimeMillis()
-                            )
-
-                            batch.set(docRef, songData)
-                        }
-
-                        batch.commit().await()
-                    }
-
-                    addedCount += batchSongs.size
-
-                    // Aggiorna progress
-                    withContext(Dispatchers.Main) {
-                        val elapsed = (System.currentTimeMillis() - startTime) / 1000
-                        val progress = ((batchIndex + 1) * 450).coerceAtMost(totalSongs)
-                        val remaining = totalSongs - progress
-                        val avgTimePerBatch = elapsed.toDouble() / (batchIndex + 1)
-                        val remainingBatches = batches.size - batchIndex - 1
-                        val remainingTime = (remainingBatches * avgTimePerBatch).toInt()
-                        val remainingMin = remainingTime / 60
-                        val remainingSec = remainingTime % 60
-
-                        progressDialog.setMessage(
-                            "${progress} / $totalSongs aggiunte\n" +
-                                    "Tempo rimanente: ~${remainingMin}m ${remainingSec}s"
-                        )
-                    }
-
-                    Log.d("PlaylistsFragment", "Batch ${batchIndex + 1}/${batches.size} completed")
-
-                    // Pausa tra batch
-                    if (batchIndex < batches.size - 1) {
-                        kotlinx.coroutines.delay(1000)
-                    }
-
-                } catch (e: Exception) {
-                    errorCount += batchSongs.size
-                    Log.e("PlaylistsFragment", "Batch ${batchIndex + 1} failed: ${e.message}")
-                }
-            }
-
-            withContext(Dispatchers.Main) {
-                onComplete(addedCount, errorCount)
-            }
-        }
-    }
-
-    // NUOVO METODO: Aggiungi canzoni in batch con rate limiting
-    private fun addSongsInBatch(
-        playlistId: String,
-        songs: List<Song>,
-        onComplete: (addedCount: Int, errorCount: Int) -> Unit
-    ) {
-        var addedCount = 0
-        var errorCount = 0
-        val totalSongs = songs.size
-
-        lifecycleScope.launch {
-            songs.forEachIndexed { index, song ->
-                var retries = 3
-                var success = false
-
-                while (retries > 0 && !success) {
                     try {
-                        val songData = hashMapOf(
-                            "id" to song.id,
-                            "title" to song.title,
-                            "artist" to song.artist,
-                            "album" to song.album,
-                            "duration" to song.duration,
-                            "path" to song.path,
-                            "size" to song.size,
-                            "addedAt" to System.currentTimeMillis()
-                        )
-
                         withContext(Dispatchers.IO) {
-                            firestore.collection("playlists")
-                                .document(playlistId)
-                                .collection("songs")
-                                .document(song.id.toString())
-                                .set(songData)
-                                .await()
+                            val batch = firestore.batch()
+
+                            batchSongs.forEach { song ->
+                                val docRef = firestore.collection("playlists")
+                                    .document(playlistId)
+                                    .collection("songs")
+                                    .document(song.id.toString())
+
+                                val songData = hashMapOf(
+                                    "id" to song.id,
+                                    "title" to song.title,
+                                    "artist" to song.artist,
+                                    "album" to song.album,
+                                    "duration" to song.duration,
+                                    "path" to song.path,
+                                    "size" to song.size,
+                                    "addedAt" to System.currentTimeMillis()
+                                )
+
+                                batch.set(docRef, songData)
+                            }
+
+                            Log.d("PlaylistsFragment", "Committing batch ${batchIndex + 1}...")
+                            batch.commit().await()
+                            Log.d("PlaylistsFragment", "Batch ${batchIndex + 1} committed successfully!")
                         }
 
-                        addedCount++
-                        success = true
-                        Log.d("PlaylistsFragment", "Added ${index + 1}/$totalSongs: ${song.title}")
+                        addedCount += batchSongs.size
+                        Log.d("PlaylistsFragment", "Total added so far: $addedCount")
+
+                        withContext(Dispatchers.Main) {
+                            val elapsed = (System.currentTimeMillis() - startTime) / 1000
+                            val progress = addedCount
+                            val avgTimePerSong = elapsed.toDouble() / progress
+                            val remainingSongs = totalSongs - progress
+                            val remainingTime = (remainingSongs * avgTimePerSong).toInt()
+                            val remainingMin = remainingTime / 60
+                            val remainingSec = remainingTime % 60
+
+                            progressDialog.setMessage(
+                                "$progress / $totalSongs aggiunte\n" +
+                                        "Batch ${batchIndex + 1}/${batches.size}\n" +
+                                        "Tempo rimanente: ~${remainingMin}m ${remainingSec}s"
+                            )
+                        }
+
+                        if (batchIndex < batches.size - 1) {
+                            Log.d("PlaylistsFragment", "Pausing 2s before next batch...")
+                            kotlinx.coroutines.delay(2000)
+                        }
 
                     } catch (e: Exception) {
-                        retries--
-                        if (retries > 0) {
-                            Log.w("PlaylistsFragment", "Retry ${3 - retries} for: ${song.title}")
-                            kotlinx.coroutines.delay(500)
-                        } else {
-                            errorCount++
-                            Log.e("PlaylistsFragment", "Failed after 3 retries: ${song.title} - ${e.message}")
-                        }
+                        errorCount += batchSongs.size
+                        Log.e("PlaylistsFragment", "ERROR in batch ${batchIndex + 1}: ${e.javaClass.simpleName}")
+                        Log.e("PlaylistsFragment", "Error message: ${e.message}")
+                        Log.e("PlaylistsFragment", "Stack trace:", e)
                     }
                 }
 
-                // Delay più lungo ogni 50 canzoni per evitare rate limit
-                if ((index + 1) % 50 == 0 && index < songs.size - 1) {
-                    Log.d("PlaylistsFragment", "Pausa dopo ${index + 1} canzoni...")
-                    kotlinx.coroutines.delay(2000)
-                } else if (index < songs.size - 1) {
-                    kotlinx.coroutines.delay(100)
-                }
-            }
+                Log.d("PlaylistsFragment", "=== BATCH IMPORT COMPLETE ===")
+                Log.d("PlaylistsFragment", "Added: $addedCount, Errors: $errorCount")
 
-            withContext(Dispatchers.Main) {
-                onComplete(addedCount, errorCount)
+                withContext(Dispatchers.Main) {
+                    onComplete(addedCount, errorCount)
+                }
+
+            } catch (e: Exception) {
+                Log.e("PlaylistsFragment", "FATAL ERROR in addSongsInBatchFast: ${e.message}", e)
+                errorCount = totalSongs
+
+                withContext(Dispatchers.Main) {
+                    onComplete(0, errorCount)
+                }
             }
         }
     }
