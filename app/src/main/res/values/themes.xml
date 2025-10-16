@@ -1,5 +1,5 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
-    <!-- Dark Theme -->
+    <!-- Dark Theme Blu-Viola -->
     <style name="Theme.MusicLab" parent="Theme.MaterialComponents.DayNight.NoActionBar">
         <!-- Primary brand color -->
         <item name="colorPrimary">@color/primary_purple</item>
@@ -7,8 +7,8 @@
         <item name="colorOnPrimary">@color/text_primary</item>
 
         <!-- Secondary brand color -->
-        <item name="colorSecondary">@color/accent_teal</item>
-        <item name="colorSecondaryVariant">@color/accent_teal_dark</item>
+        <item name="colorSecondary">@color/primary_blue</item>
+        <item name="colorSecondaryVariant">@color/accent_blue_dark</item>
         <item name="colorOnSecondary">@color/text_primary</item>
 
         <!-- Background colors -->
@@ -16,7 +16,7 @@
         <item name="colorSurface">@color/surface_dark</item>
         <item name="colorOnSurface">@color/text_primary</item>
 
-        <!-- Status bar -->
+        <!-- Status bar dark -->
         <item name="android:statusBarColor">@color/background_dark</item>
         <item name="android:windowLightStatusBar">false</item>
 
@@ -27,11 +27,8 @@
         <item name="android:textColorPrimary">@color/text_primary</item>
         <item name="android:textColorSecondary">@color/text_secondary</item>
         <item name="android:textColorTertiary">@color/text_tertiary</item>
-        <item name="android:textColorHint">@color/text_secondary</item>
 
-        <!-- Window -->
-        <item name="android:windowNoTitle">true</item>
-        <item name="android:windowActionBar">false</item>
-        <item name="android:windowBackground">@color/background_dark</item>
+        <!-- Ripple effect -->
+        <item name="colorControlHighlight">@color/ripple_purple</item>
     </style>
 </resources>

@@ -58,10 +58,10 @@
 
         <!-- Menu Button -->
         <ImageButton
-            android:id="@+id/folder_menu"
+            android:id="@+id/btn_folder_menu"
             android:layout_width="48dp"
             android:layout_height="48dp"
-            android:src="@android:drawable/ic_menu_more"
+            android:src="@drawable/ic_menu_dots"
             android:background="?attr/selectableItemBackgroundBorderless"
             android:contentDescription="@string/folder_menu"
             app:tint="@color/text_secondary" />

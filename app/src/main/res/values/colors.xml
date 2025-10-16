@@ -1,45 +1,47 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Dark Theme Colors -->
-    <color name="dark_background">#121212</color>
-    <color name="dark_surface">#1E1E1E</color>
-    <color name="dark_surface_variant">#2C2C2C</color>
+    <!-- === PALETTE PRINCIPALE DARK BLU-VIOLA === -->
 
-    <!-- Primary Colors -->
-    <color name="primary_purple">#BB86FC</color>
-    <color name="primary_purple_dark">#9965F4</color>
-    <color name="primary_purple_light">#E0BBFF</color>
+    <!-- Backgrounds -->
+    <color name="background_dark">#0A0E27</color>
+    <color name="surface_dark">#131829</color>
+    <color name="card_dark">#1A1F3A</color>
+    <color name="dark_surface_variant">#1E2541</color>
 
-    <!-- Accent Colors -->
-    <color name="accent_teal">#03DAC6</color>
-    <color name="accent_teal_dark">#018786</color>
+    <!-- Primary Gradient Blu-Viola -->
+    <color name="primary_purple">#8B5CF6</color>
+    <color name="primary_purple_dark">#6D28D9</color>
+    <color name="primary_purple_light">#A78BFA</color>
+
+    <color name="primary_blue">#3B82F6</color>
+    <color name="accent_blue_dark">#2563EB</color>
+    <color name="accent_blue_light">#60A5FA</color>
+
+    <!-- Accent Teal (mantenuto ma meno usato) -->
+    <color name="accent_teal">#06B6D4</color>
+    <color name="accent_teal_dark">#0891B2</color>
 
     <!-- Text Colors -->
     <color name="text_primary">#FFFFFF</color>
-    <color name="text_secondary">#B3B3B3</color>
-    <color name="text_tertiary">#808080</color>
-    <color name="text_disabled">#4D4D4D</color>
-
-    <!-- Background Colors -->
-    <color name="background_dark">#121212</color>
-    <color name="surface_dark">#1E1E1E</color>
-    <color name="card_dark">#2C2C2C</color>
-
-    <!-- Selection Colors -->
-    <color name="selection_dark">#3700B3</color>
-    <color name="selection_light">#6200EE</color>
+    <color name="text_secondary">#94A3B8</color>
+    <color name="text_tertiary">#64748B</color>
+    <color name="text_disabled">#475569</color>
 
     <!-- Status Colors -->
-    <color name="success">#4CAF50</color>
-    <color name="error">#CF6679</color>
-    <color name="warning">#FFC107</color>
+    <color name="success">#10B981</color>
+    <color name="error">#EF4444</color>
+    <color name="warning">#F59E0B</color>
 
-    <!-- Legacy Colors (per compatibilità) -->
-    <color name="purple_200">#BB86FC</color>
-    <color name="purple_500">#6200EE</color>
-    <color name="purple_700">#3700B3</color>
-    <color name="teal_200">#03DAC6</color>
-    <color name="teal_700">#018786</color>
+    <!-- Selection/Ripple -->
+    <color name="selection_dark">#8B5CF633</color>
+    <color name="ripple_purple">#8B5CF644</color>
+
+    <!-- Legacy (compatibilità) -->
+    <color name="purple_200">#A78BFA</color>
+    <color name="purple_500">#8B5CF6</color>
+    <color name="purple_700">#6D28D9</color>
+    <color name="teal_200">#06B6D4</color>
+    <color name="teal_700">#0891B2</color>
     <color name="black">#000000</color>
     <color name="white">#FFFFFF</color>
 </resources>

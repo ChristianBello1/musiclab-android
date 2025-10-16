@@ -89,7 +89,7 @@
             android:id="@+id/btn_song_menu"
             android:layout_width="48dp"
             android:layout_height="48dp"
-            android:src="@android:drawable/ic_menu_more"
+            android:src="@drawable/ic_menu_dots"
             android:background="?attr/selectableItemBackgroundBorderless"
             android:contentDescription="@string/song_menu"
             app:tint="@color/text_secondary" />

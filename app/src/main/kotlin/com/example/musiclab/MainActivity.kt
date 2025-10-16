@@ -1,10 +1,10 @@
 package com.example.musiclab
 
-
 import androidx.core.app.ActivityCompat
 import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.content.res.ColorStateList
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
@@ -23,13 +23,12 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.activity.OnBackPressedCallback
 import androidx.core.content.ContextCompat
+import androidx.core.widget.ImageViewCompat
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import androidx.viewpager2.widget.ViewPager2
 import com.google.android.material.tabs.TabLayout
 import com.google.android.material.tabs.TabLayoutMediator
-import java.util.Locale
-import com.google.android.gms.auth.api.signin.GoogleSignInAccount
 
 class MainActivity : AppCompatActivity() {
 
@@ -168,7 +167,6 @@ class MainActivity : AppCompatActivity() {
         musicPlayer.addQueueChangeListener(mainQueueChangeListener)
 
         checkPermissionsAndLoadMusic()
-
         checkNotificationPermission()
 
         Log.d("MainActivity", "=== MAIN ACTIVITY SETUP COMPLETE ===")
@@ -270,41 +268,35 @@ class MainActivity : AppCompatActivity() {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
             override fun afterTextChanged(s: Editable?) {
-                performSearch(s.toString())
+                val query = s.toString()
+                if (query.isNotEmpty()) {
+                    performSearch(query)
+                } else {
+                    searchAdapter.updateSongs(emptyList())
+                }
             }
         })
 
-        setupPlayerBottomBarListeners()
-
-        Log.d("MainActivity", "Listeners setup completed")
-    }
-
-    private fun setupPlayerBottomBarListeners() {
-        Log.d("MainActivity", "Setting up bottom bar listeners...")
-
         btnBottomPrevious.setOnClickListener {
-            Log.d("MainActivity", "⏮️ Bottom Previous clicked")
             musicPlayer.playPrevious()
+            Log.d("MainActivity", "⏮ Bottom bar previous clicked")
         }
 
         btnBottomPlayPause.setOnClickListener {
-            Log.d("MainActivity", "⏯️ Bottom Play/Pause clicked")
             musicPlayer.playPause()
+            Log.d("MainActivity", "⏯ Bottom bar play/pause clicked")
         }
 
         btnBottomNext.setOnClickListener {
-            Log.d("MainActivity", "⏭️ Bottom Next clicked")
             musicPlayer.playNext()
+            Log.d("MainActivity", "⏭ Bottom bar next clicked")
         }
 
         btnExpandPlayer.setOnClickListener {
-            Log.d("MainActivity", "📱 Queue button clicked")
-            val intent = Intent(this, QueueActivity::class.java)
-            startActivity(intent)
+            openPlayerActivity()
         }
 
         playerBottomContainer.setOnClickListener {
-            Log.d("MainActivity", "📱 Bottom bar clicked - opening player")
             openPlayerActivity()
         }
 
@@ -314,19 +306,19 @@ class MainActivity : AppCompatActivity() {
             }
 
             override fun onStopTrackingTouch(seekBar: SeekBar?) {
-                isUpdatingBottomProgress = false
-                seekBar?.let { bar ->
-                    val position = bar.progress
-                    musicPlayer.seekTo(position)
+                seekBar?.let {
+                    val progress = it.progress
+                    val duration = musicPlayer.getDuration()
+                    val newPosition = (progress * duration) / 100
+                    musicPlayer.seekTo(newPosition.toInt())
                 }
+                isUpdatingBottomProgress = false
             }
 
-            override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
-                if (fromUser) {
-                    bottomCurrentTime.text = formatTime(progress)
-                }
-            }
+            override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {}
         })
+
+        Log.d("MainActivity", "Listeners setup completed")
     }
 
     private fun toggleSearch() {
@@ -353,15 +345,17 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun performSearch(query: String) {
-        if (query.isBlank()) {
-            searchAdapter.updateSongs(emptyList())
-            return
+        val searchResults = if (query.isEmpty()) {
+            emptyList()
+        } else {
+            songs.filter { song ->
+                song.title.contains(query, ignoreCase = true) ||
+                        song.artist.contains(query, ignoreCase = true) ||
+                        song.album.contains(query, ignoreCase = true)
+            }
         }
 
-        val foldersFragment = viewPagerAdapter.getFoldersFragment()
-        val searchResults = foldersFragment?.filterSongs(query) ?: emptyList()
         searchAdapter.updateSongs(searchResults)
-
         Log.d("MainActivity", "🔍 Search for '$query' returned ${searchResults.size} results")
     }
 
@@ -399,11 +393,17 @@ class MainActivity : AppCompatActivity() {
 
     private fun updateLoginButton() {
         val iconRes = if (isLoggedIn) {
-            android.R.drawable.ic_menu_mylocation
+            R.drawable.ic_logout
         } else {
-            android.R.drawable.ic_dialog_info
+            R.drawable.ic_login
         }
         btnLogin.setImageResource(iconRes)
+
+        // IMPORTANTE: Forza il tint bianco dopo aver cambiato icona
+        ImageViewCompat.setImageTintList(
+            btnLogin,
+            ColorStateList.valueOf(ContextCompat.getColor(this, R.color.text_primary))
+        )
     }
 
     private fun openSettings() {
@@ -484,23 +484,14 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun updateSortButtonIcon() {
-        val iconRes = when (currentSortType) {
-            SortType.TITLE_ASC -> android.R.drawable.ic_menu_sort_alphabetically
-            SortType.ARTIST_ASC -> android.R.drawable.ic_menu_info_details
-            SortType.ALBUM_ASC -> android.R.drawable.ic_menu_gallery
-            SortType.DURATION_ASC -> android.R.drawable.ic_menu_recent_history
-            SortType.DATE_ADDED_DESC -> android.R.drawable.ic_menu_today
-        }
+        // Usa sempre l'icona custom ic_sort
+        btnSort.setImageResource(R.drawable.ic_sort)
 
-        btnSort.setImageResource(iconRes)
-
-        val colorRes = if (currentSortType == SortType.TITLE_ASC) {
-            ContextCompat.getColor(this, android.R.color.black)
-        } else {
-            ContextCompat.getColor(this, R.color.purple_500)
-        }
-
-        btnSort.setColorFilter(colorRes)
+        // Forza il tint bianco
+        ImageViewCompat.setImageTintList(
+            btnSort,
+            ColorStateList.valueOf(ContextCompat.getColor(this, R.color.text_primary))
+        )
     }
 
     private fun onSongClick(song: Song) {
@@ -519,64 +510,142 @@ class MainActivity : AppCompatActivity() {
         Log.d("MainActivity", "🚀 Service intent sent!")
 
         showPlayerBottomBar()
-        startBottomProgressUpdates()
-
-        Toast.makeText(this, getString(R.string.now_playing_format, song.title), Toast.LENGTH_SHORT).show()
-        Log.d("MainActivity", "▶️ Playing: ${song.title}")
     }
 
-    fun openPlaylist(playlist: Playlist) {
-        Toast.makeText(this, "Apertura playlist: ${playlist.name}", Toast.LENGTH_SHORT).show()
-        Log.d("MainActivity", "Opening playlist: ${playlist.name}")
+    private fun handleSongMenuAction(song: Song, action: SongAdapter.MenuAction) {
+        when (action) {
+            SongAdapter.MenuAction.ADD_TO_PLAYLIST -> {
+                // Ottieni il fragment playlist dal ViewPager
+                val playlistsFragment = viewPagerAdapter.getPlaylistsFragment()
+
+                if (playlistsFragment != null) {
+                    playlistsFragment.showAddToPlaylistDialog(song)
+                } else {
+                    Toast.makeText(
+                        this,
+                        "Caricamento playlist in corso...",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                    Log.w("MainActivity", "PlaylistsFragment not yet initialized")
+                }
+            }
+            SongAdapter.MenuAction.SONG_DETAILS -> {
+                showSongInfo(song)
+            }
+            SongAdapter.MenuAction.REMOVE_FROM_PLAYLIST -> {
+                // In MainActivity non ha senso rimuovere da playlist
+                Toast.makeText(this, "Operazione non disponibile qui", Toast.LENGTH_SHORT).show()
+            }
+            SongAdapter.MenuAction.DELETE_FROM_DEVICE -> {
+                confirmDeleteSong(song)
+            }
+        }
+    }
+
+    private fun showSongInfo(song: Song) {
+        val info = """
+            Titolo: ${song.title}
+            Artista: ${song.artist}
+            Album: ${song.album}
+            Durata: ${song.getFormattedDuration()}
+            Dimensione: ${formatFileSize(song.size)}
+            Percorso: ${song.path}
+        """.trimIndent()
+
+        androidx.appcompat.app.AlertDialog.Builder(this)
+            .setTitle("Informazioni Canzone")
+            .setMessage(info)
+            .setPositiveButton("OK", null)
+            .show()
+    }
+
+    private fun confirmDeleteSong(song: Song) {
+        androidx.appcompat.app.AlertDialog.Builder(this)
+            .setTitle("Elimina canzone")
+            .setMessage("Vuoi eliminare definitivamente '${song.title}' dal dispositivo?")
+            .setPositiveButton("Elimina") { dialog, _ ->
+                deleteSongFromDevice(song)
+                dialog.dismiss()
+            }
+            .setNegativeButton(getString(R.string.cancel)) { dialog, _ ->
+                dialog.dismiss()
+            }
+            .show()
+    }
+
+    private fun deleteSongFromDevice(song: Song) {
+        try {
+            val file = java.io.File(song.path)
+            if (file.exists() && file.delete()) {
+                songs = songs.filter { it.id != song.id }
+                applySorting()
+
+                if (isSearchActive && searchInput.text.isNotEmpty()) {
+                    performSearch(searchInput.text.toString())
+                }
+
+                Toast.makeText(this, "Canzone eliminata", Toast.LENGTH_SHORT).show()
+                Log.d("MainActivity", "Song deleted: ${song.title}")
+            } else {
+                Toast.makeText(this, "Errore durante l'eliminazione", Toast.LENGTH_SHORT).show()
+            }
+        } catch (e: Exception) {
+            Toast.makeText(this, "Errore: ${e.message}", Toast.LENGTH_SHORT).show()
+            Log.e("MainActivity", "Error deleting: $e")
+        }
+    }
+
+    private fun formatFileSize(bytes: Long): String {
+        val kb = bytes / 1024.0
+        val mb = kb / 1024.0
+        val gb = mb / 1024.0
+
+        return when {
+            gb >= 1.0 -> String.format("%.1f GB", gb)
+            mb >= 1.0 -> String.format("%.1f MB", mb)
+            kb >= 1.0 -> String.format("%.1f KB", kb)
+            else -> "$bytes bytes"
+        }
     }
 
     private fun updatePlayerBottomBar(isPlaying: Boolean, currentSong: Song?) {
-        Log.d("MainActivity", "🔄 Updating bottom bar: playing=$isPlaying")
-
         if (currentSong != null) {
-            showPlayerBottomBar()
+            currentSongTitle.text = currentSong.title
+            currentSongArtist.text = currentSong.artist
 
-            val realCurrentSong = musicPlayer.getCurrentSong()
-            val songToShow = realCurrentSong ?: currentSong
-
-            currentSongTitle.text = songToShow.title
-            currentSongArtist.text = songToShow.artist
-            bottomTotalTime.text = songToShow.getFormattedDuration()
-            bottomSeekBar.max = (songToShow.duration / 1000).toInt()
-
-            val iconRes = if (isPlaying) {
-                android.R.drawable.ic_media_pause
+            val playPauseIcon = if (isPlaying) {
+                R.drawable.ic_pause
             } else {
-                android.R.drawable.ic_media_play
+                R.drawable.ic_play
             }
-            btnBottomPlayPause.setImageResource(iconRes)
+            btnBottomPlayPause.setImageResource(playPauseIcon)
 
-            if (isPlaying) {
-                startBottomProgressUpdates()
-            }
-
-            Log.d("MainActivity", "✅ Bottom bar updated")
+            showPlayerBottomBar()
+            startBottomProgressUpdates()
         } else {
             hidePlayerBottomBar()
-            stopBottomProgressUpdates()
-            Log.d("MainActivity", "❌ No song - hiding bottom bar")
         }
     }
 
     private fun updateBottomProgress() {
-        if (!isUpdatingBottomProgress && musicPlayer.isPlaying()) {
-            val currentPosition = musicPlayer.getCurrentPosition()
-            val currentSeconds = (currentPosition / 1000).toInt()
+        if (isUpdatingBottomProgress) return
 
-            bottomSeekBar.progress = currentSeconds
-            bottomCurrentTime.text = formatTime(currentSeconds)
+        val currentPos = musicPlayer.getCurrentPosition()
+        val duration = musicPlayer.getDuration()
+
+        if (duration > 0) {
+            val progress = ((currentPos.toFloat() / duration) * 100).toInt()
+            bottomSeekBar.progress = progress
+
+            bottomCurrentTime.text = formatTime(currentPos)
+            bottomTotalTime.text = formatTime(duration)
         }
     }
 
-    private fun formatTime(seconds: Int): String {
-        val minutes = seconds / 60
-        val remainingSeconds = seconds % 60
-        return String.format(Locale.getDefault(), "%d:%02d", minutes, remainingSeconds)
+    private fun formatTime(milliseconds: Long): String {
+        val seconds = (milliseconds / 1000) % 60
+        val minutes = (milliseconds / (1000 * 60)) % 60
+        return String.format("%d:%02d", minutes, seconds)
     }
 
     private fun startBottomProgressUpdates() {
@@ -660,126 +729,42 @@ class MainActivity : AppCompatActivity() {
                 }.attach()
 
                 Log.d("MainActivity", "📱 ViewPager aggiornato!")
-            }
 
-            Toast.makeText(this, getString(R.string.songs_loaded_format, songs.size), Toast.LENGTH_SHORT).show()
+                Toast.makeText(
+                    this@MainActivity,
+                    getString(R.string.songs_loaded_format, songs.size),
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
 
         } catch (e: Exception) {
-            Log.e("MainActivity", "💥 ERRORE caricamento: $e")
-            e.printStackTrace()
-            Toast.makeText(this, getString(R.string.error_loading_music, e.message), Toast.LENGTH_LONG).show()
-        }
-
-        Log.d("MainActivity", "=== FINE CARICAMENTO ===")
-    }
-
-    private fun handleSongMenuAction(song: Song, action: SongAdapter.MenuAction) {
-        when (action) {
-            SongAdapter.MenuAction.ADD_TO_PLAYLIST -> {
-                // Ottieni il fragment playlist dal ViewPager
-                val playlistsFragment = viewPagerAdapter.getPlaylistsFragment()
-
-                if (playlistsFragment != null) {
-                    playlistsFragment.showAddToPlaylistDialog(song)
-                } else {
-                    Toast.makeText(
-                        this,
-                        "Caricamento playlist in corso...",
-                        Toast.LENGTH_SHORT
-                    ).show()
-                    Log.w("MainActivity", "PlaylistsFragment not yet initialized")
-                }
-            }
-            SongAdapter.MenuAction.REMOVE_FROM_PLAYLIST -> {
-                // NUOVO: In MainActivity non ha senso rimuovere da playlist
-                Toast.makeText(this, "Operazione non disponibile qui", Toast.LENGTH_SHORT).show()
-            }
-            SongAdapter.MenuAction.SONG_DETAILS -> {
-                showSongDetails(song)
-            }
-            SongAdapter.MenuAction.DELETE_FROM_DEVICE -> {
-                showDeleteSongConfirmation(song)
-            }
+            Log.e("MainActivity", "❌ Errore caricamento musica: ${e.message}")
+            Toast.makeText(
+                this,
+                getString(R.string.error_loading_music, e.message),
+                Toast.LENGTH_LONG
+            ).show()
         }
     }
 
-    private fun showAddToPlaylistDialog(song: Song) {
-        Toast.makeText(
-            this,
-            "Aggiungi '${song.title}' a playlist (coming soon!)",
-            Toast.LENGTH_SHORT
-        ).show()
-        Log.d("MainActivity", "Add to playlist: ${song.title}")
-    }
-
-    private fun showSongDetails(song: Song) {
-        val fileSize = formatFileSize(song.size)
-        val message = """
-        Titolo: ${song.title}
-        Artista: ${song.artist}
-        Album: ${song.album}
-        Durata: ${song.getFormattedDuration()}
-        Dimensione: $fileSize
-        Percorso: ${song.path}
-    """.trimIndent()
-
-        androidx.appcompat.app.AlertDialog.Builder(this)
-            .setTitle(getString(R.string.song_details_title))
-            .setMessage(message)
-            .setPositiveButton(getString(R.string.close)) { dialog, _ ->
-                dialog.dismiss()
-            }
-            .show()
-    }
-
-    private fun showDeleteSongConfirmation(song: Song) {
-        val message = getString(R.string.delete_song_message, song.title)
-
-        androidx.appcompat.app.AlertDialog.Builder(this)
-            .setTitle(getString(R.string.delete_song_title))
-            .setMessage(message)
-            .setPositiveButton(getString(R.string.delete_confirm)) { dialog, _ ->
-                deleteSongFromDevice(song)
-                dialog.dismiss()
-            }
-            .setNegativeButton(getString(R.string.cancel)) { dialog, _ ->
-                dialog.dismiss()
-            }
-            .show()
-    }
-
-    private fun deleteSongFromDevice(song: Song) {
-        try {
-            val file = java.io.File(song.path)
-            if (file.exists() && file.delete()) {
-                songs = songs.filter { it.id != song.id }
-                applySorting()
-
-                if (isSearchActive && searchInput.text.isNotEmpty()) {
-                    performSearch(searchInput.text.toString())
-                }
-
-                Toast.makeText(this, "Canzone eliminata", Toast.LENGTH_SHORT).show()
-                Log.d("MainActivity", "Song deleted: ${song.title}")
+    private fun checkNotificationPermission() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (ContextCompat.checkSelfPermission(
+                    this,
+                    Manifest.permission.POST_NOTIFICATIONS
+                ) != PackageManager.PERMISSION_GRANTED
+            ) {
+                ActivityCompat.requestPermissions(
+                    this,
+                    arrayOf(Manifest.permission.POST_NOTIFICATIONS),
+                    999
+                )
+                Log.d("MainActivity", "📢 Requesting notification permission")
             } else {
-                Toast.makeText(this, "Errore durante l'eliminazione", Toast.LENGTH_SHORT).show()
+                Log.d("MainActivity", "✅ Notification permission already granted")
             }
-        } catch (e: Exception) {
-            Toast.makeText(this, "Errore: ${e.message}", Toast.LENGTH_SHORT).show()
-            Log.e("MainActivity", "Error deleting: $e")
-        }
-    }
-
-    private fun formatFileSize(bytes: Long): String {
-        val kb = bytes / 1024.0
-        val mb = kb / 1024.0
-        val gb = mb / 1024.0
-
-        return when {
-            gb >= 1.0 -> String.format("%.1f GB", gb)
-            mb >= 1.0 -> String.format("%.1f MB", mb)
-            kb >= 1.0 -> String.format("%.1f KB", kb)
-            else -> "$bytes bytes"
+        } else {
+            Log.d("MainActivity", "📱 Android < 13, no notification permission needed")
         }
     }
 
@@ -812,28 +797,6 @@ class MainActivity : AppCompatActivity() {
         val userId = googleAuthManager.getUserId() ?: ""
         Log.d("MainActivity", "getCurrentUserId: $userId")
         return userId
-    }
-
-    // ✅ AGGIUNGI QUESTO METODO NUOVO
-    private fun checkNotificationPermission() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            if (ContextCompat.checkSelfPermission(
-                    this,
-                    Manifest.permission.POST_NOTIFICATIONS
-                ) != PackageManager.PERMISSION_GRANTED
-            ) {
-                ActivityCompat.requestPermissions(
-                    this,
-                    arrayOf(Manifest.permission.POST_NOTIFICATIONS),
-                    999
-                )
-                Log.d("MainActivity", "📢 Requesting notification permission")
-            } else {
-                Log.d("MainActivity", "✅ Notification permission already granted")
-            }
-        } else {
-            Log.d("MainActivity", "📱 Android < 13, no notification permission needed")
-        }
     }
 
     fun getAllSongs(): List<Song> {

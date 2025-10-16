@@ -12,6 +12,9 @@ import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import java.util.Locale
+import androidx.core.widget.ImageViewCompat
+import android.content.res.ColorStateList
+import androidx.media3.common.Player
 
 class PlayerActivity : AppCompatActivity() {
 
@@ -283,22 +286,27 @@ class PlayerActivity : AppCompatActivity() {
         Log.d("PlayerActivity", "🔄 Updating repeat button: mode=$repeatMode")
 
         try {
-            val colorRes = if (repeatMode != androidx.media3.common.Player.REPEAT_MODE_OFF) {
-                ContextCompat.getColor(this, R.color.purple_500)
-            } else {
-                ContextCompat.getColor(this, android.R.color.darker_gray)
-            }
-            repeatButton.setColorFilter(colorRes)
-
-            // NUOVO: Cambia anche l'icona in base al modo repeat
             val iconRes = when (repeatMode) {
-                androidx.media3.common.Player.REPEAT_MODE_ONE -> android.R.drawable.ic_menu_revert
-                androidx.media3.common.Player.REPEAT_MODE_ALL -> android.R.drawable.ic_menu_rotate
-                else -> android.R.drawable.ic_menu_revert
+                Player.REPEAT_MODE_OFF -> R.drawable.ic_repeat
+                Player.REPEAT_MODE_ONE -> R.drawable.ic_repeat_one
+                Player.REPEAT_MODE_ALL -> R.drawable.ic_repeat_active
+                else -> R.drawable.ic_repeat
             }
+
             repeatButton.setImageResource(iconRes)
 
-            Log.d("PlayerActivity", "✅ Repeat button updated - mode: $repeatMode, color: ${if (repeatMode != 0) "purple" else "gray"}")
+            val colorRes = if (repeatMode != Player.REPEAT_MODE_OFF) {
+                ContextCompat.getColor(this, R.color.primary_purple)
+            } else {
+                ContextCompat.getColor(this, R.color.text_secondary)
+            }
+
+            ImageViewCompat.setImageTintList(
+                repeatButton,
+                ColorStateList.valueOf(colorRes)
+            )
+
+            Log.d("PlayerActivity", "✅ Repeat button updated")
         } catch (e: Exception) {
             Log.e("PlayerActivity", "❌ Error updating repeat button: $e")
         }

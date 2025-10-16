@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Gradient background -->
+    <item>
+        <shape>
+            <gradient
+                android:angle="135"
+                android:startColor="#1A1F3A"
+                android:endColor="#2A2F4A"
+                android:type="linear" />
+            <corners android:radius="8dp" />
+        </shape>
+    </item>
+
+    <!-- Cerchio esterno (vinile) -->
+    <item
+        android:width="120dp"
+        android:height="120dp"
+        android:gravity="center">
+        <shape android:shape="oval">
+            <solid android:color="#8B5CF6" />
+        </shape>
+    </item>
+
+    <!-- Cerchio interno -->
+    <item
+        android:width="80dp"
+        android:height="80dp"
+        android:gravity="center">
+        <shape android:shape="oval">
+            <solid android:color="#6D28D9" />
+        </shape>
+    </item>
+
+    <!-- Cerchio centrale -->
+    <item
+        android:width="40dp"
+        android:height="40dp"
+        android:gravity="center">
+        <shape android:shape="oval">
+            <solid android:color="#1A1F3A" />
+        </shape>
+    </item>
+
+    <!-- Icona nota musicale -->
+    <item
+        android:width="30dp"
+        android:height="30dp"
+        android:gravity="center">
+        <vector
+            android:width="30dp"
+            android:height="30dp"
+            android:viewportWidth="24"
+            android:viewportHeight="24">
+            <path
+                android:fillColor="#FFFFFF"
+                android:pathData="M12,3v10.55c-0.59,-0.34 -1.27,-0.55 -2,-0.55 -2.21,0 -4,1.79 -4,4s1.79,4 4,4 4,-1.79 4,-4V7h4V3h-6z"/>
+        </vector>
+    </item>
+</layer-list>

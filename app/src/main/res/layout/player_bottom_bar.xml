@@ -1,28 +1,56 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- app/src/main/res/layout/player_bottom_bar.xml -->
 <androidx.cardview.widget.CardView
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:layout_margin="4dp"
-    app:cardCornerRadius="12dp"
+    app:cardCornerRadius="16dp"
     app:cardElevation="8dp"
-    android:background="?attr/colorSurface">
+    app:cardBackgroundColor="@color/card_dark">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:padding="8dp">
+        android:background="@drawable/bottom_player_background"
+        android:padding="12dp">
+
+        <!-- Progress bar sottile sopra -->
+        <ProgressBar
+            android:id="@+id/mini_progress_bar"
+            style="?android:attr/progressBarStyleHorizontal"
+            android:layout_width="match_parent"
+            android:layout_height="3dp"
+            android:layout_marginBottom="10dp"
+            android:progressTint="@color/primary_purple"
+            android:progressBackgroundTint="#FFFFFF11"
+            android:progress="0"
+            android:max="100" />
 
         <!-- Song Info and Controls Row -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:baselineAligned="false"
             android:orientation="horizontal"
             android:gravity="center_vertical">
+
+            <!-- Album art piccola -->
+            <androidx.cardview.widget.CardView
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                app:cardCornerRadius="8dp"
+                app:cardElevation="2dp">
+
+                <ImageView
+                    android:id="@+id/mini_album_art"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:scaleType="centerCrop"
+                    android:src="@drawable/album_placeholder_gradient"
+                    android:contentDescription="@string/album_placeholder" />
+
+            </androidx.cardview.widget.CardView>
 
             <!-- Song Info -->
             <LinearLayout
@@ -30,6 +58,7 @@
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
                 android:orientation="vertical"
+                android:layout_marginStart="12dp"
                 android:layout_marginEnd="12dp">
 
                 <TextView
@@ -39,6 +68,7 @@
                     android:text="@string/no_song_playing"
                     android:textSize="14sp"
                     android:textStyle="bold"
+                    android:textColor="@color/text_primary"
                     android:maxLines="1"
                     android:ellipsize="end" />
 
@@ -48,7 +78,7 @@
                     android:layout_height="wrap_content"
                     android:text="@string/unknown_artist"
                     android:textSize="12sp"
-                    android:textColor="?android:attr/textColorSecondary"
+                    android:textColor="@color/text_secondary"
                     android:maxLines="1"
                     android:ellipsize="end" />
 
@@ -65,45 +95,45 @@
                     android:id="@+id/btn_previous"
                     android:layout_width="40dp"
                     android:layout_height="40dp"
-                    android:src="@android:drawable/ic_media_previous"
+                    android:src="@drawable/ic_previous"
                     android:background="?attr/selectableItemBackgroundBorderless"
                     android:contentDescription="@string/btn_previous"
-                    app:tint="?attr/colorPrimary" />
+                    app:tint="@color/text_primary" />
 
                 <ImageButton
                     android:id="@+id/btn_play_pause"
                     android:layout_width="48dp"
                     android:layout_height="48dp"
-                    android:src="@android:drawable/ic_media_play"
-                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:src="@drawable/ic_play"
+                    android:background="@drawable/play_button_ripple"
                     android:contentDescription="@string/btn_play_pause"
                     android:layout_marginHorizontal="8dp"
-                    app:tint="?attr/colorPrimary" />
+                    app:tint="@color/primary_purple" />
 
                 <ImageButton
                     android:id="@+id/btn_next"
                     android:layout_width="40dp"
                     android:layout_height="40dp"
-                    android:src="@android:drawable/ic_media_next"
+                    android:src="@drawable/ic_next"
                     android:background="?attr/selectableItemBackgroundBorderless"
                     android:contentDescription="@string/btn_next"
-                    app:tint="?attr/colorPrimary" />
+                    app:tint="@color/text_primary" />
 
                 <ImageButton
                     android:id="@+id/btn_expand_player"
                     android:layout_width="40dp"
                     android:layout_height="40dp"
-                    android:src="@android:drawable/ic_dialog_dialer"
+                    android:src="@android:drawable/ic_menu_upload"
                     android:background="?attr/selectableItemBackgroundBorderless"
-                    android:contentDescription="@string/show_queue"
+                    android:contentDescription="@string/btn_expand_player"
                     android:layout_marginStart="8dp"
-                    app:tint="?attr/colorPrimary" />
+                    app:tint="@color/text_secondary" />
 
             </LinearLayout>
 
         </LinearLayout>
 
-        <!-- Progress Bar -->
+        <!-- Progress Bar con tempi -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -117,7 +147,7 @@
                 android:layout_height="wrap_content"
                 android:text="@string/time_format"
                 android:textSize="11sp"
-                android:textColor="?android:attr/textColorSecondary" />
+                android:textColor="@color/text_secondary" />
 
             <SeekBar
                 android:id="@+id/seek_bar"
@@ -126,7 +156,10 @@
                 android:layout_weight="1"
                 android:layout_marginHorizontal="8dp"
                 android:max="100"
-                android:progress="0" />
+                android:progress="0"
+                android:progressTint="@color/primary_purple"
+                android:thumbTint="@color/primary_purple"
+                android:progressBackgroundTint="#FFFFFF22" />
 
             <TextView
                 android:id="@+id/total_time"
@@ -134,7 +167,7 @@
                 android:layout_height="wrap_content"
                 android:text="@string/time_format"
                 android:textSize="11sp"
-                android:textColor="?android:attr/textColorSecondary" />
+                android:textColor="@color/text_secondary" />
 
         </LinearLayout>
 
