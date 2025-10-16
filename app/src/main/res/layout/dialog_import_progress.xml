@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Crea questo nuovo file: app/src/main/res/layout/dialog_import_progress.xml -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="24dp">
+
+    <TextView
+        android:id="@+id/progress_title"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Importazione in corso..."
+        android:textSize="18sp"
+        android:textStyle="bold"
+        android:textColor="?attr/colorPrimary"
+        android:layout_marginBottom="16dp" />
+
+    <TextView
+        android:id="@+id/progress_message"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Caricamento playlist da YouTube..."
+        android:textSize="14sp"
+        android:textColor="?android:attr/textColorPrimary"
+        android:layout_marginBottom="8dp" />
+
+    <ProgressBar
+        android:id="@+id/progress_bar"
+        style="?android:attr/progressBarStyleHorizontal"
+        android:layout_width="match_parent"
+        android:layout_height="8dp"
+        android:layout_marginTop="8dp"
+        android:layout_marginBottom="8dp"
+        android:max="100"
+        android:progress="0" />
+
+    <TextView
+        android:id="@+id/progress_percentage"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="0%"
+        android:textSize="24sp"
+        android:textStyle="bold"
+        android:textColor="?attr/colorPrimary"
+        android:gravity="center"
+        android:layout_marginTop="8dp"
+        android:layout_marginBottom="8dp" />
+
+    <TextView
+        android:id="@+id/progress_details"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="0 / 0 video analizzati\nTrovate: 0"
+        android:textSize="12sp"
+        android:textColor="?android:attr/textColorSecondary"
+        android:gravity="center" />
+
+</LinearLayout>

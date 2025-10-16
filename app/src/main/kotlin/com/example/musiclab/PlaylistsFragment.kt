@@ -568,9 +568,17 @@ class PlaylistsFragment : Fragment() {
     private fun startYouTubeImport(playlistUrl: String) {
         Log.d("PlaylistsFragment", "Starting YouTube import: $playlistUrl")
 
+        val dialogView = LayoutInflater.from(requireContext())
+            .inflate(R.layout.dialog_import_progress, null)
+
+        val progressTitle = dialogView.findViewById<TextView>(R.id.progress_title)
+        val progressMessage = dialogView.findViewById<TextView>(R.id.progress_message)
+        val progressBar = dialogView.findViewById<android.widget.ProgressBar>(R.id.progress_bar)
+        val progressPercentage = dialogView.findViewById<TextView>(R.id.progress_percentage)
+        val progressDetails = dialogView.findViewById<TextView>(R.id.progress_details)
+
         val progressDialog = AlertDialog.Builder(requireContext())
-            .setTitle("Importazione in corso...")
-            .setMessage("Analizzando playlist YouTube...\nPotrebbe richiedere qualche minuto.")
+            .setView(dialogView)
             .setCancelable(false)
             .create()
         progressDialog.show()
@@ -584,12 +592,43 @@ class PlaylistsFragment : Fragment() {
             return
         }
 
+        Log.d("PlaylistsFragment", "Starting import with ${allSongs.size} local songs")
+
         lifecycleScope.launch {
             try {
-                val result = youtubeImporter.importPlaylist(playlistUrl, allSongs)
+                val result = youtubeImporter.importPlaylist(playlistUrl, allSongs) { progress ->
+                    lifecycleScope.launch(Dispatchers.Main) {
+                        when (progress.phase) {
+                            "loading" -> {
+                                progressTitle.text = "Caricamento da YouTube..."
+                                progressMessage.text = "Scaricamento informazioni playlist..."
+
+                                val percentage = if (progress.total > 0) {
+                                    (progress.current * 100) / progress.total
+                                } else 0
+
+                                progressBar.progress = percentage
+                                progressPercentage.text = "$percentage%"
+                                progressDetails.text = "${progress.current} / ${progress.total} video caricati"
+                            }
+                            "matching" -> {
+                                progressTitle.text = "Ricerca canzoni..."
+                                progressMessage.text = "Confronto con la tua libreria musicale..."
+
+                                val percentage = (progress.current * 100) / progress.total
+                                progressBar.progress = percentage
+                                progressPercentage.text = "$percentage%"
+                                progressDetails.text = buildString {
+                                    append("${progress.current} / ${progress.total} video analizzati\n")
+                                    append("✅ Trovate: ${progress.matchedCount}")
+                                }
+                            }
+                        }
+                    }
+                }
 
                 progressDialog.dismiss()
-                showImportResults(result)
+                showImportResultsWithDebug(result)
 
             } catch (e: Exception) {
                 progressDialog.dismiss()
@@ -602,6 +641,44 @@ class PlaylistsFragment : Fragment() {
                     .show()
             }
         }
+    }
+
+    private fun showImportResultsWithDebug(result: YouTubeImporter.ImportResult) {
+        val message = buildString {
+            append("Playlist: ${result.playlistTitle}\n\n")
+            append("Risultati:\n")
+            append("Trovate: ${result.matchedSongs.size}\n")
+            append("Non trovate: ${result.unmatchedTitles.size}\n")
+            append("Totale video: ${result.totalVideos}\n\n")
+
+            if (result.unmatchedTitles.isNotEmpty()) {
+                append("Non trovate (primi 5):\n")
+                result.unmatchedTitles.take(5).forEach {
+                    append("- $it\n")
+                }
+                if (result.unmatchedTitles.size > 5) {
+                    append("... e altre ${result.unmatchedTitles.size - 5}\n")
+                }
+            }
+        }
+
+        AlertDialog.Builder(requireContext())
+            .setTitle("Importazione Completata")
+            .setMessage(message)
+            .setPositiveButton("Crea Playlist") { _, _ ->
+                if (result.matchedSongs.isNotEmpty()) {
+                    createPlaylistFromImport(result)
+                } else {
+                    Toast.makeText(requireContext(), "Nessuna canzone da aggiungere", Toast.LENGTH_SHORT).show()
+                }
+            }
+            .setNeutralButton("Vedi Log Debug") { _, _ ->
+                Toast.makeText(requireContext(),
+                    "Controlla Logcat in Android Studio\nFiltra per tag: YouTubeImporter",
+                    Toast.LENGTH_LONG).show()
+            }
+            .setNegativeButton("Annulla", null)
+            .show()
     }
 
     private fun showImportResults(result: YouTubeImporter.ImportResult) {
@@ -697,7 +774,6 @@ class PlaylistsFragment : Fragment() {
         Log.d("PlaylistsFragment", "=== START BATCH IMPORT ===")
         Log.d("PlaylistsFragment", "Playlist ID: $playlistId")
         Log.d("PlaylistsFragment", "Total songs to add: ${songs.size}")
-        Log.d("PlaylistsFragment", "Current user ID: $currentUserId")
 
         var addedCount = 0
         var errorCount = 0
@@ -706,7 +782,8 @@ class PlaylistsFragment : Fragment() {
 
         lifecycleScope.launch {
             try {
-                val batches = songs.chunked(400)
+                // ✅ Riduci batch size a 100 (più sicuro per Firestore)
+                val batches = songs.chunked(100)
                 Log.d("PlaylistsFragment", "Created ${batches.size} batches")
 
                 batches.forEachIndexed { batchIndex, batchSongs ->
@@ -747,7 +824,7 @@ class PlaylistsFragment : Fragment() {
                         withContext(Dispatchers.Main) {
                             val elapsed = (System.currentTimeMillis() - startTime) / 1000
                             val progress = addedCount
-                            val avgTimePerSong = elapsed.toDouble() / progress
+                            val avgTimePerSong = if (progress > 0) elapsed.toDouble() / progress else 0.15
                             val remainingSongs = totalSongs - progress
                             val remainingTime = (remainingSongs * avgTimePerSong).toInt()
                             val remainingMin = remainingTime / 60
@@ -760,16 +837,15 @@ class PlaylistsFragment : Fragment() {
                             )
                         }
 
+                        // Pausa tra batch
                         if (batchIndex < batches.size - 1) {
-                            Log.d("PlaylistsFragment", "Pausing 2s before next batch...")
-                            kotlinx.coroutines.delay(2000)
+                            Log.d("PlaylistsFragment", "Pausing 1s before next batch...")
+                            kotlinx.coroutines.delay(1000)
                         }
 
                     } catch (e: Exception) {
                         errorCount += batchSongs.size
-                        Log.e("PlaylistsFragment", "ERROR in batch ${batchIndex + 1}: ${e.javaClass.simpleName}")
-                        Log.e("PlaylistsFragment", "Error message: ${e.message}")
-                        Log.e("PlaylistsFragment", "Stack trace:", e)
+                        Log.e("PlaylistsFragment", "ERROR in batch ${batchIndex + 1}: ${e.message}", e)
                     }
                 }
 
@@ -781,7 +857,7 @@ class PlaylistsFragment : Fragment() {
                 }
 
             } catch (e: Exception) {
-                Log.e("PlaylistsFragment", "FATAL ERROR in addSongsInBatchFast: ${e.message}", e)
+                Log.e("PlaylistsFragment", "FATAL ERROR: ${e.message}", e)
                 errorCount = totalSongs
 
                 withContext(Dispatchers.Main) {
