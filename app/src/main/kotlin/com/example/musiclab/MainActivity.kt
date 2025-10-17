@@ -3,6 +3,7 @@ package com.example.musiclab
 import androidx.core.app.ActivityCompat
 import android.Manifest
 import android.content.Intent
+import android.content.Context
 import android.content.pm.PackageManager
 import android.content.res.ColorStateList
 import android.os.Build
@@ -91,8 +92,17 @@ class MainActivity : AppCompatActivity() {
         val success = googleAuthManager.handleSignInResult(result.data)
         if (success) {
             val user = googleAuthManager.getCurrentUser()
+            val userId = googleAuthManager.getUserId() ?: ""
+
+            // ← AGGIUNGI QUESTE RIGHE
+            isLoggedIn = true
+            saveLoginState(true, userId)
+            updateLoginButton()
+            updatePlaylistsFragmentLoginState()
+            // FINE AGGIUNTA
+
             Toast.makeText(this, "Benvenuto ${user?.displayName}!", Toast.LENGTH_SHORT).show()
-            Log.d("MainActivity", "Login successful: ${user?.email}")
+            Log.d("MainActivity", "Login successful: ${user?.email}, userId=$userId")
         } else {
             Toast.makeText(this, "Login fallito", Toast.LENGTH_SHORT).show()
             Log.e("MainActivity", "Login failed")
@@ -150,6 +160,8 @@ class MainActivity : AppCompatActivity() {
         // IMPORTANTE: Inizializza Google Auth DOPO setupViews()
         initializeGoogleAuth()
 
+        checkSavedLoginState()
+
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
                 if (isSearchActive) {
@@ -173,6 +185,8 @@ class MainActivity : AppCompatActivity() {
     }
 
     // NUOVO: Inizializza Google Authentication
+// NUOVO: Inizializza Google Authentication
+// NUOVO: Inizializza Google Authentication
     private fun initializeGoogleAuth() {
         googleAuthManager = GoogleAuthManager.getInstance()
         googleAuthManager.initialize(this)
@@ -183,6 +197,13 @@ class MainActivity : AppCompatActivity() {
                 updateLoginButton()
 
                 val userId = googleAuthManager.getUserId() ?: ""
+
+                // ← AGGIUNGI QUESTE 2 RIGHE
+                saveLoginState(loggedIn, userId)
+                updatePlaylistsFragmentLoginState()
+                // FINE AGGIUNTA
+
+                // Resto del codice rimane uguale
                 viewPagerAdapter.getPlaylistsFragment()?.setLoginState(loggedIn, userId)
 
                 Log.d("MainActivity", "Auth state: logged in = $loggedIn")
@@ -191,6 +212,54 @@ class MainActivity : AppCompatActivity() {
                 }
             }
         }
+    }
+
+    // NUOVO: Controlla lo stato di login salvato all'avvio
+    private fun checkSavedLoginState() {
+        val prefs = getSharedPreferences("MusicLabPrefs", Context.MODE_PRIVATE)
+        val savedLoginState = prefs.getBoolean("is_logged_in", false)
+        val savedUserId = prefs.getString("user_id", "")
+
+        Log.d("MainActivity", "Checking saved login state: logged=$savedLoginState, userId=$savedUserId")
+
+        // Se c'è uno stato salvato, verifica con GoogleAuthManager
+        if (savedLoginState && !savedUserId.isNullOrEmpty()) {
+            isLoggedIn = googleAuthManager.isLoggedIn()
+
+            if (isLoggedIn) {
+                Log.d("MainActivity", "Session restored successfully")
+                updateLoginButton()
+                updatePlaylistsFragmentLoginState()
+            } else {
+                Log.d("MainActivity", "Saved session expired, clearing saved state")
+                // Pulisci lo stato salvato se la sessione è scaduta
+                prefs.edit().apply {
+                    putBoolean("is_logged_in", false)
+                    putString("user_id", "")
+                    apply()
+                }
+            }
+        }
+    }
+
+    // NUOVO: Salva lo stato di login
+    private fun saveLoginState(loggedIn: Boolean, userId: String) {
+        val prefs = getSharedPreferences("MusicLabPrefs", Context.MODE_PRIVATE)
+        prefs.edit().apply {
+            putBoolean("is_logged_in", loggedIn)
+            putString("user_id", userId)
+            apply()
+        }
+
+        Log.d("MainActivity", "Saved login state: logged=$loggedIn, userId=$userId")
+    }
+
+    // NUOVO: Aggiorna lo stato di login nel fragment delle playlist
+    private fun updatePlaylistsFragmentLoginState() {
+        val userId = googleAuthManager.getUserId() ?: ""
+        viewPagerAdapter.getPlaylistsFragment()?.setLoginState(isLoggedIn, userId)
+
+        Log.d("MainActivity", "Updated playlists fragment: logged=$isLoggedIn, userId=$userId")
     }
 
     private fun setupViews() {
@@ -381,6 +450,9 @@ class MainActivity : AppCompatActivity() {
     private fun performLogout() {
         googleAuthManager.signOut(this) { success ->
             if (success) {
+                // ← AGGIUNGI QUESTA RIGA
+                saveLoginState(false, "")
+
                 Toast.makeText(this, "Logout effettuato", Toast.LENGTH_SHORT).show()
                 Log.d("MainActivity", "Logout successful")
             } else {

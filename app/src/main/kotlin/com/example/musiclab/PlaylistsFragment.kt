@@ -99,6 +99,28 @@ class PlaylistsFragment : Fragment() {
         setupViews(view)
         setupRecyclerView()
         updateUI()
+
+        loadSavedLoginState()
+    }
+
+    // NUOVO: Carica lo stato di login salvato
+    private fun loadSavedLoginState() {
+        val context = context ?: return
+        val prefs = context.getSharedPreferences("MusicLabPrefs", android.content.Context.MODE_PRIVATE)
+        isLoggedIn = prefs.getBoolean("is_logged_in", false)
+        currentUserId = prefs.getString("user_id", "") ?: ""
+
+        Log.d("PlaylistsFragment", "Loaded login state: logged=$isLoggedIn, userId=$currentUserId")
+
+        // ✅ MODIFICA: Carica SUBITO le playlist se loggato
+        if (isLoggedIn && currentUserId.isNotEmpty()) {
+            // Mostra subito il FAB
+            fabCreatePlaylist.visibility = View.VISIBLE
+            // Carica le playlist in background
+            loadPlaylistsFromCloud()
+        }
+
+        updateUI()
     }
 
     private fun setupViews(view: View) {
@@ -209,6 +231,17 @@ class PlaylistsFragment : Fragment() {
         isLoggedIn = loggedIn
         currentUserId = userId
 
+        // ← AGGIUNGI QUESTE RIGHE
+        val context = context ?: return
+        val prefs = context.getSharedPreferences("MusicLabPrefs", android.content.Context.MODE_PRIVATE)
+        prefs.edit().apply {
+            putBoolean("is_logged_in", loggedIn)
+            putString("user_id", userId)
+            apply()
+        }
+        Log.d("PlaylistsFragment", "Saved login state: logged=$loggedIn, userId=$userId")
+        // FINE AGGIUNTA
+
         updateUI()
 
         if (loggedIn) {
@@ -228,6 +261,10 @@ class PlaylistsFragment : Fragment() {
 
         isLoading = true
         Log.d("PlaylistsFragment", "Loading playlists for user: $currentUserId")
+
+        emptyStateText.text = "Caricamento playlist..."
+        emptyStateText.visibility = View.VISIBLE
+        recyclerView.visibility = View.GONE
 
         playlists.clear()
 
