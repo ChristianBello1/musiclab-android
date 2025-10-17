@@ -40,10 +40,8 @@ class FolderAdapter(
             onFolderClick(folder)
         }
 
-        // Menu button per opzioni (future)
-        holder.menuButton.setOnClickListener {
-            // TODO: Implementare menu contestuale
-        }
+        // Nascondi il menu button
+        holder.menuButton.visibility = View.GONE
     }
 
     override fun getItemCount(): Int = folders.size

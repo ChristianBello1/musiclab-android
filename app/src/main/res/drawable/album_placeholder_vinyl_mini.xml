@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- Sfondo scuro -->
+    <item>
+        <shape android:shape="rectangle">
+            <solid android:color="#1a1a2e"/>
+            <corners android:radius="8dp"/>
+        </shape>
+    </item>
+
+    <!-- Cerchio esterno viola -->
+    <item
+        android:top="4dp"
+        android:bottom="4dp"
+        android:left="4dp"
+        android:right="4dp">
+        <shape android:shape="oval">
+            <solid android:color="#7c3aed"/>
+        </shape>
+    </item>
+
+    <!-- Cerchio medio viola scuro -->
+    <item
+        android:top="10dp"
+        android:bottom="10dp"
+        android:left="10dp"
+        android:right="10dp">
+        <shape android:shape="oval">
+            <solid android:color="#5b21b6"/>
+        </shape>
+    </item>
+
+    <!-- Cerchio centrale scuro (buco del vinile) -->
+    <item
+        android:top="18dp"
+        android:bottom="18dp"
+        android:left="18dp"
+        android:right="18dp">
+        <shape android:shape="oval">
+            <solid android:color="#0f0f1e"/>
+        </shape>
+    </item>
+
+</layer-list>

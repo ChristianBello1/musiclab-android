@@ -320,7 +320,6 @@ class MainActivity : AppCompatActivity() {
 
         Log.d("MainActivity", "Listeners setup completed")
     }
-
     private fun toggleSearch() {
         if (isSearchActive) {
             closeSearch()
@@ -759,7 +758,7 @@ class MainActivity : AppCompatActivity() {
                     arrayOf(Manifest.permission.POST_NOTIFICATIONS),
                     999
                 )
-                Log.d("MainActivity", "📢 Requesting notification permission")
+                Log.d("MainActivity", "🔔 Requesting notification permission")
             } else {
                 Log.d("MainActivity", "✅ Notification permission already granted")
             }

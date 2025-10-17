@@ -2,6 +2,7 @@
 <androidx.cardview.widget.CardView
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/player_bottom_container"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:layout_margin="4dp"
@@ -36,21 +37,16 @@
             android:gravity="center_vertical">
 
             <!-- Album art piccola -->
-            <androidx.cardview.widget.CardView
+            <ImageView
+                android:id="@+id/album_art_mini"
                 android:layout_width="48dp"
                 android:layout_height="48dp"
-                app:cardCornerRadius="8dp"
-                app:cardElevation="2dp">
-
-                <ImageView
-                    android:id="@+id/mini_album_art"
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent"
-                    android:scaleType="centerCrop"
-                    android:src="@drawable/album_placeholder_gradient"
-                    android:contentDescription="@string/album_placeholder" />
-
-            </androidx.cardview.widget.CardView>
+                android:layout_marginStart="8dp"
+                android:scaleType="centerInside"
+                android:padding="12dp"
+                android:src="@drawable/ic_music_note"
+                android:background="@drawable/album_placeholder_vinyl_mini"
+                android:contentDescription="Album art" />
 
             <!-- Song Info -->
             <LinearLayout
@@ -93,11 +89,12 @@
 
                 <ImageButton
                     android:id="@+id/btn_previous"
-                    android:layout_width="40dp"
-                    android:layout_height="40dp"
-                    android:src="@drawable/ic_previous"
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    android:src="@drawable/ic_skip_previous"
                     android:background="?attr/selectableItemBackgroundBorderless"
-                    android:contentDescription="@string/btn_previous"
+                    android:contentDescription="Precedente"
+                    android:padding="12dp"
                     app:tint="@color/text_primary" />
 
                 <ImageButton
@@ -105,29 +102,32 @@
                     android:layout_width="48dp"
                     android:layout_height="48dp"
                     android:src="@drawable/ic_play"
-                    android:background="@drawable/play_button_ripple"
-                    android:contentDescription="@string/btn_play_pause"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:contentDescription="Play/Pausa"
                     android:layout_marginHorizontal="8dp"
+                    android:padding="12dp"
                     app:tint="@color/primary_purple" />
 
                 <ImageButton
                     android:id="@+id/btn_next"
-                    android:layout_width="40dp"
-                    android:layout_height="40dp"
-                    android:src="@drawable/ic_next"
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    android:src="@drawable/ic_skip_next"
                     android:background="?attr/selectableItemBackgroundBorderless"
-                    android:contentDescription="@string/btn_next"
+                    android:contentDescription="Successivo"
+                    android:padding="12dp"
                     app:tint="@color/text_primary" />
 
                 <ImageButton
                     android:id="@+id/btn_expand_player"
-                    android:layout_width="40dp"
-                    android:layout_height="40dp"
-                    android:src="@android:drawable/ic_menu_upload"
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    android:layout_marginEnd="8dp"
                     android:background="?attr/selectableItemBackgroundBorderless"
-                    android:contentDescription="@string/btn_expand_player"
-                    android:layout_marginStart="8dp"
-                    app:tint="@color/text_secondary" />
+                    android:padding="12dp"
+                    android:src="@drawable/ic_apps"
+                    android:contentDescription="Apri coda"
+                    app:tint="@color/text_primary" />
 
             </LinearLayout>
 
@@ -145,7 +145,7 @@
                 android:id="@+id/current_time"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="@string/time_format"
+                android:text="0:00"
                 android:textSize="11sp"
                 android:textColor="@color/text_secondary" />
 
@@ -165,7 +165,7 @@
                 android:id="@+id/total_time"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="@string/time_format"
+                android:text="0:00"
                 android:textSize="11sp"
                 android:textColor="@color/text_secondary" />
 
