@@ -164,17 +164,18 @@ class PlaylistSongsActivity : AppCompatActivity() {
 
                     for (doc in documents) {
                         try {
-                            val song = Song(
-                                id = doc.getLong("id") ?: 0L,
-                                title = doc.getString("title") ?: "Unknown",
-                                artist = doc.getString("artist") ?: "Unknown",
-                                album = doc.getString("album") ?: "Unknown",
-                                duration = doc.getLong("duration") ?: 0L,
-                                path = doc.getString("path") ?: "",
-                                size = doc.getLong("size") ?: 0L
-                            )
-                            playlistSongs.add(song)
-                            Log.d("PlaylistSongsActivity", "Loaded song: ${song.title}")
+                            // ✅ MODIFICATO: Prova prima mediaStoreId, poi fallback su id
+                            val mediaStoreId = doc.getLong("mediaStoreId") ?: doc.getLong("id") ?: 0L
+
+                            // ✅ NUOVO: Cerca la canzone usando MediaStore ID
+                            val song = findSongByMediaStoreId(mediaStoreId)
+
+                            if (song != null) {
+                                playlistSongs.add(song)
+                                Log.d("PlaylistSongsActivity", "Loaded song: ${song.title}")
+                            } else {
+                                Log.w("PlaylistSongsActivity", "Song with ID $mediaStoreId not found on device")
+                            }
                         } catch (e: Exception) {
                             Log.e("PlaylistSongsActivity", "Error parsing song: ${e.message}")
                         }
@@ -190,6 +191,43 @@ class PlaylistSongsActivity : AppCompatActivity() {
                     Toast.makeText(this, "Errore caricamento canzoni", Toast.LENGTH_SHORT).show()
                 }
         }
+    }
+
+    private fun findSongByMediaStoreId(mediaStoreId: Long): Song? {
+        val projection = arrayOf(
+            android.provider.MediaStore.Audio.Media._ID,
+            android.provider.MediaStore.Audio.Media.TITLE,
+            android.provider.MediaStore.Audio.Media.ARTIST,
+            android.provider.MediaStore.Audio.Media.ALBUM,
+            android.provider.MediaStore.Audio.Media.DURATION,
+            android.provider.MediaStore.Audio.Media.DATA,
+            android.provider.MediaStore.Audio.Media.SIZE
+        )
+
+        val selection = "${android.provider.MediaStore.Audio.Media._ID} = ?"
+        val selectionArgs = arrayOf(mediaStoreId.toString())
+
+        contentResolver.query(
+            android.provider.MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
+            projection,
+            selection,
+            selectionArgs,
+            null
+        )?.use { cursor ->
+            if (cursor.moveToFirst()) {
+                return Song(
+                    id = cursor.getLong(cursor.getColumnIndexOrThrow(android.provider.MediaStore.Audio.Media._ID)),
+                    title = cursor.getString(cursor.getColumnIndexOrThrow(android.provider.MediaStore.Audio.Media.TITLE)) ?: "Unknown",
+                    artist = cursor.getString(cursor.getColumnIndexOrThrow(android.provider.MediaStore.Audio.Media.ARTIST)) ?: "Unknown",
+                    album = cursor.getString(cursor.getColumnIndexOrThrow(android.provider.MediaStore.Audio.Media.ALBUM)) ?: "Unknown",
+                    duration = cursor.getLong(cursor.getColumnIndexOrThrow(android.provider.MediaStore.Audio.Media.DURATION)),
+                    path = cursor.getString(cursor.getColumnIndexOrThrow(android.provider.MediaStore.Audio.Media.DATA)) ?: "",
+                    size = cursor.getLong(cursor.getColumnIndexOrThrow(android.provider.MediaStore.Audio.Media.SIZE))
+                )
+            }
+        }
+
+        return null
     }
 
     private fun loadUserPlaylists() {
@@ -744,6 +782,7 @@ class PlaylistSongsActivity : AppCompatActivity() {
     private fun showPlaylistMenu() {
         val options = arrayOf(
             "Rinomina Playlist",
+            "Importa da Cartella",  // ✅ AGGIUNTO
             "Elimina Playlist"
         )
 
@@ -752,7 +791,8 @@ class PlaylistSongsActivity : AppCompatActivity() {
             .setItems(options) { _, which ->
                 when (which) {
                     0 -> showRenamePlaylistDialog()
-                    1 -> showDeletePlaylistConfirmation()
+                    1 -> showImportFolderDialog()  // ✅ AGGIUNTO
+                    2 -> showDeletePlaylistConfirmation()
                 }
             }
             .setNegativeButton(getString(R.string.cancel), null)
@@ -858,4 +898,164 @@ class PlaylistSongsActivity : AppCompatActivity() {
             else -> "$bytes bytes"
         }
     }
+    private fun showImportFolderDialog() {
+        // Ottieni tutte le cartelle
+        val folders = getFoldersFromDevice()
+
+        if (folders.isEmpty()) {
+            Toast.makeText(this, "Nessuna cartella trovata", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        val folderNames = folders.map { "${it.name} (${it.songCount} canzoni)" }.toTypedArray()
+
+        AlertDialog.Builder(this)
+            .setTitle("Importa canzoni da cartella")
+            .setItems(folderNames) { _, which ->
+                val selectedFolder = folders[which]
+                importFolderToFirebase(selectedFolder)
+            }
+            .setNegativeButton("Annulla", null)
+            .show()
+    }
+
+    private fun getFoldersFromDevice(): List<FolderInfo> {
+        val folders = mutableMapOf<String, FolderInfo>()
+
+        val projection = arrayOf(android.provider.MediaStore.Audio.Media.DATA)
+
+        contentResolver.query(
+            android.provider.MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
+            projection,
+            "${android.provider.MediaStore.Audio.Media.IS_MUSIC} = 1",
+            null,
+            null
+        )?.use { cursor ->
+            val pathColumn = cursor.getColumnIndexOrThrow(android.provider.MediaStore.Audio.Media.DATA)
+
+            while (cursor.moveToNext()) {
+                val path = cursor.getString(pathColumn) ?: continue
+                val file = java.io.File(path)
+                val folderPath = file.parent ?: continue
+                val folderName = java.io.File(folderPath).name
+
+                if (!folders.containsKey(folderPath)) {
+                    folders[folderPath] = FolderInfo(folderName, folderPath, 0)
+                }
+
+                folders[folderPath] = folders[folderPath]!!.copy(
+                    songCount = folders[folderPath]!!.songCount + 1
+                )
+            }
+        }
+
+        return folders.values.sortedBy { it.name }
+    }
+
+    private fun importFolderToFirebase(folder: FolderInfo) {
+        val progressDialog = AlertDialog.Builder(this)
+            .setTitle("Importazione in corso...")
+            .setMessage("0 / ? canzoni")
+            .setCancelable(false)
+            .create()
+
+        progressDialog.show()
+
+        val scanner = MusicScanner(this)
+        val allSongs = scanner.scanMusicFiles()
+
+        val songsInFolder = allSongs.filter { song ->
+            song.path.startsWith(folder.path)
+        }
+
+        if (songsInFolder.isEmpty()) {
+            progressDialog.dismiss()
+            Toast.makeText(this, "Nessuna canzone trovata nella cartella", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        progressDialog.setMessage("0 / ${songsInFolder.size} canzoni")
+
+        var addedCount = 0
+        var skippedCount = 0
+        var processedCount = 0
+
+        playlist?.let { pl ->
+            songsInFolder.forEach { song ->
+                firestore.collection("playlists")
+                    .document(pl.id)
+                    .collection("songs")
+                    .document(song.id.toString())
+                    .get()
+                    .addOnSuccessListener { document ->
+                        processedCount++
+
+                        if (document.exists()) {
+                            skippedCount++
+                        } else {
+                            // ✅ MODIFICATO: Salva mediaStoreId invece di path
+                            val songData = hashMapOf(
+                                "mediaStoreId" to song.id,
+                                "title" to song.title,
+                                "artist" to song.artist,
+                                "album" to song.album,
+                                "duration" to song.duration,
+                                "size" to song.size,
+                                "addedAt" to System.currentTimeMillis()
+                            )
+
+                            firestore.collection("playlists")
+                                .document(pl.id)
+                                .collection("songs")
+                                .document(song.id.toString())
+                                .set(songData)
+                                .addOnSuccessListener {
+                                    addedCount++
+                                }
+                        }
+
+                        runOnUiThread {
+                            progressDialog.setMessage("$processedCount / ${songsInFolder.size} canzoni")
+
+                            if (processedCount == songsInFolder.size) {
+                                progressDialog.dismiss()
+
+                                val message = when {
+                                    addedCount == 0 -> "Tutte le canzoni erano già presenti"
+                                    skippedCount == 0 -> "Aggiunte $addedCount canzoni"
+                                    else -> "Aggiunte $addedCount canzoni\n($skippedCount già presenti)"
+                                }
+
+                                AlertDialog.Builder(this@PlaylistSongsActivity)
+                                    .setTitle("Import completato")
+                                    .setMessage(message)
+                                    .setPositiveButton("OK") { _, _ ->
+                                        loadPlaylistSongs()
+                                    }
+                                    .show()
+                            }
+                        }
+                    }
+                    .addOnFailureListener { e ->
+                        processedCount++
+                        skippedCount++
+
+                        runOnUiThread {
+                            progressDialog.setMessage("$processedCount / ${songsInFolder.size} canzoni")
+
+                            if (processedCount == songsInFolder.size) {
+                                progressDialog.dismiss()
+                                Toast.makeText(this@PlaylistSongsActivity, "Importate $addedCount canzoni con alcuni errori", Toast.LENGTH_LONG).show()
+                                loadPlaylistSongs()
+                            }
+                        }
+                    }
+            }
+        }
+    }
 }
+data class FolderInfo(
+    val name: String,
+    val path: String,
+    val songCount: Int
+)

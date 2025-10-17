@@ -43,19 +43,38 @@ class GoogleAuthManager private constructor() {
             .build()
 
         googleSignInClient = GoogleSignIn.getClient(context, gso)
-        currentUser = GoogleSignIn.getLastSignedInAccount(context)
 
-        Log.d(TAG, "Google user: ${currentUser?.email}")
-        Log.d(TAG, "Firebase user: ${firebaseAuth.currentUser?.uid}")
+        // ✅ CRITICO: Aggiungi Firebase Auth State Listener
+        // Questo si attiva OGNI VOLTA che lo stato di Firebase cambia
+        firebaseAuth.addAuthStateListener { auth ->
+            val firebaseUser = auth.currentUser
 
-        if (currentUser != null && firebaseAuth.currentUser == null) {
-            currentUser?.idToken?.let { token ->
-                Log.d(TAG, "Re-authenticating with Firebase...")
-                firebaseAuthWithGoogle(token)
+            Log.d(TAG, "🔥 Firebase Auth State Changed")
+
+            if (firebaseUser != null) {
+                // Firebase ha un utente loggato
+                Log.d(TAG, "✅ Firebase user logged in: ${firebaseUser.email}")
+
+                // Recupera anche l'account Google
+                if (currentUser == null) {
+                    currentUser = GoogleSignIn.getLastSignedInAccount(context)
+                    Log.d(TAG, "Retrieved Google account: ${currentUser?.email}")
+                }
+            } else {
+                // Nessun utente Firebase
+                Log.d(TAG, "❌ No Firebase user")
+                currentUser = null
             }
+
+            // ✅ Notifica SEMPRE dopo ogni cambio di stato
+            notifyAuthStateChanged()
         }
 
-        notifyAuthStateChanged()
+        // Recupera account Google attuale (se esiste)
+        currentUser = GoogleSignIn.getLastSignedInAccount(context)
+
+        Log.d(TAG, "Initial Google user: ${currentUser?.email}")
+        Log.d(TAG, "Initial Firebase user: ${firebaseAuth.currentUser?.email}")
     }
 
     fun addAuthStateListener(listener: (Boolean, GoogleSignInAccount?) -> Unit) {
@@ -154,17 +173,31 @@ class GoogleAuthManager private constructor() {
     fun getCurrentUser(): GoogleSignInAccount? = currentUser
 
     fun isLoggedIn(): Boolean {
-        val googleOk = currentUser != null
-        val firebaseOk = firebaseAuth.currentUser != null
-        Log.d(TAG, "isLoggedIn check - Google: $googleOk, Firebase: $firebaseOk")
-        return googleOk && firebaseOk
+        // ✅ SEMPLICE: Basta controllare Firebase
+        val firebaseUser = firebaseAuth.currentUser
+        val isLogged = firebaseUser != null
+
+        Log.d(TAG, "isLoggedIn: $isLogged (Firebase user: ${firebaseUser?.email})")
+
+        return isLogged
     }
 
-    fun getUserEmail(): String? = currentUser?.email
+    fun getUserEmail(): String? {
+        // ✅ Prova prima Firebase, poi Google
+        val email = firebaseAuth.currentUser?.email ?: currentUser?.email
+        Log.d(TAG, "getUserEmail: $email")
+        return email
+    }
 
-    fun getUserName(): String? = currentUser?.displayName
+    fun getUserName(): String? {
+        // ✅ Prova prima Firebase, poi Google
+        val name = firebaseAuth.currentUser?.displayName ?: currentUser?.displayName
+        Log.d(TAG, "getUserName: $name")
+        return name
+    }
 
     fun getUserId(): String? {
+        // ✅ Usa sempre Firebase UID (più affidabile)
         val uid = firebaseAuth.currentUser?.uid
         Log.d(TAG, "Getting Firebase UID: $uid")
         return uid

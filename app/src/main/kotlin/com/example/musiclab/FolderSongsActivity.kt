@@ -230,7 +230,6 @@ class FolderSongsActivity : AppCompatActivity() {
     private fun addSongToPlaylist(song: Song, playlistId: String, playlistName: String) {
         Log.d("FolderSongsActivity", "Adding '${song.title}' to playlist '$playlistName'")
 
-        // Controlla se la canzone è già nella playlist
         firestore.collection("playlists")
             .document(playlistId)
             .collection("songs")
@@ -244,14 +243,13 @@ class FolderSongsActivity : AppCompatActivity() {
                         Toast.LENGTH_SHORT
                     ).show()
                 } else {
-                    // Aggiungi la canzone
+                    // ✅ MODIFICATO: Salva mediaStoreId invece di path
                     val songData = hashMapOf(
-                        "id" to song.id,
+                        "mediaStoreId" to song.id,
                         "title" to song.title,
                         "artist" to song.artist,
                         "album" to song.album,
                         "duration" to song.duration,
-                        "path" to song.path,
                         "size" to song.size,
                         "addedAt" to System.currentTimeMillis()
                     )
@@ -264,29 +262,28 @@ class FolderSongsActivity : AppCompatActivity() {
                         .addOnSuccessListener {
                             Toast.makeText(
                                 this,
-                                "✅ '${song.title}' aggiunta a '$playlistName'",
+                                "'${song.title}' aggiunta a '$playlistName'",
                                 Toast.LENGTH_SHORT
                             ).show()
                             Log.d("FolderSongsActivity", "✅ Song added successfully")
-                            setResult(RESULT_OK)
                         }
                         .addOnFailureListener { e ->
+                            Log.e("FolderSongsActivity", "❌ Error adding song: ${e.message}")
                             Toast.makeText(
                                 this,
-                                "Errore aggiunta canzone",
+                                "Errore aggiunta: ${e.message}",
                                 Toast.LENGTH_SHORT
                             ).show()
-                            Log.e("FolderSongsActivity", "❌ Error: ${e.message}")
                         }
                 }
             }
             .addOnFailureListener { e ->
+                Log.e("FolderSongsActivity", "❌ Error checking song: ${e.message}")
                 Toast.makeText(
                     this,
-                    "Errore controllo canzone",
+                    "Errore: ${e.message}",
                     Toast.LENGTH_SHORT
                 ).show()
-                Log.e("FolderSongsActivity", "❌ Error checking: ${e.message}")
             }
     }
 

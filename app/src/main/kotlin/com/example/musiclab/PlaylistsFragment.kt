@@ -322,24 +322,24 @@ class PlaylistsFragment : Fragment() {
 
                     var newSongsCount = 0
                     for (songDoc in songDocs) {
-                        // Evita duplicati
                         if (processedIds.contains(songDoc.id)) {
                             continue
                         }
                         processedIds.add(songDoc.id)
 
                         try {
-                            val song = Song(
-                                id = songDoc.getLong("id") ?: 0L,
-                                title = songDoc.getString("title") ?: "Unknown",
-                                artist = songDoc.getString("artist") ?: "Unknown",
-                                album = songDoc.getString("album") ?: "Unknown",
-                                duration = songDoc.getLong("duration") ?: 0L,
-                                path = songDoc.getString("path") ?: "",
-                                size = songDoc.getLong("size") ?: 0L
-                            )
-                            allSongs.add(song)
-                            newSongsCount++
+                            // ✅ MODIFICATO: Usa mediaStoreId per trovare la canzone
+                            val mediaStoreId = songDoc.getLong("mediaStoreId") ?: songDoc.getLong("id") ?: 0L
+
+                            // ✅ NUOVO: Cerca la canzone reale nel MediaStore
+                            val song = findSongByMediaStoreId(mediaStoreId)
+
+                            if (song != null) {
+                                allSongs.add(song)
+                                newSongsCount++
+                            } else {
+                                Log.w("PlaylistsFragment", "Song with ID $mediaStoreId not found on device")
+                            }
                         } catch (e: Exception) {
                             Log.e("PlaylistsFragment", "Error parsing song: ${e.message}")
                         }
@@ -347,28 +347,62 @@ class PlaylistsFragment : Fragment() {
 
                     Log.d("PlaylistsFragment", "Added $newSongsCount new songs. Total: ${allSongs.size}")
 
-                    // Se il batch è pieno (500 documenti), potrebbe esserci altro
                     if (songDocs.size() >= 500) {
                         val lastDoc = songDocs.documents[songDocs.size() - 1]
                         Log.d("PlaylistsFragment", "Batch full (${songDocs.size()} docs), loading next batch...")
                         loadBatch(lastDoc.id)
                     } else {
-                        // Ultimo batch (meno di 500 documenti)
                         Log.d("PlaylistsFragment", "Last batch loaded. Total: ${allSongs.size} songs in $batchCount batches")
                         onComplete(allSongs)
                     }
                 }
                 .addOnFailureListener { e ->
                     Log.e("PlaylistsFragment", "Error loading batch $batchCount: ${e.message}", e)
-                    // Ritorna quello che abbiamo caricato finora
                     Log.d("PlaylistsFragment", "Returning ${allSongs.size} songs due to error")
                     onComplete(allSongs)
                 }
         }
 
-        // Inizia il caricamento
         loadBatch()
     }
+
+    private fun findSongByMediaStoreId(mediaStoreId: Long): Song? {
+        val projection = arrayOf(
+            android.provider.MediaStore.Audio.Media._ID,
+            android.provider.MediaStore.Audio.Media.TITLE,
+            android.provider.MediaStore.Audio.Media.ARTIST,
+            android.provider.MediaStore.Audio.Media.ALBUM,
+            android.provider.MediaStore.Audio.Media.DURATION,
+            android.provider.MediaStore.Audio.Media.DATA,
+            android.provider.MediaStore.Audio.Media.SIZE
+        )
+
+        val selection = "${android.provider.MediaStore.Audio.Media._ID} = ?"
+        val selectionArgs = arrayOf(mediaStoreId.toString())
+
+        requireContext().contentResolver.query(
+            android.provider.MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
+            projection,
+            selection,
+            selectionArgs,
+            null
+        )?.use { cursor ->
+            if (cursor.moveToFirst()) {
+                return Song(
+                    id = cursor.getLong(cursor.getColumnIndexOrThrow(android.provider.MediaStore.Audio.Media._ID)),
+                    title = cursor.getString(cursor.getColumnIndexOrThrow(android.provider.MediaStore.Audio.Media.TITLE)) ?: "Unknown",
+                    artist = cursor.getString(cursor.getColumnIndexOrThrow(android.provider.MediaStore.Audio.Media.ARTIST)) ?: "Unknown",
+                    album = cursor.getString(cursor.getColumnIndexOrThrow(android.provider.MediaStore.Audio.Media.ALBUM)) ?: "Unknown",
+                    duration = cursor.getLong(cursor.getColumnIndexOrThrow(android.provider.MediaStore.Audio.Media.DURATION)),
+                    path = cursor.getString(cursor.getColumnIndexOrThrow(android.provider.MediaStore.Audio.Media.DATA)) ?: "",
+                    size = cursor.getLong(cursor.getColumnIndexOrThrow(android.provider.MediaStore.Audio.Media.SIZE))
+                )
+            }
+        }
+
+        return null
+    }
+
     private fun savePlaylistToCloud(playlist: Playlist) {
         Log.d("PlaylistsFragment", "Saving playlist: ${playlist.name}")
 
@@ -409,13 +443,13 @@ class PlaylistsFragment : Fragment() {
                             Toast.LENGTH_SHORT
                         ).show()
                     } else {
+                        // ✅ MODIFICATO: Salva mediaStoreId invece di path
                         val songData = hashMapOf(
-                            "id" to song.id,
+                            "mediaStoreId" to song.id,
                             "title" to song.title,
                             "artist" to song.artist,
                             "album" to song.album,
                             "duration" to song.duration,
-                            "path" to song.path,
                             "size" to song.size,
                             "addedAt" to System.currentTimeMillis()
                         )
@@ -730,38 +764,31 @@ class PlaylistsFragment : Fragment() {
 
         savePlaylistToCloud(newPlaylist)
 
-        val totalSongs = result.matchedSongs.size
-        val estimatedMinutes = (totalSongs * 0.15).toInt()
+        var addedCount = 0
+        result.matchedSongs.forEach { song ->
+            // ✅ MODIFICATO: Salva mediaStoreId invece di path
+            val songData = hashMapOf(
+                "mediaStoreId" to song.id,
+                "title" to song.title,
+                "artist" to song.artist,
+                "album" to song.album,
+                "duration" to song.duration,
+                "size" to song.size,
+                "addedAt" to System.currentTimeMillis()
+            )
 
-        val progressDialog = AlertDialog.Builder(requireContext())
-            .setTitle("Aggiunta canzoni...")
-            .setMessage("0 / $totalSongs\nTempo stimato: ~$estimatedMinutes min")
-            .setCancelable(false)
-            .create()
-        progressDialog.show()
-
-        val startTime = System.currentTimeMillis()
-
-        addSongsInBatchFast(newPlaylist.id, result.matchedSongs, progressDialog) { addedCount, errorCount ->
-            progressDialog.dismiss()
-
-            val elapsedSeconds = (System.currentTimeMillis() - startTime) / 1000
-            val minutes = elapsedSeconds / 60
-            val seconds = elapsedSeconds % 60
-
-            val message = buildString {
-                append("Playlist '${playlistName}' creata!\n\n")
-                append("Canzoni aggiunte: $addedCount / $totalSongs\n")
-                if (errorCount > 0) {
-                    append("Non aggiunte: $errorCount\n")
+            firestore.collection("playlists")
+                .document(newPlaylist.id)
+                .collection("songs")
+                .document(song.id.toString())
+                .set(songData)
+                .addOnSuccessListener {
+                    addedCount++
+                    if (addedCount == result.matchedSongs.size) {
+                        Toast.makeText(requireContext(), "Playlist creata con ${result.matchedSongs.size} canzoni!", Toast.LENGTH_LONG).show()
+                        loadPlaylistsFromCloud()
+                    }
                 }
-                append("\nTempo impiegato: ${minutes}m ${seconds}s")
-            }
-
-            Toast.makeText(requireContext(), message, Toast.LENGTH_LONG).show()
-            refreshPlaylists()
-
-            Log.d("PlaylistsFragment", "Import completed: $addedCount added, $errorCount errors in ${elapsedSeconds}s")
         }
     }
 
