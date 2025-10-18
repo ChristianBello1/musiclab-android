@@ -27,6 +27,8 @@ class PlayerActivity : AppCompatActivity() {
     private lateinit var currentTime: TextView
     private lateinit var totalTime: TextView
 
+    private lateinit var settingsButton: ImageButton
+
     // Control buttons
     private lateinit var skipBack10Button: ImageButton
     private lateinit var previousButton: ImageButton
@@ -101,6 +103,7 @@ class PlayerActivity : AppCompatActivity() {
         seekBar = findViewById(R.id.player_seek_bar)
         currentTime = findViewById(R.id.player_current_time)
         totalTime = findViewById(R.id.player_total_time)
+        settingsButton = findViewById(R.id.btn_settings)
 
         Log.d("PlayerActivity", "Header views caricati")
 
@@ -194,6 +197,11 @@ class PlayerActivity : AppCompatActivity() {
         skipForward10Button.setOnClickListener {
             Log.d("PlayerActivity", "Skip forward 10s clicked")
             musicPlayer.skipForward(10000)
+        }
+
+        settingsButton.setOnClickListener {
+            val intent = Intent(this, SettingsActivity::class.java)
+            startActivity(intent)
         }
 
         // MIGLIORATO: Click listeners per shuffle e repeat
@@ -336,6 +344,7 @@ class PlayerActivity : AppCompatActivity() {
         Log.d("PlayerActivity", "Progress updates stopped")
     }
 
+
     override fun onDestroy() {
         super.onDestroy()
         stopProgressUpdates()
@@ -365,6 +374,7 @@ class PlayerActivity : AppCompatActivity() {
             Log.d("PlayerActivity", "Post-resume repeat visible: ${repeatButton.visibility}")
             Log.d("PlayerActivity", "Post-resume shuffle clickable: ${shuffleButton.isClickable}")
             Log.d("PlayerActivity", "Post-resume repeat clickable: ${repeatButton.isClickable}")
+            Log.d("PlayerActivity", "Resumed - automix enabled: ${SettingsActivity.isAutomixEnabled(this)}")
         } catch (e: Exception) {
             Log.e("PlayerActivity", "Error checking buttons post-resume: $e")
         }

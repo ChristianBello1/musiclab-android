@@ -7,7 +7,7 @@
     android:background="@drawable/gradient_player_background"
     android:fitsSystemWindows="true">
 
-    <!-- Header con più spazio e margini -->
+    <!-- Header con pulsante Settings aggiunto -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -36,6 +36,17 @@
             android:textStyle="bold"
             android:gravity="center" />
 
+        <!-- NUOVO: Pulsante Settings -->
+        <ImageButton
+            android:id="@+id/btn_settings"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:src="@drawable/ic_settings"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="Impostazioni"
+            android:layout_marginEnd="8dp"
+            app:tint="@color/text_primary" />
+
         <ImageButton
             android:id="@+id/btn_queue"
             android:layout_width="48dp"
@@ -53,35 +64,25 @@
         android:layout_height="0dp"
         android:layout_weight="1"
         android:orientation="vertical"
-        android:paddingHorizontal="32dp"
-        android:gravity="center">
+        android:gravity="center"
+        android:padding="32dp">
 
-        <!-- Album Art -->
-        <androidx.cardview.widget.CardView
-            android:layout_width="260dp"
-            android:layout_height="260dp"
-            android:layout_gravity="center"
-            android:layout_marginBottom="32dp"
-            app:cardCornerRadius="16dp"
-            app:cardElevation="8dp">
+        <!-- Copertina Album -->
+        <ImageView
+            android:id="@+id/player_album_art"
+            android:layout_width="280dp"
+            android:layout_height="280dp"
+            android:src="@drawable/album_placeholder_vinyl"
+            android:scaleType="centerCrop"
+            android:layout_marginBottom="32dp" />
 
-            <ImageView
-                android:id="@+id/album_art"
-                android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:scaleType="centerCrop"
-                android:src="@drawable/album_placeholder_vinyl"
-                android:contentDescription="@string/album_placeholder" />
-
-        </androidx.cardview.widget.CardView>
-
-        <!-- Song Info -->
+        <!-- Titolo Canzone -->
         <TextView
             android:id="@+id/player_song_title"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="@string/song_name"
-            android:textSize="22sp"
+            android:textSize="24sp"
             android:textStyle="bold"
             android:textColor="@color/text_primary"
             android:gravity="center"
@@ -89,12 +90,13 @@
             android:ellipsize="end"
             android:layout_marginBottom="8dp" />
 
+        <!-- Artista -->
         <TextView
             android:id="@+id/player_song_artist"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="@string/artist_name"
-            android:textSize="16sp"
+            android:textSize="18sp"
             android:textColor="@color/text_secondary"
             android:gravity="center"
             android:maxLines="1"
@@ -102,7 +104,7 @@
 
     </LinearLayout>
 
-    <!-- Controlli in basso -->
+    <!-- Controlli player nella parte inferiore -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -170,13 +172,12 @@
 
         </LinearLayout>
 
-        <!-- Controlli principali -->
+        <!-- Controlli principali playback -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
-            android:gravity="center"
-            android:paddingHorizontal="8dp">
+            android:gravity="center_vertical">
 
             <!-- Shuffle -->
             <ImageButton
@@ -205,7 +206,7 @@
                 android:layout_marginEnd="16dp"
                 app:tint="@color/text_primary" />
 
-            <!-- Play/Pause button centrale bianco -->
+            <!-- Play/Pause - Pulsante centrale bianco -->
             <androidx.cardview.widget.CardView
                 android:layout_width="64dp"
                 android:layout_height="64dp"

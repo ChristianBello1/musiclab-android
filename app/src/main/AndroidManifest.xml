@@ -72,6 +72,14 @@
             android:theme="@style/Theme.MusicLab"
             android:launchMode="singleTop" />
 
+        <!-- Activity per le impostazioni -->
+        <activity
+            android:name=".SettingsActivity"
+            android:label="Impostazioni"
+            android:theme="@style/Theme.MusicLab"
+            android:screenOrientation="fullSensor"
+            android:exported="false" />
+
     </application>
 
 </manifest>

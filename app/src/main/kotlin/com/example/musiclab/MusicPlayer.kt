@@ -2,6 +2,8 @@ package com.example.musiclab
 
 import android.content.Context
 import android.net.Uri
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
@@ -11,6 +13,7 @@ import androidx.core.net.toUri
 class MusicPlayer(private val context: Context) {
 
     private var exoPlayer: ExoPlayer? = null
+    private var currentSong: Song? = null
 
     private var currentSongIndex = 0
 
@@ -18,7 +21,7 @@ class MusicPlayer(private val context: Context) {
     private var originalPlaylist: List<Song> = emptyList()
     private var currentQueue: MutableList<Song> = mutableListOf()
 
-    // NUOVO: Mantieni l'ordine originale per il de-shuffle
+    // Mantieni l'ordine originale per il de-shuffle
     private var originalQueueOrder: List<Song> = emptyList()
 
     private var isShuffleEnabled = false
@@ -27,11 +30,68 @@ class MusicPlayer(private val context: Context) {
     // Lista di callback invece di un singolo callback
     private val stateChangeListeners = mutableListOf<(isPlaying: Boolean, currentSong: Song?) -> Unit>()
 
-    // NUOVO: Listener specifico per cambiamenti di coda (shuffle/reorder)
+    // Listener specifico per cambiamenti di coda (shuffle/reorder)
     private val queueChangeListeners = mutableListOf<() -> Unit>()
+
+    // === AUTOMIX VARIABLES ===
+    private var crossfadeManager: CrossfadeManager? = null
+    private val crossfadeHandler = Handler(Looper.getMainLooper())
+    private var crossfadeCheckRunnable: Runnable? = null
+    private var isCrossfadeScheduled = false
+    private var crossfadeTriggered = false
+    // === FINE AUTOMIX VARIABLES ===
+
+    // Player Listener che funziona per ENTRAMBI i player
+    private val playerListener = object : Player.Listener {
+        override fun onPlaybackStateChanged(playbackState: Int) {
+            when (playbackState) {
+                Player.STATE_READY -> {
+                    Log.d("MusicPlayer", "Player ready")
+                }
+                Player.STATE_ENDED -> {
+                    Log.d("MusicPlayer", "🎵 Song ended - automix enabled: ${isAutomixEnabled()}")
+
+                    // Se automix è attivo E il crossfade non è stato triggerato, significa che qualcosa è andato storto
+                    // Quindi facciamo partire manualmente la prossima canzone
+                    if (isAutomixEnabled()) {
+                        if (!crossfadeTriggered) {
+                            Log.w("MusicPlayer", "⚠️ Automix active but crossfade not triggered, playing next manually")
+                            playNext()
+                        }
+                        // Se il crossfade è stato triggerato, non facciamo nulla perché sta già gestendo
+                    } else {
+                        // Automix non attivo, comportamento normale
+                        playNext()
+                    }
+                }
+                Player.STATE_BUFFERING -> {
+                    Log.d("MusicPlayer", "Player buffering")
+                }
+                Player.STATE_IDLE -> {
+                    Log.d("MusicPlayer", "Player idle")
+                }
+            }
+
+            val isPlaying = isPlaying()
+            val currentSong = getCurrentSong()
+
+            notifyStateChanged(isPlaying, currentSong)
+            onPlayerStateChanged?.invoke(isPlaying, currentSong)
+        }
+
+        override fun onIsPlayingChanged(isPlaying: Boolean) {
+            val currentSong = getCurrentSong()
+
+            notifyStateChanged(isPlaying, currentSong)
+            onPlayerStateChanged?.invoke(isPlaying, currentSong)
+
+            Log.d("MusicPlayer", "Playing changed: $isPlaying")
+        }
+    }
 
     init {
         initializePlayer()
+        initializeCrossfadeManager()
     }
 
     // Aggiungi listener per stato
@@ -46,7 +106,7 @@ class MusicPlayer(private val context: Context) {
         Log.d("MusicPlayer", "State listener rimosso, totale: ${stateChangeListeners.size}")
     }
 
-    // NUOVO: Gestione listener per cambiamenti coda
+    // Gestione listener per cambiamenti coda
     fun addQueueChangeListener(listener: () -> Unit) {
         queueChangeListeners.add(listener)
         Log.d("MusicPlayer", "Queue listener aggiunto, totale: ${queueChangeListeners.size}")
@@ -69,7 +129,7 @@ class MusicPlayer(private val context: Context) {
         }
     }
 
-    // NUOVO: Notifica cambiamenti della coda
+    // Notifica cambiamenti della coda
     private fun notifyQueueChanged() {
         Log.d("MusicPlayer", "Notifying ${queueChangeListeners.size} queue listeners")
         queueChangeListeners.forEach { listener ->
@@ -92,43 +152,182 @@ class MusicPlayer(private val context: Context) {
             }
         }
 
-    private fun initializePlayer() {
-        exoPlayer = ExoPlayer.Builder(context).build()
+    // === AUTOMIX METHODS ===
 
-        exoPlayer?.addListener(object : Player.Listener {
-            override fun onPlaybackStateChanged(playbackState: Int) {
-                when (playbackState) {
-                    Player.STATE_READY -> {
-                        Log.d("MusicPlayer", "Player ready")
-                    }
-                    Player.STATE_ENDED -> {
-                        Log.d("MusicPlayer", "Song ended")
-                        playNext()
-                    }
-                    Player.STATE_BUFFERING -> {
-                        Log.d("MusicPlayer", "Player buffering")
-                    }
-                    Player.STATE_IDLE -> {
-                        Log.d("MusicPlayer", "Player idle")
-                    }
+    private fun initializeCrossfadeManager() {
+        crossfadeManager = CrossfadeManager(context)
+
+        // IMPORTANTE: Aggiungi il listener al crossfade manager
+        crossfadeManager?.addPlayerListener(playerListener)
+
+        crossfadeManager?.onCrossfadeComplete = {
+            Log.d("MusicPlayer", "✅ Crossfade completed, moving to next song")
+
+            // Il crossfade è completato, aggiorna l'indice
+            moveToNextSongAfterCrossfade()
+            crossfadeTriggered = false
+            isCrossfadeScheduled = false
+        }
+
+        Log.d("MusicPlayer", "CrossfadeManager initialized with listener")
+    }
+
+    private fun moveToNextSongAfterCrossfade() {
+        // Incrementa l'indice per riflettere che siamo passati alla prossima canzone
+        if (repeatMode == Player.REPEAT_MODE_ONE) {
+            // In modalità repeat one, rimaniamo sulla stessa canzone
+            Log.d("MusicPlayer", "Repeat ONE - staying on same song")
+        } else if (currentSongIndex < currentQueue.size - 1) {
+            currentSongIndex++
+            Log.d("MusicPlayer", "Moved to next song at index $currentSongIndex")
+        } else if (repeatMode == Player.REPEAT_MODE_ALL) {
+            currentSongIndex = 0
+            Log.d("MusicPlayer", "Repeat ALL - back to start")
+        } else {
+            Log.d("MusicPlayer", "End of queue reached")
+        }
+
+        currentSong = getCurrentSong()
+        notifyStateChanged(isPlaying(), currentSong)
+
+        // Schedula il prossimo crossfade se necessario
+        if (isAutomixEnabled() && currentSong != null) {
+            scheduleCrossfadeCheck()
+        }
+    }
+
+    private fun isAutomixEnabled(): Boolean {
+        return SettingsActivity.isAutomixEnabled(context)
+    }
+
+    private fun getCrossfadeDuration(): Int {
+        return SettingsActivity.getCrossfadeDuration(context)
+    }
+
+    private fun scheduleCrossfadeCheck() {
+        if (!isAutomixEnabled() || crossfadeManager == null) {
+            Log.d("MusicPlayer", "❌ Cannot schedule crossfade: automix=${isAutomixEnabled()}, manager=${crossfadeManager != null}")
+            return
+        }
+
+        cancelScheduledCrossfade()
+
+        crossfadeTriggered = false
+        isCrossfadeScheduled = true
+
+        Log.d("MusicPlayer", "📅 Scheduling crossfade check...")
+
+        crossfadeCheckRunnable = object : Runnable {
+            override fun run() {
+                if (!isCrossfadeScheduled) {
+                    Log.d("MusicPlayer", "Crossfade check cancelled")
+                    return
                 }
 
-                val isPlaying = exoPlayer?.isPlaying ?: false
-                val currentSong = getCurrentSong()
+                val currentPos = crossfadeManager?.getCurrentPosition() ?: 0L
+                val duration = crossfadeManager?.getDuration() ?: 0L
 
-                notifyStateChanged(isPlaying, currentSong)
-                onPlayerStateChanged?.invoke(isPlaying, currentSong)
+                if (duration > 0 && !crossfadeTriggered) {
+                    val crossfadeDurationMs = getCrossfadeDuration() * 1000L
+                    val timeUntilEnd = duration - currentPos
+
+                    Log.d("MusicPlayer", "⏱️ Crossfade check: pos=${currentPos/1000}s, duration=${duration/1000}s, timeLeft=${timeUntilEnd/1000}s, trigger at ${crossfadeDurationMs/1000}s")
+
+                    if (timeUntilEnd <= crossfadeDurationMs && timeUntilEnd > 0) {
+                        // È il momento di iniziare il crossfade!
+                        triggerCrossfade()
+                    } else {
+                        // Controlla di nuovo tra 500ms
+                        crossfadeHandler.postDelayed(this, 500)
+                    }
+                } else {
+                    // Controlla di nuovo
+                    crossfadeHandler.postDelayed(this, 500)
+                }
             }
+        }
 
-            override fun onIsPlayingChanged(isPlaying: Boolean) {
-                val currentSong = getCurrentSong()
+        crossfadeHandler.postDelayed(crossfadeCheckRunnable!!, 500)
+        Log.d("MusicPlayer", "✅ Crossfade check scheduled")
+    }
 
-                notifyStateChanged(isPlaying, currentSong)
-                onPlayerStateChanged?.invoke(isPlaying, currentSong)
+    private fun triggerCrossfade() {
+        if (crossfadeTriggered || !isAutomixEnabled()) {
+            Log.d("MusicPlayer", "❌ Cannot trigger: already triggered=$crossfadeTriggered, automix=${isAutomixEnabled()}")
+            return
+        }
 
-                Log.d("MusicPlayer", "Playing changed: $isPlaying")
+        crossfadeTriggered = true
+
+        Log.d("MusicPlayer", "🎵 ========== TRIGGERING CROSSFADE ==========")
+
+        // Determina quale sarà la prossima canzone
+        val nextSong = getNextSongForCrossfade()
+
+        if (nextSong != null) {
+            val nextUri = Uri.parse(nextSong.path)
+            crossfadeManager?.prepareNextSong(nextUri)
+
+            // Inizia il crossfade
+            val duration = getCrossfadeDuration()
+            crossfadeManager?.startCrossfade(duration)
+
+            Log.d("MusicPlayer", "✅ Crossfade started: ${duration}s to '${nextSong.title}'")
+        } else {
+            Log.d("MusicPlayer", "❌ No next song for crossfade")
+            crossfadeTriggered = false
+        }
+    }
+
+    private fun getNextSongForCrossfade(): Song? {
+        return when (repeatMode) {
+            Player.REPEAT_MODE_ONE -> {
+                // Ripeti la canzone corrente
+                Log.d("MusicPlayer", "Next song for crossfade: REPEAT CURRENT")
+                currentSong
             }
-        })
+            Player.REPEAT_MODE_ALL -> {
+                // Prossima canzone, o torna all'inizio
+                val next = if (currentSongIndex < currentQueue.size - 1) {
+                    currentQueue[currentSongIndex + 1]
+                } else {
+                    currentQueue.firstOrNull()
+                }
+                Log.d("MusicPlayer", "Next song for crossfade: REPEAT ALL - ${next?.title}")
+                next
+            }
+            else -> {
+                // Normale: prossima canzone se esiste
+                val next = if (currentSongIndex < currentQueue.size - 1) {
+                    currentQueue[currentSongIndex + 1]
+                } else {
+                    null
+                }
+                Log.d("MusicPlayer", "Next song for crossfade: NORMAL - ${next?.title}")
+                next
+            }
+        }
+    }
+
+    private fun cancelScheduledCrossfade() {
+        if (isCrossfadeScheduled || crossfadeTriggered) {
+            Log.d("MusicPlayer", "🚫 Cancelling scheduled crossfade")
+        }
+
+        isCrossfadeScheduled = false
+        crossfadeCheckRunnable?.let {
+            crossfadeHandler.removeCallbacks(it)
+        }
+        crossfadeManager?.cancelCrossfade()
+    }
+
+    // === END AUTOMIX METHODS ===
+
+    private fun initializePlayer() {
+        exoPlayer = ExoPlayer.Builder(context).build()
+        exoPlayer?.addListener(playerListener)
+
+        Log.d("MusicPlayer", "ExoPlayer initialized with listener")
     }
 
     fun setPlaylist(songs: List<Song>, startIndex: Int = 0) {
@@ -138,25 +337,43 @@ class MusicPlayer(private val context: Context) {
         currentQueue.clear()
         currentQueue.addAll(songs)
 
-        // NUOVO: Salva l'ordine originale
+        // Salva l'ordine originale
         originalQueueOrder = songs.toList()
 
         currentSongIndex = startIndex.coerceIn(0, songs.size - 1)
 
-        // IMPORTANTE: Notifica il cambiamento della coda
+        // Notifica il cambiamento della coda
         notifyQueueChanged()
 
         Log.d("MusicPlayer", "Playlist set: ${songs.size} songs, queue: ${currentQueue.size}, starting at $currentSongIndex")
     }
 
     fun playSong(song: Song) {
-        val songIndex = currentQueue.indexOf(song)
-        if (songIndex != -1) {
-            currentSongIndex = songIndex
-            playCurrentSong()
+        Log.d("MusicPlayer", "▶️ Playing song: ${song.title}")
+        currentSong = song
+
+        // Cancella eventuali crossfade in corso
+        cancelScheduledCrossfade()
+
+        if (isAutomixEnabled() && crossfadeManager != null) {
+            Log.d("MusicPlayer", "🎵 Using AUTOMIX mode")
+            // Usa CrossfadeManager
+            val uri = Uri.parse(song.path)
+            crossfadeManager?.setMediaItem(uri)
+            crossfadeManager?.play()
+
+            // Schedula il controllo per il crossfade
+            scheduleCrossfadeCheck()
         } else {
-            Log.e("MusicPlayer", "Song not found in queue: ${song.title}")
+            Log.d("MusicPlayer", "🎵 Using NORMAL mode")
+            // Usa ExoPlayer normale
+            val mediaItem = MediaItem.fromUri(Uri.parse(song.path))
+            exoPlayer?.setMediaItem(mediaItem)
+            exoPlayer?.prepare()
+            exoPlayer?.play()
         }
+
+        notifyStateChanged(true, song)
     }
 
     private fun playCurrentSong() {
@@ -166,30 +383,53 @@ class MusicPlayer(private val context: Context) {
         }
 
         val song = currentQueue[currentSongIndex]
-        val mediaItem = MediaItem.fromUri(song.path.toUri())
+        playSong(song)
+    }
 
-        exoPlayer?.setMediaItem(mediaItem)
-        exoPlayer?.prepare()
-        exoPlayer?.play()
+    fun play() {
+        if (isAutomixEnabled() && crossfadeManager != null) {
+            crossfadeManager?.play()
 
-        Log.d("MusicPlayer", "Playing: ${song.title} - ${song.artist} (index $currentSongIndex)")
+            // Riprendi il controllo crossfade se necessario
+            if (!isCrossfadeScheduled && !crossfadeTriggered) {
+                scheduleCrossfadeCheck()
+            }
+        } else {
+            exoPlayer?.play()
+        }
+        notifyStateChanged(true, currentSong)
+    }
+
+    fun pause() {
+        if (isAutomixEnabled() && crossfadeManager != null) {
+            crossfadeManager?.pause()
+        } else {
+            exoPlayer?.pause()
+        }
+
+        // Ferma il controllo crossfade durante la pausa
+        cancelScheduledCrossfade()
+
+        notifyStateChanged(false, currentSong)
     }
 
     fun playPause() {
-        if (exoPlayer?.isPlaying == true) {
-            exoPlayer?.pause()
+        if (isPlaying()) {
+            pause()
         } else {
             if (currentQueue.isEmpty()) return
-            if (exoPlayer?.currentMediaItem == null) {
+            if (currentSong == null) {
                 playCurrentSong()
             } else {
-                exoPlayer?.play()
+                play()
             }
         }
     }
 
     fun playNext() {
         if (currentQueue.isEmpty()) return
+
+        Log.d("MusicPlayer", "⏭️ Play next - current index: $currentSongIndex, queue size: ${currentQueue.size}")
 
         currentSongIndex = if (isShuffleEnabled) {
             // Con shuffle, prendi la prossima nella coda già mescolata
@@ -198,6 +438,7 @@ class MusicPlayer(private val context: Context) {
             (currentSongIndex + 1) % currentQueue.size
         }
 
+        Log.d("MusicPlayer", "⏭️ New index: $currentSongIndex")
         playCurrentSong()
     }
 
@@ -215,19 +456,17 @@ class MusicPlayer(private val context: Context) {
 
     // Metodi per gestire la coda
     fun getCurrentQueue(): List<Song> {
-        return currentQueue.toList() // Ritorna una copia per sicurezza
+        return currentQueue.toList()
     }
 
     fun addToQueue(song: Song) {
         currentQueue.add(song)
-        // IMPORTANTE: Notifica il cambiamento
         notifyQueueChanged()
         Log.d("MusicPlayer", "Added '${song.title}' to queue. Queue size: ${currentQueue.size}")
     }
 
     fun addToQueue(songs: List<Song>) {
         currentQueue.addAll(songs)
-        // IMPORTANTE: Notifica il cambiamento
         notifyQueueChanged()
         Log.d("MusicPlayer", "Added ${songs.size} songs to queue. Queue size: ${currentQueue.size}")
     }
@@ -240,17 +479,6 @@ class MusicPlayer(private val context: Context) {
         Log.d("MusicPlayer", "   Current index: $currentSongIndex")
         Log.d("MusicPlayer", "   Current song: ${getCurrentSong()?.title}")
 
-        // Mostra le canzoni intorno alla posizione
-        if (position > 0 && position < currentQueue.size) {
-            Log.d("MusicPlayer", "   Position ${position-1}: ${currentQueue[position-1].title}")
-        }
-        if (position < currentQueue.size) {
-            Log.d("MusicPlayer", "   Position $position (TO REMOVE): ${currentQueue[position].title}")
-        }
-        if (position + 1 < currentQueue.size) {
-            Log.d("MusicPlayer", "   Position ${position+1}: ${currentQueue[position+1].title}")
-        }
-
         if (position < 0 || position >= currentQueue.size) {
             Log.w("MusicPlayer", "❌ Invalid position for removal: $position")
             return false
@@ -259,7 +487,6 @@ class MusicPlayer(private val context: Context) {
         val removedSong = currentQueue.removeAt(position)
         Log.d("MusicPlayer", "🗑️ Removed: ${removedSong.title}")
 
-        // Aggiorna l'indice
         val oldIndex = currentSongIndex
 
         when {
@@ -273,7 +500,7 @@ class MusicPlayer(private val context: Context) {
                     currentSongIndex = maxOf(0, currentQueue.size - 1)
                 }
 
-                if (currentQueue.isNotEmpty() && exoPlayer?.isPlaying == true) {
+                if (currentQueue.isNotEmpty() && isPlaying()) {
                     Log.d("MusicPlayer", "▶️ Playing next song at index: $currentSongIndex")
                     playCurrentSong()
                 }
@@ -288,19 +515,6 @@ class MusicPlayer(private val context: Context) {
         Log.d("MusicPlayer", "   Current index: $currentSongIndex")
         Log.d("MusicPlayer", "   Current song: ${getCurrentSong()?.title}")
 
-        // Mostra le nuove canzoni intorno all'indice corrente
-        if (currentSongIndex > 0 && currentSongIndex <= currentQueue.size) {
-            Log.d("MusicPlayer", "   Position ${currentSongIndex-1}: ${currentQueue[currentSongIndex-1].title}")
-        }
-        if (currentSongIndex < currentQueue.size) {
-            Log.d("MusicPlayer", "   Position $currentSongIndex (CURRENT): ${currentQueue[currentSongIndex].title}")
-        }
-        if (currentSongIndex + 1 < currentQueue.size) {
-            Log.d("MusicPlayer", "   Position ${currentSongIndex+1} (NEXT): ${currentQueue[currentSongIndex+1].title}")
-        }
-
-        // Notifica DOPO aver stampato tutto
-        Log.d("MusicPlayer", "🔔 Notifying ${queueChangeListeners.size} listeners")
         notifyQueueChanged()
 
         Log.d("MusicPlayer", "=== REMOVE FROM QUEUE END ===")
@@ -331,7 +545,6 @@ class MusicPlayer(private val context: Context) {
             }
         }
 
-        // IMPORTANTE: Notifica il cambiamento
         notifyQueueChanged()
 
         Log.d("MusicPlayer", "Moved '${movedSong.title}' from $fromPosition to $toPosition. Current index: $currentSongIndex")
@@ -363,7 +576,6 @@ class MusicPlayer(private val context: Context) {
             currentSongIndex = -1
         }
 
-        // IMPORTANTE: Notifica il cambiamento
         notifyQueueChanged()
 
         Log.d("MusicPlayer", "Queue cleared. Remaining songs: ${currentQueue.size}")
@@ -376,10 +588,13 @@ class MusicPlayer(private val context: Context) {
     }
 
     fun isPlaying(): Boolean {
-        return exoPlayer?.isPlaying ?: false
+        return if (isAutomixEnabled() && crossfadeManager != null) {
+            crossfadeManager?.isPlaying() ?: false
+        } else {
+            exoPlayer?.isPlaying ?: false
+        }
     }
 
-    // COMPLETAMENTE RISCRITTO: Toggle shuffle con sincronizzazione perfetta
     fun toggleShuffle(): Boolean {
         isShuffleEnabled = !isShuffleEnabled
 
@@ -389,48 +604,39 @@ class MusicPlayer(private val context: Context) {
         val currentSong = getCurrentSong()
 
         if (isShuffleEnabled) {
-            // ATTIVA SHUFFLE: Mescola tutto tranne la canzone corrente
+            // ATTIVA SHUFFLE
             Log.d("MusicPlayer", "Attivando shuffle...")
 
             if (currentSong != null && currentQueue.size > 1) {
-                // Rimuovi la canzone corrente temporaneamente
                 val songsToShuffle = currentQueue.toMutableList()
                 songsToShuffle.removeAt(currentSongIndex)
-
-                // Mescola le altre canzoni
                 songsToShuffle.shuffle()
 
-                // Ricostruisci la coda: canzone corrente + canzoni mescolate
                 currentQueue.clear()
                 currentQueue.add(currentSong)
                 currentQueue.addAll(songsToShuffle)
 
-                // La canzone corrente è ora all'indice 0
                 currentSongIndex = 0
 
                 Log.d("MusicPlayer", "Shuffle applicato. Current song ora all'indice 0")
             }
 
         } else {
-            // DISATTIVA SHUFFLE: Ripristina ordine originale
+            // DISATTIVA SHUFFLE
             Log.d("MusicPlayer", "Disattivando shuffle...")
 
             if (originalQueueOrder.isNotEmpty() && currentSong != null) {
-                // Trova la posizione della canzone corrente nell'ordine originale
                 val originalIndex = originalQueueOrder.indexOf(currentSong)
 
-                // Ripristina l'ordine originale
                 currentQueue.clear()
                 currentQueue.addAll(originalQueueOrder)
 
-                // Aggiorna l'indice corrente
                 currentSongIndex = if (originalIndex != -1) originalIndex else 0
 
                 Log.d("MusicPlayer", "Ordine originale ripristinato. Current song all'indice $currentSongIndex")
             }
         }
 
-        // FONDAMENTALE: Notifica TUTTI i listener che la coda è cambiata
         notifyQueueChanged()
         notifyStateChanged(isPlaying(), currentSong)
 
@@ -442,7 +648,6 @@ class MusicPlayer(private val context: Context) {
 
     fun isShuffleEnabled(): Boolean = isShuffleEnabled
 
-    // AGGIORNATO: Toggle repeat con sincronizzazione
     fun toggleRepeat(): Int {
         repeatMode = when (repeatMode) {
             Player.REPEAT_MODE_OFF -> Player.REPEAT_MODE_ONE
@@ -450,9 +655,13 @@ class MusicPlayer(private val context: Context) {
             Player.REPEAT_MODE_ALL -> Player.REPEAT_MODE_OFF
             else -> Player.REPEAT_MODE_OFF
         }
-        exoPlayer?.repeatMode = repeatMode
 
-        // IMPORTANTE: Notifica il cambiamento
+        // Imposta repeatMode solo su exoPlayer, non su crossfadeManager
+        // perché con automix gestiamo manualmente il repeat
+        if (!isAutomixEnabled()) {
+            exoPlayer?.repeatMode = repeatMode
+        }
+
         notifyStateChanged(isPlaying(), getCurrentSong())
 
         Log.d("MusicPlayer", "Repeat mode: $repeatMode")
@@ -462,15 +671,36 @@ class MusicPlayer(private val context: Context) {
     fun getRepeatMode(): Int = repeatMode
 
     fun getCurrentPosition(): Long {
-        return exoPlayer?.currentPosition ?: 0L
+        return if (isAutomixEnabled() && crossfadeManager != null) {
+            crossfadeManager?.getCurrentPosition() ?: 0L
+        } else {
+            exoPlayer?.currentPosition ?: 0L
+        }
     }
 
     fun getDuration(): Long {
-        return exoPlayer?.duration ?: 0L
+        return if (isAutomixEnabled() && crossfadeManager != null) {
+            crossfadeManager?.getDuration() ?: 0L
+        } else {
+            exoPlayer?.duration ?: 0L
+        }
     }
 
     fun seekTo(positionMs: Long) {
-        exoPlayer?.seekTo(positionMs)
+        if (isAutomixEnabled() && crossfadeManager != null) {
+            crossfadeManager?.seekTo(positionMs)
+        } else {
+            exoPlayer?.seekTo(positionMs)
+        }
+
+        // Reset del crossfade dopo il seek
+        cancelScheduledCrossfade()
+        crossfadeTriggered = false
+
+        if (isPlaying() && isAutomixEnabled()) {
+            scheduleCrossfadeCheck()
+        }
+
         Log.d("MusicPlayer", "Seeked to: ${positionMs}ms")
     }
 
@@ -498,8 +728,14 @@ class MusicPlayer(private val context: Context) {
 
     fun release() {
         stateChangeListeners.clear()
-        queueChangeListeners.clear() // NUOVO: Pulisci anche i queue listeners
+        queueChangeListeners.clear()
         onPlayerStateChanged = null
+
+        // Rilascia crossfade manager
+        cancelScheduledCrossfade()
+        crossfadeHandler.removeCallbacksAndMessages(null)
+        crossfadeManager?.release()
+        crossfadeManager = null
 
         exoPlayer?.release()
         exoPlayer = null

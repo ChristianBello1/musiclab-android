@@ -494,7 +494,9 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun openSettings() {
-        Toast.makeText(this, "Impostazioni (coming soon!)", Toast.LENGTH_SHORT).show()
+        val intent = Intent(this, SettingsActivity::class.java)
+        startActivity(intent)
+        Log.d("MainActivity", "Opening SettingsActivity")
     }
 
     private fun showSortOptions() {
