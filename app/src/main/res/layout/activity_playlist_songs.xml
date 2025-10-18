@@ -92,6 +92,16 @@
             app:tint="@android:color/white"
             android:layout_marginEnd="4dp" />
 
+        <ImageButton
+            android:id="@+id/btn_sort_playlist"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:src="@drawable/ic_sort"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="Ordina canzoni"
+            app:tint="@android:color/white"
+            android:layout_marginEnd="8dp" />
+
         <!-- Menu playlist (visibile solo in modalità normale) -->
         <ImageButton
             android:id="@+id/btn_playlist_menu"

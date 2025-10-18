@@ -372,19 +372,35 @@ class MainActivity : AppCompatActivity() {
         bottomSeekBar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
             override fun onStartTrackingTouch(seekBar: SeekBar?) {
                 isUpdatingBottomProgress = true
+                Log.d("MainActivity", "⏸ Started touching bottom seekBar")
             }
 
             override fun onStopTrackingTouch(seekBar: SeekBar?) {
                 seekBar?.let {
+                    // Il progress è da 0 a 100 (perché max="100" nell'XML)
                     val progress = it.progress
-                    val duration = musicPlayer.getDuration()
-                    val newPosition = (progress * duration) / 100
-                    musicPlayer.seekTo(newPosition.toInt())
+                    val duration = musicPlayer.getDuration() // in millisecondi
+
+                    // ✅ FIX: Calcola la posizione in millisecondi usando .toLong()
+                    val newPositionMs = (progress.toLong() * duration) / 100
+
+                    Log.d("MainActivity", "🎯 SeekBar: progress=$progress%, duration=$duration ms, seeking to $newPositionMs ms")
+
+                    // ✅ FIX CRITICO: Chiama seekTo(Long) per passare millisecondi direttamente
+                    // NON usare .toInt() perché seekTo(Int) moltiplica per 1000!
+                    musicPlayer.seekTo(newPositionMs)
                 }
                 isUpdatingBottomProgress = false
             }
 
-            override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {}
+            override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
+                // Opzionale: Mostra il tempo mentre l'utente trascina
+                if (fromUser) {
+                    val duration = musicPlayer.getDuration()
+                    val estimatedTime = (progress.toLong() * duration) / 100
+                    bottomCurrentTime.text = formatTime(estimatedTime)
+                }
+            }
         })
 
         Log.d("MainActivity", "Listeners setup completed")
@@ -565,11 +581,14 @@ class MainActivity : AppCompatActivity() {
         )
     }
 
-    private fun onSongClick(song: Song) {
+    fun onSongClick(song: Song) {
         Log.d("MainActivity", "🎵 Song clicked: ${song.title}")
 
         musicPlayer.setPlaylist(songs, songs.indexOf(song))
         musicPlayer.playSong(song)
+
+        // ✅ FIX: Aggiorna SUBITO la bottom bar, non aspettare il listener
+        updatePlayerBottomBar(true, song)
 
         // ✅ FORZA L'AVVIO DEL SERVIZIO
         val serviceIntent = Intent(this, MusicService::class.java)
@@ -578,7 +597,7 @@ class MainActivity : AppCompatActivity() {
         } else {
             startService(serviceIntent)
         }
-        Log.d("MainActivity", "🚀 Service intent sent!")
+        Log.d("MainActivity", "🚀 Service intent sent! Bottom bar updated immediately")
 
         showPlayerBottomBar()
     }

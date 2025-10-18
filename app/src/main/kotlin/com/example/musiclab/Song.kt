@@ -11,7 +11,8 @@ data class Song(
     val album: String,
     val duration: Long,
     val path: String,
-    val size: Long
+    val size: Long,
+    var addedAt: Long? = null
 ) : Parcelable {
 
     constructor(parcel: Parcel) : this(

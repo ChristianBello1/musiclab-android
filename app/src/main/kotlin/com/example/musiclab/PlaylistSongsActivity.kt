@@ -1,8 +1,9 @@
 package com.example.musiclab
 
+import android.content.Intent
+import android.os.Build
 import android.os.Bundle
 import android.util.Log
-import android.widget.EditText
 import android.widget.ImageButton
 import android.widget.LinearLayout
 import android.widget.TextView
@@ -25,8 +26,8 @@ class PlaylistSongsActivity : AppCompatActivity() {
     private lateinit var songAdapter: SongAdapter
     private lateinit var musicPlayer: MusicPlayer
     private lateinit var btnPlaylistMenu: ImageButton
+    private lateinit var btnSortPlaylist: ImageButton
 
-    // NUOVO: Per selezione multipla
     private lateinit var btnAddSelectedToOtherPlaylist: ImageButton
     private lateinit var btnRemoveSelectedFromPlaylist: ImageButton
     private lateinit var selectionCountText: TextView
@@ -36,9 +37,17 @@ class PlaylistSongsActivity : AppCompatActivity() {
     private var playlistSongs: MutableList<Song> = mutableListOf()
     private val firestore = FirebaseFirestore.getInstance()
 
-    // NUOVO: Per gestire playlist
     private var currentUserId: String = ""
     private var userPlaylists: MutableList<Playlist> = mutableListOf()
+
+    enum class PlaylistSortType {
+        TITLE_ASC,
+        DURATION_ASC,
+        ADDED_RECENTLY,
+        ADDED_OLDEST_FIRST
+    }
+
+    private var currentSortType = PlaylistSortType.TITLE_ASC
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -47,7 +56,6 @@ class PlaylistSongsActivity : AppCompatActivity() {
 
         Log.d("PlaylistSongsActivity", "=== PLAYLIST SONGS ACTIVITY CREATED ===")
 
-        // Ottieni la playlist dall'intent
         val playlistId = intent.getStringExtra("PLAYLIST_ID") ?: ""
         val playlistName = intent.getStringExtra("PLAYLIST_NAME") ?: "Playlist"
         val playlistOwnerId = intent.getStringExtra("PLAYLIST_OWNER_ID") ?: ""
@@ -59,20 +67,16 @@ class PlaylistSongsActivity : AppCompatActivity() {
         )
 
         musicPlayer = MusicPlayerManager.getInstance().getMusicPlayer(this)
-
-        // NUOVO: Ottieni userId
         currentUserId = GoogleAuthManager.getInstance().getUserId() ?: ""
 
         setupViews()
         setupRecyclerView()
         loadPlaylistSongs()
 
-        // NUOVO: Carica playlist dell'utente
         if (currentUserId.isNotEmpty()) {
             loadUserPlaylists()
         }
 
-        // Gestione back button per uscire dalla selezione
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
                 if (isSelectionMode) {
@@ -91,8 +95,8 @@ class PlaylistSongsActivity : AppCompatActivity() {
         songCountText = findViewById(R.id.playlist_song_count_text)
         songsRecyclerView = findViewById(R.id.playlist_songs_recycler)
         btnPlaylistMenu = findViewById(R.id.btn_playlist_menu)
+        btnSortPlaylist = findViewById(R.id.btn_sort_playlist)
 
-        // NUEVO: Bottoni per selezione multipla
         btnAddSelectedToOtherPlaylist = findViewById(R.id.btn_add_selected_to_other_playlist)
         btnRemoveSelectedFromPlaylist = findViewById(R.id.btn_remove_selected_from_playlist)
         selectionCountText = findViewById(R.id.selection_count_text)
@@ -111,7 +115,10 @@ class PlaylistSongsActivity : AppCompatActivity() {
             showPlaylistMenu()
         }
 
-        // NUEVO: Click listeners per selezione multipla
+        btnSortPlaylist.setOnClickListener {
+            showSortOptions()
+        }
+
         btnAddSelectedToOtherPlaylist.setOnClickListener {
             addSelectedSongsToOtherPlaylist()
         }
@@ -135,11 +142,9 @@ class PlaylistSongsActivity : AppCompatActivity() {
                 handleSongMenuAction(song, action)
             },
             onLongPress = { song ->
-                // NUEVO: Entra in modalità selezione
                 enterSelectionMode()
             },
             onSelectionChanged = { count ->
-                // NUEVO: Aggiorna contatore
                 updateSelectionUI(count)
             },
             contextType = SongAdapter.ContextType.PLAYLIST
@@ -164,24 +169,20 @@ class PlaylistSongsActivity : AppCompatActivity() {
 
                     for (doc in documents) {
                         try {
-                            // ✅ MODIFICATO: Prova prima mediaStoreId, poi fallback su id
-                            val mediaStoreId = doc.getLong("mediaStoreId") ?: doc.getLong("id") ?: 0L
+                            val mediaStoreId = doc.getLong("mediaStoreId") ?: doc.getLong("id") ?: continue
+                            val addedAtTimestamp = doc.getLong("addedAt")
 
-                            // ✅ NUOVO: Cerca la canzone usando MediaStore ID
-                            val song = findSongByMediaStoreId(mediaStoreId)
-
+                            val song = getSongByMediaStoreId(mediaStoreId)
                             if (song != null) {
+                                song.addedAt = addedAtTimestamp
                                 playlistSongs.add(song)
-                                Log.d("PlaylistSongsActivity", "Loaded song: ${song.title}")
-                            } else {
-                                Log.w("PlaylistSongsActivity", "Song with ID $mediaStoreId not found on device")
                             }
                         } catch (e: Exception) {
-                            Log.e("PlaylistSongsActivity", "Error parsing song: ${e.message}")
+                            Log.e("PlaylistSongsActivity", "Error loading song: ${e.message}")
                         }
                     }
 
-                    songAdapter.updateSongs(playlistSongs)
+                    applySorting()
                     updateSongCount()
 
                     Log.d("PlaylistSongsActivity", "✅ Loaded ${playlistSongs.size} songs")
@@ -193,7 +194,77 @@ class PlaylistSongsActivity : AppCompatActivity() {
         }
     }
 
-    private fun findSongByMediaStoreId(mediaStoreId: Long): Song? {
+    private fun showSortOptions() {
+        val options = arrayOf(
+            "Titolo (A-Z)",
+            "Durata (breve → lunga)",
+            "Aggiunte per prime",
+            "Aggiunte di recente"
+        )
+
+        val currentSelection = when (currentSortType) {
+            PlaylistSortType.TITLE_ASC -> 0
+            PlaylistSortType.DURATION_ASC -> 1
+            PlaylistSortType.ADDED_RECENTLY -> 2
+            PlaylistSortType.ADDED_OLDEST_FIRST -> 3
+        }
+
+        AlertDialog.Builder(this)
+            .setTitle("Ordina canzoni per")
+            .setSingleChoiceItems(options, currentSelection) { dialog, which ->
+                val newSortType = when (which) {
+                    0 -> PlaylistSortType.TITLE_ASC
+                    1 -> PlaylistSortType.DURATION_ASC
+                    2 -> PlaylistSortType.ADDED_RECENTLY
+                    3 -> PlaylistSortType.ADDED_OLDEST_FIRST
+                    else -> PlaylistSortType.TITLE_ASC
+                }
+
+                if (newSortType != currentSortType) {
+                    currentSortType = newSortType
+                    applySorting()
+                }
+
+                dialog.dismiss()
+            }
+            .setNegativeButton("Annulla", null)
+            .show()
+    }
+
+    private fun applySorting() {
+        Log.d("PlaylistSongsActivity", "🔄 Applying sort: $currentSortType")
+
+        val sortedSongs = when (currentSortType) {
+            PlaylistSortType.TITLE_ASC -> {
+                playlistSongs.sortedBy { it.title.lowercase() }
+            }
+            PlaylistSortType.DURATION_ASC -> {
+                playlistSongs.sortedBy { it.duration }
+            }
+            PlaylistSortType.ADDED_RECENTLY -> {
+                playlistSongs.sortedByDescending { it.addedAt ?: 0L }
+            }
+            PlaylistSortType.ADDED_OLDEST_FIRST -> {
+                playlistSongs.sortedBy { it.addedAt ?: Long.MAX_VALUE }
+            }
+        }
+
+        playlistSongs.clear()
+        playlistSongs.addAll(sortedSongs)
+        songAdapter.updateSongs(playlistSongs)
+
+        val sortName = when (currentSortType) {
+            PlaylistSortType.TITLE_ASC -> "Titolo (A-Z)"
+            PlaylistSortType.DURATION_ASC -> "Durata"
+            PlaylistSortType.ADDED_RECENTLY -> "Aggiunte per prime"
+            PlaylistSortType.ADDED_OLDEST_FIRST -> "Aggiunte di recente"
+        }
+
+        Toast.makeText(this, "Ordinato per: $sortName", Toast.LENGTH_SHORT).show()
+        Log.d("PlaylistSongsActivity", "✅ Sorting applied: $sortName")
+    }
+
+    private fun getSongByMediaStoreId(mediaStoreId: Long): Song? {
         val projection = arrayOf(
             android.provider.MediaStore.Audio.Media._ID,
             android.provider.MediaStore.Audio.Media.TITLE,
@@ -207,22 +278,24 @@ class PlaylistSongsActivity : AppCompatActivity() {
         val selection = "${android.provider.MediaStore.Audio.Media._ID} = ?"
         val selectionArgs = arrayOf(mediaStoreId.toString())
 
-        contentResolver.query(
+        val cursor = contentResolver.query(
             android.provider.MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
             projection,
             selection,
             selectionArgs,
             null
-        )?.use { cursor ->
-            if (cursor.moveToFirst()) {
+        )
+
+        cursor?.use {
+            if (it.moveToFirst()) {
                 return Song(
-                    id = cursor.getLong(cursor.getColumnIndexOrThrow(android.provider.MediaStore.Audio.Media._ID)),
-                    title = cursor.getString(cursor.getColumnIndexOrThrow(android.provider.MediaStore.Audio.Media.TITLE)) ?: "Unknown",
-                    artist = cursor.getString(cursor.getColumnIndexOrThrow(android.provider.MediaStore.Audio.Media.ARTIST)) ?: "Unknown",
-                    album = cursor.getString(cursor.getColumnIndexOrThrow(android.provider.MediaStore.Audio.Media.ALBUM)) ?: "Unknown",
-                    duration = cursor.getLong(cursor.getColumnIndexOrThrow(android.provider.MediaStore.Audio.Media.DURATION)),
-                    path = cursor.getString(cursor.getColumnIndexOrThrow(android.provider.MediaStore.Audio.Media.DATA)) ?: "",
-                    size = cursor.getLong(cursor.getColumnIndexOrThrow(android.provider.MediaStore.Audio.Media.SIZE))
+                    id = it.getLong(it.getColumnIndexOrThrow(android.provider.MediaStore.Audio.Media._ID)),
+                    title = it.getString(it.getColumnIndexOrThrow(android.provider.MediaStore.Audio.Media.TITLE)) ?: "Unknown",
+                    artist = it.getString(it.getColumnIndexOrThrow(android.provider.MediaStore.Audio.Media.ARTIST)) ?: "Unknown",
+                    album = it.getString(it.getColumnIndexOrThrow(android.provider.MediaStore.Audio.Media.ALBUM)) ?: "Unknown",
+                    duration = it.getLong(it.getColumnIndexOrThrow(android.provider.MediaStore.Audio.Media.DURATION)),
+                    path = it.getString(it.getColumnIndexOrThrow(android.provider.MediaStore.Audio.Media.DATA)) ?: "",
+                    size = it.getLong(it.getColumnIndexOrThrow(android.provider.MediaStore.Audio.Media.SIZE))
                 )
             }
         }
@@ -264,63 +337,379 @@ class PlaylistSongsActivity : AppCompatActivity() {
     }
 
     private fun onSongClick(song: Song) {
-        Log.d("PlaylistSongsActivity", "Song clicked: ${song.title}")
+        Log.d("PlaylistSongsActivity", "🎵 Song clicked: ${song.title}")
 
-        // Riproduci la playlist partendo dalla canzone selezionata
         musicPlayer.setPlaylist(playlistSongs, playlistSongs.indexOf(song))
         musicPlayer.playSong(song)
 
-        Log.d("PlaylistSongsActivity", "Playing song from playlist")
+        finish()
+
+        Log.d("PlaylistSongsActivity", "✅ Playing song, returning to MainActivity")
     }
 
-    // NUEVO: Entra in modalità selezione
+    private fun handleSongMenuAction(song: Song, action: SongAdapter.MenuAction) {
+        when (action) {
+            SongAdapter.MenuAction.ADD_TO_PLAYLIST -> {
+                if (currentUserId.isEmpty()) {
+                    AlertDialog.Builder(this)
+                        .setTitle("Login Richiesto")
+                        .setMessage("Devi effettuare l'accesso per usare le playlist.")
+                        .setPositiveButton("OK", null)
+                        .show()
+                } else if (userPlaylists.size <= 1) {
+                    Toast.makeText(this, "Crea prima un'altra playlist!", Toast.LENGTH_SHORT).show()
+                } else {
+                    showAddToOtherPlaylistDialog(song)
+                }
+            }
+            SongAdapter.MenuAction.REMOVE_FROM_PLAYLIST -> {
+                removeSongFromPlaylist(song)
+            }
+            SongAdapter.MenuAction.SONG_DETAILS -> {
+                showSongDetails(song)
+            }
+            SongAdapter.MenuAction.DELETE_FROM_DEVICE -> {
+                Toast.makeText(this, "Non puoi eliminare canzoni da qui", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    private fun showAddToOtherPlaylistDialog(song: Song) {
+        val otherPlaylists = userPlaylists.filter { it.id != playlist?.id }
+
+        if (otherPlaylists.isEmpty()) {
+            Toast.makeText(this, "Nessun'altra playlist disponibile", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        val playlistNames = otherPlaylists.map { it.name }.toTypedArray()
+
+        AlertDialog.Builder(this)
+            .setTitle("Aggiungi a quale playlist?")
+            .setItems(playlistNames) { _, which ->
+                val selectedPlaylist = otherPlaylists[which]
+                addSongToOtherPlaylist(song, selectedPlaylist.id)
+            }
+            .setNegativeButton("Annulla", null)
+            .show()
+    }
+
+    private fun addSongToOtherPlaylist(song: Song, targetPlaylistId: String) {
+        val songData = hashMapOf(
+            "mediaStoreId" to song.id,
+            "title" to song.title,
+            "artist" to song.artist,
+            "album" to song.album,
+            "duration" to song.duration,
+            "size" to song.size,
+            "addedAt" to System.currentTimeMillis()
+        )
+
+        firestore.collection("playlists")
+            .document(targetPlaylistId)
+            .collection("songs")
+            .document(song.id.toString())
+            .set(songData)
+            .addOnSuccessListener {
+                Toast.makeText(this, "'${song.title}' aggiunta", Toast.LENGTH_SHORT).show()
+            }
+            .addOnFailureListener { e ->
+                Log.e("PlaylistSongsActivity", "Error adding song: ${e.message}")
+                Toast.makeText(this, "Errore aggiunta canzone", Toast.LENGTH_SHORT).show()
+            }
+    }
+
+    private fun removeSongFromPlaylist(song: Song) {
+        AlertDialog.Builder(this)
+            .setTitle("Rimuovi canzone")
+            .setMessage("Rimuovere '${song.title}' da questa playlist?")
+            .setPositiveButton("Rimuovi") { _, _ ->
+                playlist?.let { pl ->
+                    firestore.collection("playlists")
+                        .document(pl.id)
+                        .collection("songs")
+                        .document(song.id.toString())
+                        .delete()
+                        .addOnSuccessListener {
+                            playlistSongs.remove(song)
+                            songAdapter.updateSongs(playlistSongs)
+                            updateSongCount()
+                            Toast.makeText(this, "Canzone rimossa", Toast.LENGTH_SHORT).show()
+                        }
+                        .addOnFailureListener { e ->
+                            Log.e("PlaylistSongsActivity", "Error removing song: ${e.message}")
+                            Toast.makeText(this, "Errore rimozione canzone", Toast.LENGTH_SHORT).show()
+                        }
+                }
+            }
+            .setNegativeButton("Annulla", null)
+            .show()
+    }
+
+    private fun showSongDetails(song: Song) {
+        val info = """
+            Titolo: ${song.title}
+            Artista: ${song.artist}
+            Album: ${song.album}
+            Durata: ${song.getFormattedDuration()}
+        """.trimIndent()
+
+        AlertDialog.Builder(this)
+            .setTitle("Informazioni Canzone")
+            .setMessage(info)
+            .setPositiveButton("OK", null)
+            .show()
+    }
+
+    private fun showPlaylistMenu() {
+        val options = arrayOf(
+            "Rinomina Playlist",
+            "Importa da Cartella",
+            "Elimina Playlist"
+        )
+
+        AlertDialog.Builder(this)
+            .setTitle("Gestisci Playlist")
+            .setItems(options) { _, which ->
+                when (which) {
+                    0 -> showRenamePlaylistDialog()
+                    1 -> showImportFolderDialog()
+                    2 -> confirmDeletePlaylist()
+                }
+            }
+            .setNegativeButton("Annulla", null)
+            .show()
+    }
+
+    private fun showImportFolderDialog() {
+        val allSongs = getAllSongsFromDevice()
+
+        val folders = allSongs.groupBy { song ->
+            val file = java.io.File(song.path)
+            file.parent ?: "Sconosciuto"
+        }
+
+        if (folders.isEmpty()) {
+            Toast.makeText(this, "Nessuna cartella trovata", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        val folderNames = folders.keys.map { path ->
+            val folderName = java.io.File(path).name
+            val songCount = folders[path]?.size ?: 0
+            "$folderName ($songCount canzoni)"
+        }.toTypedArray()
+
+        val folderPaths = folders.keys.toList()
+
+        AlertDialog.Builder(this)
+            .setTitle("Importa da Cartella")
+            .setItems(folderNames) { _, which ->
+                val selectedFolderPath = folderPaths[which]
+                val songsInFolder = folders[selectedFolderPath] ?: emptyList()
+
+                importSongsFromFolder(songsInFolder)
+            }
+            .setNegativeButton("Annulla", null)
+            .show()
+    }
+
+    private fun getAllSongsFromDevice(): List<Song> {
+        val songs = mutableListOf<Song>()
+
+        val projection = arrayOf(
+            android.provider.MediaStore.Audio.Media._ID,
+            android.provider.MediaStore.Audio.Media.TITLE,
+            android.provider.MediaStore.Audio.Media.ARTIST,
+            android.provider.MediaStore.Audio.Media.ALBUM,
+            android.provider.MediaStore.Audio.Media.DURATION,
+            android.provider.MediaStore.Audio.Media.DATA,
+            android.provider.MediaStore.Audio.Media.SIZE
+        )
+
+        val selection = "${android.provider.MediaStore.Audio.Media.IS_MUSIC} != 0"
+
+        val cursor = contentResolver.query(
+            android.provider.MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
+            projection,
+            selection,
+            null,
+            null
+        )
+
+        cursor?.use {
+            while (it.moveToNext()) {
+                val song = Song(
+                    id = it.getLong(it.getColumnIndexOrThrow(android.provider.MediaStore.Audio.Media._ID)),
+                    title = it.getString(it.getColumnIndexOrThrow(android.provider.MediaStore.Audio.Media.TITLE)) ?: "Unknown",
+                    artist = it.getString(it.getColumnIndexOrThrow(android.provider.MediaStore.Audio.Media.ARTIST)) ?: "Unknown",
+                    album = it.getString(it.getColumnIndexOrThrow(android.provider.MediaStore.Audio.Media.ALBUM)) ?: "Unknown",
+                    duration = it.getLong(it.getColumnIndexOrThrow(android.provider.MediaStore.Audio.Media.DURATION)),
+                    path = it.getString(it.getColumnIndexOrThrow(android.provider.MediaStore.Audio.Media.DATA)) ?: "",
+                    size = it.getLong(it.getColumnIndexOrThrow(android.provider.MediaStore.Audio.Media.SIZE))
+                )
+                songs.add(song)
+            }
+        }
+
+        return songs
+    }
+
+    private fun importSongsFromFolder(songs: List<Song>) {
+        if (songs.isEmpty()) {
+            Toast.makeText(this, "Nessuna canzone trovata", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        val progressDialog = AlertDialog.Builder(this)
+            .setTitle("Importazione in corso...")
+            .setMessage("0 / ${songs.size}")
+            .setCancelable(false)
+            .create()
+        progressDialog.show()
+
+        var addedCount = 0
+        var skippedCount = 0
+
+        songs.forEach { song ->
+            val songData = hashMapOf(
+                "mediaStoreId" to song.id,
+                "title" to song.title,
+                "artist" to song.artist,
+                "album" to song.album,
+                "duration" to song.duration,
+                "size" to song.size,
+                "addedAt" to System.currentTimeMillis()
+            )
+
+            playlist?.let { pl ->
+                firestore.collection("playlists")
+                    .document(pl.id)
+                    .collection("songs")
+                    .document(song.id.toString())
+                    .set(songData)
+                    .addOnSuccessListener {
+                        addedCount++
+                        val completed = addedCount + skippedCount
+                        progressDialog.setMessage("$completed / ${songs.size}")
+
+                        if (completed == songs.size) {
+                            progressDialog.dismiss()
+                            Toast.makeText(
+                                this,
+                                "Importate $addedCount canzoni",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                            loadPlaylistSongs()
+                        }
+                    }
+                    .addOnFailureListener {
+                        skippedCount++
+                        val completed = addedCount + skippedCount
+                        progressDialog.setMessage("$completed / ${songs.size}")
+
+                        if (completed == songs.size) {
+                            progressDialog.dismiss()
+                            Toast.makeText(
+                                this,
+                                "Importate $addedCount canzoni",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                            loadPlaylistSongs()
+                        }
+                    }
+            }
+        }
+    }
+
+    private fun showRenamePlaylistDialog() {
+        val input = android.widget.EditText(this)
+        input.setText(playlist?.name)
+
+        AlertDialog.Builder(this)
+            .setTitle("Rinomina Playlist")
+            .setView(input)
+            .setPositiveButton("Rinomina") { _, _ ->
+                val newName = input.text.toString().trim()
+                if (newName.isNotEmpty()) {
+                    renamePlaylist(newName)
+                }
+            }
+            .setNegativeButton("Annulla", null)
+            .show()
+    }
+
+    private fun renamePlaylist(newName: String) {
+        playlist?.let { pl ->
+            firestore.collection("playlists")
+                .document(pl.id)
+                .update("name", newName)
+                .addOnSuccessListener {
+                    playlistNameText.text = newName
+                    Toast.makeText(this, "Playlist rinominata", Toast.LENGTH_SHORT).show()
+                }
+                .addOnFailureListener { e ->
+                    Log.e("PlaylistSongsActivity", "Error renaming: ${e.message}")
+                    Toast.makeText(this, "Errore rinomina", Toast.LENGTH_SHORT).show()
+                }
+        }
+    }
+
+    private fun confirmDeletePlaylist() {
+        AlertDialog.Builder(this)
+            .setTitle("Elimina Playlist")
+            .setMessage("Vuoi eliminare '${playlist?.name}'? Le canzoni rimarranno sul dispositivo.")
+            .setPositiveButton("Elimina") { _, _ ->
+                deletePlaylist()
+            }
+            .setNegativeButton("Annulla", null)
+            .show()
+    }
+
+    private fun deletePlaylist() {
+        playlist?.let { pl ->
+            firestore.collection("playlists")
+                .document(pl.id)
+                .delete()
+                .addOnSuccessListener {
+                    Toast.makeText(this, "Playlist eliminata", Toast.LENGTH_SHORT).show()
+                    finish()
+                }
+                .addOnFailureListener { e ->
+                    Log.e("PlaylistSongsActivity", "Error deleting: ${e.message}")
+                    Toast.makeText(this, "Errore eliminazione", Toast.LENGTH_SHORT).show()
+                }
+        }
+    }
+
     private fun enterSelectionMode() {
         isSelectionMode = true
-
-        // Nascondi info normale
         normalInfoContainer.visibility = View.GONE
-
-        // Mostra contatore selezione
         selectionCountText.visibility = View.VISIBLE
-
-        // Mostra bottoni selezione
         btnAddSelectedToOtherPlaylist.visibility = View.VISIBLE
         btnRemoveSelectedFromPlaylist.visibility = View.VISIBLE
-
-        // Nascondi menu playlist
         btnPlaylistMenu.visibility = View.GONE
-
-        // Cambia icona back button in X
+        btnSortPlaylist.visibility = View.GONE
         backButton.setImageResource(android.R.drawable.ic_menu_close_clear_cancel)
 
         Log.d("PlaylistSongsActivity", "✅ Entered selection mode")
     }
 
-    // NUEVO: Esci dalla modalità selezione
     private fun exitSelectionMode() {
         isSelectionMode = false
         songAdapter.exitSelectionMode()
 
-        // Ripristina info normale
         normalInfoContainer.visibility = View.VISIBLE
-
-        // Nascondi contatore selezione
         selectionCountText.visibility = View.GONE
-
-        // Nascondi bottoni selezione
         btnAddSelectedToOtherPlaylist.visibility = View.GONE
         btnRemoveSelectedFromPlaylist.visibility = View.GONE
-
-        // Mostra menu playlist
         btnPlaylistMenu.visibility = View.VISIBLE
-
-        // Ripristina icona back button
+        btnSortPlaylist.visibility = View.VISIBLE
         backButton.setImageResource(android.R.drawable.arrow_down_float)
 
         Log.d("PlaylistSongsActivity", "❌ Exited selection mode")
     }
 
-    // NUEVO: Aggiorna UI contatore selezione
     private fun updateSelectionUI(count: Int) {
         selectionCountText.text = if (count == 1) {
             "$count selezionata"
@@ -332,7 +721,6 @@ class PlaylistSongsActivity : AppCompatActivity() {
         btnRemoveSelectedFromPlaylist.isEnabled = count > 0
     }
 
-    // NUEVO: Aggiungi canzoni selezionate ad ALTRA playlist
     private fun addSelectedSongsToOtherPlaylist() {
         val selectedSongs = songAdapter.getSelectedSongs()
 
@@ -341,55 +729,31 @@ class PlaylistSongsActivity : AppCompatActivity() {
             return
         }
 
-        if (currentUserId.isEmpty()) {
-            AlertDialog.Builder(this)
-                .setTitle("Login Richiesto")
-                .setMessage("Devi effettuare l'accesso per usare le playlist.")
-                .setPositiveButton("OK", null)
-                .show()
-            return
-        }
-
-        if (userPlaylists.size <= 1) {
-            Toast.makeText(
-                this,
-                "Crea prima un'altra playlist!",
-                Toast.LENGTH_LONG
-            ).show()
-            return
-        }
-
-        // Mostra dialog per scegliere la playlist
-        showAddMultipleSongsDialog(selectedSongs)
-    }
-
-    // NUEVO: Dialog per aggiungere più canzoni
-    private fun showAddMultipleSongsDialog(songs: List<Song>) {
-        // Filtra le playlist per escludere quella corrente
         val otherPlaylists = userPlaylists.filter { it.id != playlist?.id }
 
         if (otherPlaylists.isEmpty()) {
-            Toast.makeText(
-                this,
-                "Non hai altre playlist disponibili!",
-                Toast.LENGTH_LONG
-            ).show()
+            Toast.makeText(this, "Crea prima un'altra playlist!", Toast.LENGTH_SHORT).show()
             return
         }
 
         val playlistNames = otherPlaylists.map { it.name }.toTypedArray()
 
         AlertDialog.Builder(this)
-            .setTitle("Aggiungi ${songs.size} canzoni a...")
+            .setTitle("Aggiungi ${selectedSongs.size} canzoni a:")
             .setItems(playlistNames) { _, which ->
-                val selectedPlaylist = otherPlaylists[which]
-                addMultipleSongsToPlaylist(songs, selectedPlaylist.id, selectedPlaylist.name)
+                val targetPlaylist = otherPlaylists[which]
+
+                selectedSongs.forEach { song ->
+                    addSongToOtherPlaylist(song, targetPlaylist.id)
+                }
+
+                exitSelectionMode()
+                Toast.makeText(this, "${selectedSongs.size} canzoni aggiunte", Toast.LENGTH_SHORT).show()
             }
             .setNegativeButton("Annulla", null)
             .show()
     }
 
-    // NUEVO: Rimuovi canzoni selezionate dalla playlist corrente
     private fun removeSelectedSongsFromPlaylist() {
         val selectedSongs = songAdapter.getSelectedSongs()
 
@@ -398,10 +762,9 @@ class PlaylistSongsActivity : AppCompatActivity() {
             return
         }
 
-        // Mostra conferma
         AlertDialog.Builder(this)
-            .setTitle("Rimuovi ${selectedSongs.size} canzoni?")
-            .setMessage("Vuoi rimuovere ${selectedSongs.size} canzoni da questa playlist?")
+            .setTitle("Rimuovi canzoni")
+            .setMessage("Rimuovere ${selectedSongs.size} canzoni da questa playlist?")
             .setPositiveButton("Rimuovi") { _, _ ->
                 performRemoveMultipleSongs(selectedSongs)
             }
@@ -409,23 +772,19 @@ class PlaylistSongsActivity : AppCompatActivity() {
             .show()
     }
 
-    // NUEVO: Esegui rimozione multipla
     private fun performRemoveMultipleSongs(songs: List<Song>) {
         Log.d("PlaylistSongsActivity", "Removing ${songs.size} songs from playlist")
 
-        var removedCount = 0
-        var errorCount = 0
-        val totalSongs = songs.size
-
-        // Mostra progress
         val progressDialog = AlertDialog.Builder(this)
             .setTitle("Rimozione in corso...")
-            .setMessage("0 / $totalSongs")
+            .setMessage("0 / ${songs.size}")
             .setCancelable(false)
             .create()
         progressDialog.show()
 
-        // Rimuovi ogni canzone
+        var removedCount = 0
+        var errorCount = 0
+
         songs.forEach { song ->
             playlist?.let { pl ->
                 firestore.collection("playlists")
@@ -435,27 +794,24 @@ class PlaylistSongsActivity : AppCompatActivity() {
                     .delete()
                     .addOnSuccessListener {
                         removedCount++
-
-                        // Aggiorna progress
                         val completed = removedCount + errorCount
-                        progressDialog.setMessage("$completed / $totalSongs")
+                        progressDialog.setMessage("$completed / ${songs.size}")
 
-                        if (completed == totalSongs) {
+                        if (completed == songs.size) {
                             progressDialog.dismiss()
-                            showRemovalResult(removedCount, errorCount)
 
-                            // Rimuovi dalle liste locali
                             playlistSongs.removeAll(songs)
                             songAdapter.updateSongs(playlistSongs)
                             updateSongCount()
                             exitSelectionMode()
 
-                            // Segnala cambiamento
-                            setResult(RESULT_OK)
+                            Toast.makeText(
+                                this,
+                                "$removedCount canzoni rimosse",
+                                Toast.LENGTH_SHORT
+                            ).show()
 
-                            // Se la playlist è vuota, torna indietro
                             if (playlistSongs.isEmpty()) {
-                                Toast.makeText(this, "Playlist vuota", Toast.LENGTH_SHORT).show()
                                 finish()
                             }
                         }
@@ -463,599 +819,24 @@ class PlaylistSongsActivity : AppCompatActivity() {
                     .addOnFailureListener {
                         errorCount++
                         val completed = removedCount + errorCount
-                        progressDialog.setMessage("$completed / $totalSongs")
+                        progressDialog.setMessage("$completed / ${songs.size}")
 
-                        if (completed == totalSongs) {
+                        if (completed == songs.size) {
                             progressDialog.dismiss()
-                            showRemovalResult(removedCount, errorCount)
+
+                            playlistSongs.removeAll(songs)
+                            songAdapter.updateSongs(playlistSongs)
+                            updateSongCount()
                             exitSelectionMode()
-                        }
-                    }
-            }
-        }
-    }
 
-    // NUEVO: Mostra risultato rimozione
-    private fun showRemovalResult(removed: Int, errors: Int) {
-        val message = buildString {
-            append("✅ Rimozione completata!\n\n")
-            if (removed > 0) append("Rimosse: $removed\n")
-            if (errors > 0) append("Errori: $errors\n")
-        }
-
-        AlertDialog.Builder(this)
-            .setTitle("Risultato")
-            .setMessage(message)
-            .setPositiveButton("OK", null)
-            .show()
-
-        Log.d("PlaylistSongsActivity", "✅ Removal completed: removed=$removed, errors=$errors")
-    }
-
-    // Aggiungi multiple songs a playlist
-    private fun addMultipleSongsToPlaylist(songs: List<Song>, playlistId: String, playlistName: String) {
-        Log.d("PlaylistSongsActivity", "Adding ${songs.size} songs to playlist '$playlistName'")
-
-        var addedCount = 0
-        var skippedCount = 0
-        var errorCount = 0
-        val totalSongs = songs.size
-
-        // Mostra progress
-        val progressDialog = AlertDialog.Builder(this)
-            .setTitle("Aggiunta in corso...")
-            .setMessage("0 / $totalSongs")
-            .setCancelable(false)
-            .create()
-        progressDialog.show()
-
-        songs.forEach { song ->
-            firestore.collection("playlists")
-                .document(playlistId)
-                .collection("songs")
-                .document(song.id.toString())
-                .get()
-                .addOnSuccessListener { document ->
-                    if (document.exists()) {
-                        skippedCount++
-                        val completed = addedCount + skippedCount + errorCount
-                        progressDialog.setMessage("$completed / $totalSongs")
-
-                        if (completed == totalSongs) {
-                            progressDialog.dismiss()
-                            showAdditionResult(addedCount, skippedCount, errorCount, playlistName)
-                            exitSelectionMode()
-                        }
-                    } else {
-                        val songData = hashMapOf(
-                            "id" to song.id,
-                            "title" to song.title,
-                            "artist" to song.artist,
-                            "album" to song.album,
-                            "duration" to song.duration,
-                            "path" to song.path,
-                            "size" to song.size,
-                            "addedAt" to System.currentTimeMillis()
-                        )
-
-                        firestore.collection("playlists")
-                            .document(playlistId)
-                            .collection("songs")
-                            .document(song.id.toString())
-                            .set(songData)
-                            .addOnSuccessListener {
-                                addedCount++
-                                val completed = addedCount + skippedCount + errorCount
-                                progressDialog.setMessage("$completed / $totalSongs")
-
-                                if (completed == totalSongs) {
-                                    progressDialog.dismiss()
-                                    showAdditionResult(addedCount, skippedCount, errorCount, playlistName)
-                                    exitSelectionMode()
-                                }
-                            }
-                            .addOnFailureListener {
-                                errorCount++
-                                val completed = addedCount + skippedCount + errorCount
-                                progressDialog.setMessage("$completed / $totalSongs")
-
-                                if (completed == totalSongs) {
-                                    progressDialog.dismiss()
-                                    showAdditionResult(addedCount, skippedCount, errorCount, playlistName)
-                                    exitSelectionMode()
-                                }
-                            }
-                    }
-                }
-        }
-    }
-
-    // NUEVO: Mostra risultato aggiunta
-    private fun showAdditionResult(added: Int, skipped: Int, errors: Int, playlistName: String) {
-        val message = buildString {
-            append("✅ Operazione completata!\n\n")
-            if (added > 0) append("Aggiunte: $added\n")
-            if (skipped > 0) append("Già presenti: $skipped\n")
-            if (errors > 0) append("Errori: $errors\n")
-            append("\nPlaylist: $playlistName")
-        }
-
-        AlertDialog.Builder(this)
-            .setTitle("Risultato")
-            .setMessage(message)
-            .setPositiveButton("OK", null)
-            .show()
-
-        Log.d("PlaylistSongsActivity", "✅ Addition completed: added=$added, skipped=$skipped, errors=$errors")
-    }
-
-    private fun handleSongMenuAction(song: Song, action: SongAdapter.MenuAction) {
-        when (action) {
-            SongAdapter.MenuAction.ADD_TO_PLAYLIST -> {
-                // ✅ NUOVA FUNZIONALITÀ: Aggiungi ad ALTRA playlist
-                if (currentUserId.isEmpty()) {
-                    Toast.makeText(this, "Devi effettuare l'accesso", Toast.LENGTH_SHORT).show()
-                } else if (userPlaylists.size <= 1) {
-                    // Solo questa playlist esiste
-                    Toast.makeText(
-                        this,
-                        "Crea prima un'altra playlist!",
-                        Toast.LENGTH_LONG
-                    ).show()
-                } else {
-                    // Mostra dialog per altre playlist
-                    showAddSingleSongToOtherPlaylistDialog(song)
-                }
-            }
-            SongAdapter.MenuAction.REMOVE_FROM_PLAYLIST -> {
-                showRemoveFromPlaylistConfirmation(song)
-            }
-            SongAdapter.MenuAction.SONG_DETAILS -> {
-                showSongDetails(song)
-            }
-            SongAdapter.MenuAction.DELETE_FROM_DEVICE -> {
-                // In una playlist, questo dovrebbe rimuovere dalla playlist
-                showRemoveFromPlaylistConfirmation(song)
-            }
-        }
-    }
-
-    // ✅ NUEVO METODO per singola canzone
-    private fun showAddSingleSongToOtherPlaylistDialog(song: Song) {
-        // Filtra le playlist per escludere quella corrente
-        val otherPlaylists = userPlaylists.filter { it.id != playlist?.id }
-
-        if (otherPlaylists.isEmpty()) {
-            Toast.makeText(
-                this,
-                "Non hai altre playlist disponibili!",
-                Toast.LENGTH_LONG
-            ).show()
-            return
-        }
-
-        val playlistNames = otherPlaylists.map { it.name }.toTypedArray()
-
-        AlertDialog.Builder(this)
-            .setTitle("Aggiungi '${song.title}' a...")
-            .setItems(playlistNames) { _, which ->
-                val selectedPlaylist = otherPlaylists[which]
-                addSingleSongToPlaylist(song, selectedPlaylist.id, selectedPlaylist.name)
-            }
-            .setNegativeButton("Annulla", null)
-            .show()
-    }
-
-    // ✅ NUEVO METODO per singola canzone
-    private fun addSingleSongToPlaylist(song: Song, playlistId: String, playlistName: String) {
-        Log.d("PlaylistSongsActivity", "Adding '${song.title}' to playlist '$playlistName'")
-
-        // Controlla se la canzone è già nella playlist
-        firestore.collection("playlists")
-            .document(playlistId)
-            .collection("songs")
-            .document(song.id.toString())
-            .get()
-            .addOnSuccessListener { document ->
-                if (document.exists()) {
-                    Toast.makeText(
-                        this,
-                        "'${song.title}' è già in '$playlistName'",
-                        Toast.LENGTH_SHORT
-                    ).show()
-                } else {
-                    // Aggiungi la canzone
-                    val songData = hashMapOf(
-                        "id" to song.id,
-                        "title" to song.title,
-                        "artist" to song.artist,
-                        "album" to song.album,
-                        "duration" to song.duration,
-                        "path" to song.path,
-                        "size" to song.size,
-                        "addedAt" to System.currentTimeMillis()
-                    )
-
-                    firestore.collection("playlists")
-                        .document(playlistId)
-                        .collection("songs")
-                        .document(song.id.toString())
-                        .set(songData)
-                        .addOnSuccessListener {
                             Toast.makeText(
                                 this,
-                                "✅ '${song.title}' aggiunta a '$playlistName'",
+                                "$removedCount rimosse, $errorCount errori",
                                 Toast.LENGTH_SHORT
                             ).show()
-                            Log.d("PlaylistSongsActivity", "✅ Song added successfully")
-                        }
-                        .addOnFailureListener { e ->
-                            Toast.makeText(
-                                this,
-                                "Errore aggiunta canzone",
-                                Toast.LENGTH_SHORT
-                            ).show()
-                            Log.e("PlaylistSongsActivity", "❌ Error: ${e.message}")
-                        }
-                }
-            }
-            .addOnFailureListener { e ->
-                Toast.makeText(
-                    this,
-                    "Errore controllo canzone",
-                    Toast.LENGTH_SHORT
-                ).show()
-                Log.e("PlaylistSongsActivity", "❌ Error checking: ${e.message}")
-            }
-    }
-
-    private fun showSongDetails(song: Song) {
-        val fileSize = formatFileSize(song.size)
-        val message = """
-        Titolo: ${song.title}
-        Artista: ${song.artist}
-        Album: ${song.album}
-        Durata: ${song.getFormattedDuration()}
-        Dimensione: $fileSize
-    """.trimIndent()
-
-        AlertDialog.Builder(this)
-            .setTitle(getString(R.string.song_details_title))
-            .setMessage(message)
-            .setPositiveButton(getString(R.string.close)) { dialog, _ ->
-                dialog.dismiss()
-            }
-            .show()
-    }
-
-    private fun showRemoveFromPlaylistConfirmation(song: Song) {
-        AlertDialog.Builder(this)
-            .setTitle("Rimuovi da Playlist")
-            .setMessage("Vuoi rimuovere '${song.title}' da questa playlist?")
-            .setPositiveButton("Rimuovi") { dialog, _ ->
-                removeSongFromPlaylist(song)
-                dialog.dismiss()
-            }
-            .setNegativeButton(getString(R.string.cancel)) { dialog, _ ->
-                dialog.dismiss()
-            }
-            .show()
-    }
-
-    private fun removeSongFromPlaylist(song: Song) {
-        Log.d("PlaylistSongsActivity", "Removing song from playlist: ${song.title}")
-
-        playlist?.let { pl ->
-            firestore.collection("playlists")
-                .document(pl.id)
-                .collection("songs")
-                .document(song.id.toString())
-                .delete()
-                .addOnSuccessListener {
-                    // Rimuovi dalla lista locale
-                    playlistSongs.remove(song)
-
-                    runOnUiThread {
-                        songAdapter.updateSongs(playlistSongs)
-                        updateSongCount()
-
-                        Toast.makeText(this, "Canzone rimossa dalla playlist", Toast.LENGTH_SHORT).show()
-                        Log.d("PlaylistSongsActivity", "✅ Song removed successfully")
-
-                        setResult(RESULT_OK)
-
-                        if (playlistSongs.isEmpty()) {
-                            Toast.makeText(this, "Playlist vuota", Toast.LENGTH_SHORT).show()
-                            finish()
-                        }
-                    }
-                }
-                .addOnFailureListener { e ->
-                    runOnUiThread {
-                        Log.e("PlaylistSongsActivity", "Error removing song: ${e.message}")
-                        Toast.makeText(this, "Errore rimozione canzone: ${e.message}", Toast.LENGTH_SHORT).show()
-                    }
-                }
-        }
-    }
-
-    private fun showPlaylistMenu() {
-        val options = arrayOf(
-            "Rinomina Playlist",
-            "Importa da Cartella",  // ✅ AGGIUNTO
-            "Elimina Playlist"
-        )
-
-        AlertDialog.Builder(this)
-            .setTitle("Gestisci Playlist")
-            .setItems(options) { _, which ->
-                when (which) {
-                    0 -> showRenamePlaylistDialog()
-                    1 -> showImportFolderDialog()  // ✅ AGGIUNTO
-                    2 -> showDeletePlaylistConfirmation()
-                }
-            }
-            .setNegativeButton(getString(R.string.cancel), null)
-            .show()
-    }
-
-    private fun showRenamePlaylistDialog() {
-        val editText = EditText(this)
-        editText.setText(playlist?.name ?: "")
-
-        AlertDialog.Builder(this)
-            .setTitle("Rinomina Playlist")
-            .setView(editText)
-            .setPositiveButton("Salva") { _, _ ->
-                val newName = editText.text.toString().trim()
-                if (newName.isNotEmpty()) {
-                    renamePlaylist(newName)
-                }
-            }
-            .setNegativeButton(getString(R.string.cancel), null)
-            .show()
-    }
-
-    private fun renamePlaylist(newName: String) {
-        Log.d("PlaylistSongsActivity", "Renaming playlist to: $newName")
-
-        playlist?.let { pl ->
-            firestore.collection("playlists")
-                .document(pl.id)
-                .update("name", newName)
-                .addOnSuccessListener {
-                    playlist = pl.copy(name = newName)
-                    playlistNameText.text = newName
-
-                    Toast.makeText(this, "Playlist rinominata", Toast.LENGTH_SHORT).show()
-                    Log.d("PlaylistSongsActivity", "✅ Playlist renamed successfully")
-                    setResult(RESULT_OK)
-                }
-                .addOnFailureListener { e ->
-                    Log.e("PlaylistSongsActivity", "Error renaming playlist: ${e.message}")
-                    Toast.makeText(this, "Errore rinomina", Toast.LENGTH_SHORT).show()
-                }
-        }
-    }
-
-    private fun showDeletePlaylistConfirmation() {
-        AlertDialog.Builder(this)
-            .setTitle("Elimina Playlist")
-            .setMessage("Sei sicuro di voler eliminare '${playlist?.name}'? Questa azione non può essere annullata.")
-            .setPositiveButton("Elimina") { _, _ ->
-                deletePlaylist()
-            }
-            .setNegativeButton(getString(R.string.cancel), null)
-            .show()
-    }
-
-    private fun deletePlaylist() {
-        Log.d("PlaylistSongsActivity", "Deleting playlist: ${playlist?.id}")
-
-        playlist?.let { pl ->
-            // Prima elimina tutte le canzoni
-            firestore.collection("playlists")
-                .document(pl.id)
-                .collection("songs")
-                .get()
-                .addOnSuccessListener { documents ->
-                    // Elimina ogni canzone
-                    for (doc in documents) {
-                        doc.reference.delete()
-                    }
-
-                    // Poi elimina la playlist
-                    firestore.collection("playlists")
-                        .document(pl.id)
-                        .delete()
-                        .addOnSuccessListener {
-                            Toast.makeText(this, "Playlist eliminata", Toast.LENGTH_SHORT).show()
-                            Log.d("PlaylistSongsActivity", "✅ Playlist deleted successfully")
-                            setResult(RESULT_OK)
-                            finish()
-                        }
-                        .addOnFailureListener { e ->
-                            Log.e("PlaylistSongsActivity", "Error deleting playlist: ${e.message}")
-                            Toast.makeText(this, "Errore eliminazione", Toast.LENGTH_SHORT).show()
-                        }
-                }
-                .addOnFailureListener { e ->
-                    Log.e("PlaylistSongsActivity", "Error deleting songs: ${e.message}")
-                    Toast.makeText(this, "Errore eliminazione", Toast.LENGTH_SHORT).show()
-                }
-        }
-    }
-
-    private fun formatFileSize(bytes: Long): String {
-        val kb = bytes / 1024.0
-        val mb = kb / 1024.0
-        val gb = mb / 1024.0
-
-        return when {
-            gb >= 1.0 -> String.format("%.1f GB", gb)
-            mb >= 1.0 -> String.format("%.1f MB", mb)
-            kb >= 1.0 -> String.format("%.1f KB", kb)
-            else -> "$bytes bytes"
-        }
-    }
-    private fun showImportFolderDialog() {
-        // Ottieni tutte le cartelle
-        val folders = getFoldersFromDevice()
-
-        if (folders.isEmpty()) {
-            Toast.makeText(this, "Nessuna cartella trovata", Toast.LENGTH_SHORT).show()
-            return
-        }
-
-        val folderNames = folders.map { "${it.name} (${it.songCount} canzoni)" }.toTypedArray()
-
-        AlertDialog.Builder(this)
-            .setTitle("Importa canzoni da cartella")
-            .setItems(folderNames) { _, which ->
-                val selectedFolder = folders[which]
-                importFolderToFirebase(selectedFolder)
-            }
-            .setNegativeButton("Annulla", null)
-            .show()
-    }
-
-    private fun getFoldersFromDevice(): List<FolderInfo> {
-        val folders = mutableMapOf<String, FolderInfo>()
-
-        val projection = arrayOf(android.provider.MediaStore.Audio.Media.DATA)
-
-        contentResolver.query(
-            android.provider.MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
-            projection,
-            "${android.provider.MediaStore.Audio.Media.IS_MUSIC} = 1",
-            null,
-            null
-        )?.use { cursor ->
-            val pathColumn = cursor.getColumnIndexOrThrow(android.provider.MediaStore.Audio.Media.DATA)
-
-            while (cursor.moveToNext()) {
-                val path = cursor.getString(pathColumn) ?: continue
-                val file = java.io.File(path)
-                val folderPath = file.parent ?: continue
-                val folderName = java.io.File(folderPath).name
-
-                if (!folders.containsKey(folderPath)) {
-                    folders[folderPath] = FolderInfo(folderName, folderPath, 0)
-                }
-
-                folders[folderPath] = folders[folderPath]!!.copy(
-                    songCount = folders[folderPath]!!.songCount + 1
-                )
-            }
-        }
-
-        return folders.values.sortedBy { it.name }
-    }
-
-    private fun importFolderToFirebase(folder: FolderInfo) {
-        val progressDialog = AlertDialog.Builder(this)
-            .setTitle("Importazione in corso...")
-            .setMessage("0 / ? canzoni")
-            .setCancelable(false)
-            .create()
-
-        progressDialog.show()
-
-        val scanner = MusicScanner(this)
-        val allSongs = scanner.scanMusicFiles()
-
-        val songsInFolder = allSongs.filter { song ->
-            song.path.startsWith(folder.path)
-        }
-
-        if (songsInFolder.isEmpty()) {
-            progressDialog.dismiss()
-            Toast.makeText(this, "Nessuna canzone trovata nella cartella", Toast.LENGTH_SHORT).show()
-            return
-        }
-
-        progressDialog.setMessage("0 / ${songsInFolder.size} canzoni")
-
-        var addedCount = 0
-        var skippedCount = 0
-        var processedCount = 0
-
-        playlist?.let { pl ->
-            songsInFolder.forEach { song ->
-                firestore.collection("playlists")
-                    .document(pl.id)
-                    .collection("songs")
-                    .document(song.id.toString())
-                    .get()
-                    .addOnSuccessListener { document ->
-                        processedCount++
-
-                        if (document.exists()) {
-                            skippedCount++
-                        } else {
-                            // ✅ MODIFICATO: Salva mediaStoreId invece di path
-                            val songData = hashMapOf(
-                                "mediaStoreId" to song.id,
-                                "title" to song.title,
-                                "artist" to song.artist,
-                                "album" to song.album,
-                                "duration" to song.duration,
-                                "size" to song.size,
-                                "addedAt" to System.currentTimeMillis()
-                            )
-
-                            firestore.collection("playlists")
-                                .document(pl.id)
-                                .collection("songs")
-                                .document(song.id.toString())
-                                .set(songData)
-                                .addOnSuccessListener {
-                                    addedCount++
-                                }
-                        }
-
-                        runOnUiThread {
-                            progressDialog.setMessage("$processedCount / ${songsInFolder.size} canzoni")
-
-                            if (processedCount == songsInFolder.size) {
-                                progressDialog.dismiss()
-
-                                val message = when {
-                                    addedCount == 0 -> "Tutte le canzoni erano già presenti"
-                                    skippedCount == 0 -> "Aggiunte $addedCount canzoni"
-                                    else -> "Aggiunte $addedCount canzoni\n($skippedCount già presenti)"
-                                }
-
-                                AlertDialog.Builder(this@PlaylistSongsActivity)
-                                    .setTitle("Import completato")
-                                    .setMessage(message)
-                                    .setPositiveButton("OK") { _, _ ->
-                                        loadPlaylistSongs()
-                                    }
-                                    .show()
-                            }
-                        }
-                    }
-                    .addOnFailureListener { e ->
-                        processedCount++
-                        skippedCount++
-
-                        runOnUiThread {
-                            progressDialog.setMessage("$processedCount / ${songsInFolder.size} canzoni")
-
-                            if (processedCount == songsInFolder.size) {
-                                progressDialog.dismiss()
-                                Toast.makeText(this@PlaylistSongsActivity, "Importate $addedCount canzoni con alcuni errori", Toast.LENGTH_LONG).show()
-                                loadPlaylistSongs()
-                            }
                         }
                     }
             }
         }
     }
 }
-data class FolderInfo(
-    val name: String,
-    val path: String,
-    val songCount: Int
-)

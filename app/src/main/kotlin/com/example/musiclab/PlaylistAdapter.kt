@@ -41,6 +41,7 @@ class PlaylistAdapter(
         )
 
         Log.d("PlaylistAdapter", "Playlist '${playlist.name}': $songCount songs")
+        holder.songCount.visibility = View.GONE
 
         // Click listener per aprire PlaylistSongsActivity
         holder.itemView.setOnClickListener {
@@ -49,6 +50,7 @@ class PlaylistAdapter(
 
         // Nascondi il menu button (gestito ora in PlaylistSongsActivity)
         holder.menuButton.visibility = View.GONE
+
     }
 
     override fun getItemCount(): Int = playlists.size

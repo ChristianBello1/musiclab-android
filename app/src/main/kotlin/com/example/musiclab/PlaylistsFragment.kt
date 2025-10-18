@@ -260,11 +260,14 @@ class PlaylistsFragment : Fragment() {
         }
 
         isLoading = true
-        Log.d("PlaylistsFragment", "Loading playlists for user: $currentUserId")
+        Log.d("PlaylistsFragment", "⚡ FAST LOAD: Loading playlists for user: $currentUserId")
 
-        emptyStateText.text = "Caricamento playlist..."
-        emptyStateText.visibility = View.VISIBLE
-        recyclerView.visibility = View.GONE
+        // ✅ FIX: Mostra "caricamento" solo se la lista è vuota
+        if (playlists.isEmpty()) {
+            emptyStateText.text = "Caricamento playlist..."
+            emptyStateText.visibility = View.VISIBLE
+            recyclerView.visibility = View.GONE
+        }
 
         playlists.clear()
 
@@ -272,54 +275,76 @@ class PlaylistsFragment : Fragment() {
             .whereEqualTo("ownerId", currentUserId)
             .get()
             .addOnSuccessListener { documents ->
-                Log.d("PlaylistsFragment", "Firestore returned ${documents.count()} documents")
+                Log.d("PlaylistsFragment", "✅ Firestore returned ${documents.size()} playlists")
 
-                val totalPlaylists = documents.size()
-                var loadedCount = 0
-
-                if (totalPlaylists == 0) {
+                if (documents.isEmpty) {
                     playlistAdapter.notifyDataSetChanged()
                     updateUI()
                     isLoading = false
                     return@addOnSuccessListener
                 }
 
+                // ✅ FIX PRINCIPALE: Mostra SUBITO le playlist senza aspettare le canzoni!
                 for (document in documents) {
                     val playlistId = document.id
                     val playlistName = document.getString("name") ?: "Playlist"
                     val ownerId = document.getString("ownerId") ?: ""
                     val createdAt = document.getLong("createdAt") ?: System.currentTimeMillis()
 
-                    // Carica TUTTE le canzoni con paginazione
-                    loadAllSongsForPlaylist(playlistId, playlistName) { songs ->
-                        val playlist = Playlist(
-                            id = playlistId,
-                            name = playlistName,
-                            ownerId = ownerId,
-                            createdAt = createdAt,
-                            songs = songs,
-                            isLocal = false
-                        )
+                    // Crea playlist VUOTA temporaneamente
+                    val playlist = Playlist(
+                        id = playlistId,
+                        name = playlistName,
+                        ownerId = ownerId,
+                        createdAt = createdAt,
+                        songs = mutableListOf(), // ← Lista vuota per ora
+                        isLocal = false
+                    )
 
-                        playlists.add(playlist)
-                        loadedCount++
-
-                        Log.d("PlaylistsFragment", "Loaded playlist: $playlistName with ${songs.size} songs")
-
-                        if (loadedCount == totalPlaylists) {
-                            playlistAdapter.notifyDataSetChanged()
-                            updateUI()
-                            isLoading = false
-                            Log.d("PlaylistsFragment", "All playlists loaded")
-                        }
-                    }
+                    playlists.add(playlist)
                 }
+
+                // ✅ MOSTRA SUBITO le playlist (senza canzoni)
+                playlistAdapter.notifyDataSetChanged()
+                updateUI()
+                isLoading = false
+
+                Log.d("PlaylistsFragment", "⚡ FAST: Showed ${playlists.size} playlists IMMEDIATELY")
+
+                // ✅ OPZIONALE: Carica il conteggio canzoni in background (leggero e veloce)
+                loadSongCountsInBackground()
             }
             .addOnFailureListener { e ->
                 isLoading = false
-                Log.e("PlaylistsFragment", "Error loading playlists: ${e.message}", e)
-                Toast.makeText(requireContext(), "Errore caricamento playlist: ${e.message}", Toast.LENGTH_SHORT).show()
+                Log.e("PlaylistsFragment", "❌ Error loading playlists: ${e.message}", e)
+                Toast.makeText(
+                    requireContext(),
+                    "Errore caricamento playlist: ${e.message}",
+                    Toast.LENGTH_SHORT
+                ).show()
             }
+    }
+
+    private fun loadSongCountsInBackground() {
+        Log.d("PlaylistsFragment", "📊 Loading song counts in background...")
+
+        playlists.forEach { playlist ->
+            firestore.collection("playlists")
+                .document(playlist.id)
+                .collection("songs")
+                .get()
+                .addOnSuccessListener { songDocs ->
+                    // Aggiorna solo il conteggio, non le canzoni complete
+                    val songCount = songDocs.size()
+                    Log.d("PlaylistsFragment", "Playlist '${playlist.name}': $songCount songs")
+
+                    // Le canzoni verranno caricate quando l'utente apre la playlist
+                    // in PlaylistSongsActivity
+                }
+                .addOnFailureListener { e ->
+                    Log.e("PlaylistsFragment", "Error loading song count for ${playlist.name}: ${e.message}")
+                }
+        }
     }
 
     private fun loadAllSongsForPlaylist(
