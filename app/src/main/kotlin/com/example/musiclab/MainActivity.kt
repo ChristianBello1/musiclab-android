@@ -45,6 +45,8 @@ class MainActivity : AppCompatActivity() {
     private lateinit var googleAuthManager: GoogleAuthManager
     private var isLoggedIn = false
 
+    private lateinit var batteryOptimizer: BatteryOptimizer
+
     // Core components
     private lateinit var musicScanner: MusicScanner
     private lateinit var musicPlayer: MusicPlayer
@@ -182,6 +184,8 @@ class MainActivity : AppCompatActivity() {
 
         musicScanner = MusicScanner(this)
         musicPlayer = MusicPlayerManager.getInstance().getMusicPlayer(this)
+        batteryOptimizer = BatteryOptimizer.getInstance(this)
+        Log.d("MainActivity", "✅ BatteryOptimizer initialized")
 
         // ✅ NUOVO: Inizializza PlaybackStateManager
         playbackStateManager = PlaybackStateManager(this)
@@ -193,6 +197,8 @@ class MainActivity : AppCompatActivity() {
         checkNotificationPermission()
 
         Log.d("MainActivity", "=== MAIN ACTIVITY SETUP COMPLETE ===")
+
+        batteryOptimizer = BatteryOptimizer.getInstance(this)
     }
 
     private fun initializeGoogleAuth() {
@@ -415,6 +421,16 @@ class MainActivity : AppCompatActivity() {
 
         btnExpandPlayer.setOnClickListener {
             openPlayerActivity()
+            btnExpandPlayer.setOnClickListener {
+                // NUOVO: Animazione sul bottone
+                AnimationUtils.scaleButton(btnExpandPlayer)
+
+                val intent = Intent(this, PlayerActivity::class.java)
+                startActivity(intent)
+
+                // NUOVO: Transizione fluida
+                AnimationUtils.slideUpActivityTransition(this)
+            }
         }
 
         playerBottomContainer.setOnClickListener {
@@ -626,11 +642,10 @@ class MainActivity : AppCompatActivity() {
         Log.d("MainActivity", "🎵 Song clicked: ${song.title}")
 
         try {
-            // Trova l'indice in modo sicuro
             val songIndex = songs.indexOfFirst { it.id == song.id }
 
             if (songIndex == -1) {
-                Log.w("MainActivity", "⚠️ Song not found in main list, using ID: ${song.id}")
+                Log.w("MainActivity", "⚠️ Song not found in main list")
                 musicPlayer.setPlaylist(songs, 0)
                 musicPlayer.playSong(song)
             } else {
@@ -638,21 +653,23 @@ class MainActivity : AppCompatActivity() {
                 musicPlayer.playSong(song)
             }
 
-            // Aggiorna SUBITO la bottom bar
             updatePlayerBottomBar(true, song)
 
-            // Forza l'avvio del servizio
+            // ✅ NUOVO: Animazione
+            AnimationUtils.slideInFromBottom(playerBottomContainer, AnimationUtils.DURATION_SHORT)
+
             val serviceIntent = Intent(this, MusicService::class.java)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 startForegroundService(serviceIntent)
             } else {
                 startService(serviceIntent)
             }
-            Log.d("MainActivity", "🚀 Service intent sent!")
+
+            Log.d("MainActivity", "🚀 Service started")
 
         } catch (e: Exception) {
-            Log.e("MainActivity", "❌ Error in onSongClick: ${e.message}")
-            Toast.makeText(this, "Errore nella riproduzione", Toast.LENGTH_SHORT).show()
+            Log.e("MainActivity", "❌ Error: ${e.message}")
+            AnimationUtils.shake(playerBottomContainer)
         }
     }
 
@@ -714,15 +731,18 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun updateBottomProgress() {
-        if (!isUpdatingBottomProgress) {
-            val current = musicPlayer.getCurrentPosition()
-            val duration = musicPlayer.getDuration()
+        if (!isUpdatingBottomProgress) return
 
-            if (duration > 0) {
-                val progress = ((current * 100) / duration).toInt()
-                bottomSeekBar.progress = progress
-                bottomCurrentTime.text = formatTime(current)
-            }
+        val currentPosition = musicPlayer.getCurrentPosition()
+        val duration = musicPlayer.getDuration()
+
+        if (duration > 0) {
+            val progress = ((currentPosition.toFloat() / duration) * bottomSeekBar.max).toInt()
+
+            // ✅ NUOVO: Animazione seekbar
+            AnimationUtils.animateSeekBar(bottomSeekBar, progress, 200L)
+
+            bottomCurrentTime.text = formatTime(currentPosition.toInt())
         }
     }
 
@@ -886,19 +906,23 @@ class MainActivity : AppCompatActivity() {
         super.onResume()
         Log.d("MainActivity", "=== ON RESUME ===")
 
+        // ✅ NUOVO: Notifica foreground
+        batteryOptimizer.setForeground(true)
+
         val currentSong = musicPlayer.getCurrentSong()
         val isPlaying = musicPlayer.isPlaying()
         updatePlayerBottomBar(isPlaying, currentSong)
 
-        // ✅ NUOVO: Avvia salvataggio periodico dello stato
         stateSaveHandler.post(stateSaveRunnable)
     }
 
     override fun onPause() {
         super.onPause()
-        stopBottomProgressUpdates()
 
-        // ✅ NUOVO: Ferma salvataggio periodico e salva stato finale
+        // ✅ NUOVO: Notifica background
+        batteryOptimizer.setForeground(false)
+
+        stopBottomProgressUpdates()
         stateSaveHandler.removeCallbacks(stateSaveRunnable)
         saveCurrentPlaybackState()
 

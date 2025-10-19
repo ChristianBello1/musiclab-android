@@ -6,7 +6,7 @@
     android:orientation="vertical"
     android:background="@color/background_dark">
 
-    <!-- Header con back button -->
+    <!-- Header -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -35,7 +35,6 @@
             android:layout_marginStart="16dp" />
     </LinearLayout>
 
-    <!-- Divider -->
     <View
         android:layout_width="match_parent"
         android:layout_height="1dp"
@@ -52,7 +51,7 @@
             android:orientation="vertical"
             android:padding="16dp">
 
-            <!-- Sezione Automix -->
+            <!-- AUDIO -->
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -66,7 +65,7 @@
             <androidx.cardview.widget.CardView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginBottom="16dp"
+                android:layout_marginBottom="24dp"
                 app:cardCornerRadius="12dp"
                 app:cardElevation="4dp"
                 app:cardBackgroundColor="@color/card_dark">
@@ -77,7 +76,6 @@
                     android:orientation="vertical"
                     android:padding="16dp">
 
-                    <!-- Toggle Automix -->
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
@@ -115,7 +113,6 @@
                             android:trackTint="@color/text_secondary" />
                     </LinearLayout>
 
-                    <!-- Impostazioni Crossfade (visibili solo se automix attivo) -->
                     <LinearLayout
                         android:id="@+id/crossfade_settings_container"
                         android:layout_width="match_parent"
@@ -124,7 +121,6 @@
                         android:layout_marginTop="16dp"
                         android:visibility="gone">
 
-                        <!-- Divider -->
                         <View
                             android:layout_width="match_parent"
                             android:layout_height="1dp"
@@ -140,7 +136,6 @@
                             android:textColor="@color/text_primary"
                             android:layout_marginBottom="8dp" />
 
-                        <!-- Valore corrente -->
                         <TextView
                             android:id="@+id/crossfade_duration_text"
                             android:layout_width="wrap_content"
@@ -148,77 +143,223 @@
                             android:text="8 secondi"
                             android:textSize="18sp"
                             android:textColor="@color/primary_purple"
-                            android:textStyle="bold"
-                            android:layout_gravity="center_horizontal"
-                            android:layout_marginBottom="12dp" />
+                            android:layout_marginBottom="8dp" />
 
-                        <!-- SeekBar per durata -->
-                        <LinearLayout
+                        <SeekBar
+                            android:id="@+id/crossfade_duration_seekbar"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:orientation="horizontal"
-                            android:gravity="center_vertical">
-
-                            <TextView
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:text="5s"
-                                android:textSize="12sp"
-                                android:textColor="@color/text_secondary" />
-
-                            <SeekBar
-                                android:id="@+id/crossfade_duration_seekbar"
-                                android:layout_width="0dp"
-                                android:layout_height="wrap_content"
-                                android:layout_weight="1"
-                                android:layout_marginStart="12dp"
-                                android:layout_marginEnd="12dp"
-                                android:progressTint="@color/primary_purple"
-                                android:thumbTint="@color/primary_purple" />
-
-                            <TextView
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:text="10s"
-                                android:textSize="12sp"
-                                android:textColor="@color/text_secondary" />
-                        </LinearLayout>
-
-                        <TextView
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:text="La durata controlla quanto tempo prima della fine della canzone inizia la dissolvenza con la prossima."
-                            android:textSize="13sp"
-                            android:textColor="@color/text_secondary"
-                            android:layout_marginTop="12dp" />
+                            android:progressTint="@color/primary_purple"
+                            android:thumbTint="@color/primary_purple" />
                     </LinearLayout>
                 </LinearLayout>
             </androidx.cardview.widget.CardView>
 
-            <!-- Info aggiuntiva -->
-            <LinearLayout
+            <!-- SLEEP TIMER -->
+            <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:padding="12dp"
-                android:background="@drawable/info_background"
-                android:layout_marginTop="8dp">
+                android:text="TIMER DI SPEGNIMENTO"
+                android:textSize="14sp"
+                android:textStyle="bold"
+                android:textColor="@color/primary_purple"
+                android:layout_marginBottom="12dp" />
 
-                <ImageView
-                    android:layout_width="24dp"
-                    android:layout_height="24dp"
-                    android:src="@android:drawable/ic_dialog_info"
-                    android:layout_marginEnd="12dp"
-                    app:tint="@color/primary_purple" />
+            <androidx.cardview.widget.CardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="24dp"
+                app:cardCornerRadius="12dp"
+                app:cardElevation="4dp"
+                app:cardBackgroundColor="@color/card_dark">
 
-                <TextView
-                    android:layout_width="0dp"
+                <LinearLayout
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:text="L'automix crea una transizione fluida tra le canzoni, perfetto per mix DJ o ascolto continuo senza interruzioni."
-                    android:textSize="13sp"
-                    android:textColor="@color/text_secondary" />
-            </LinearLayout>
+                    android:orientation="vertical"
+                    android:padding="16dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Ferma la musica dopo"
+                        android:textSize="18sp"
+                        android:textStyle="bold"
+                        android:textColor="@color/text_primary"
+                        android:layout_marginBottom="4dp" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="La musica si fermerà automaticamente"
+                        android:textSize="14sp"
+                        android:textColor="@color/text_secondary"
+                        android:layout_marginBottom="16dp" />
+
+                    <LinearLayout
+                        android:id="@+id/timer_active_container"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:gravity="center"
+                        android:padding="16dp"
+                        android:background="@drawable/gradient_player_background"
+                        android:visibility="gone"
+                        android:layout_marginBottom="16dp">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="⏰ Timer attivo"
+                            android:textSize="16sp"
+                            android:textColor="@color/text_primary"
+                            android:layout_marginBottom="8dp" />
+
+                        <TextView
+                            android:id="@+id/timer_remaining_text"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="15:00"
+                            android:textSize="32sp"
+                            android:textStyle="bold"
+                            android:textColor="@color/primary_purple" />
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center">
+
+                        <Button
+                            android:id="@+id/btn_timer_5"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="5 min"
+                            android:textSize="14sp"
+                            android:backgroundTint="@color/purple_500"
+                            android:layout_margin="4dp" />
+
+                        <Button
+                            android:id="@+id/btn_timer_10"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="10 min"
+                            android:textSize="14sp"
+                            android:backgroundTint="@color/purple_500"
+                            android:layout_margin="4dp" />
+
+                        <Button
+                            android:id="@+id/btn_timer_15"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="15 min"
+                            android:textSize="14sp"
+                            android:backgroundTint="@color/purple_500"
+                            android:layout_margin="4dp" />
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center"
+                        android:layout_marginTop="4dp">
+
+                        <Button
+                            android:id="@+id/btn_timer_30"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="30 min"
+                            android:textSize="14sp"
+                            android:backgroundTint="@color/purple_500"
+                            android:layout_margin="4dp" />
+
+                        <Button
+                            android:id="@+id/btn_timer_60"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="60 min"
+                            android:textSize="14sp"
+                            android:backgroundTint="@color/purple_500"
+                            android:layout_margin="4dp" />
+
+                        <Button
+                            android:id="@+id/btn_timer_cancel"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="Annulla"
+                            android:textSize="14sp"
+                            android:backgroundTint="@android:color/holo_red_dark"
+                            android:layout_margin="4dp" />
+                    </LinearLayout>
+                </LinearLayout>
+            </androidx.cardview.widget.CardView>
+
+            <!-- PRESTAZIONI -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="PRESTAZIONI"
+                android:textSize="14sp"
+                android:textStyle="bold"
+                android:textColor="@color/primary_purple"
+                android:layout_marginBottom="12dp" />
+
+            <androidx.cardview.widget.CardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="16dp"
+                app:cardCornerRadius="12dp"
+                app:cardElevation="4dp"
+                app:cardBackgroundColor="@color/card_dark">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:padding="16dp"
+                    android:gravity="center_vertical">
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:orientation="vertical">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="🔋 Risparmio batteria"
+                            android:textSize="18sp"
+                            android:textStyle="bold"
+                            android:textColor="@color/text_primary" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Riduce gli aggiornamenti in background"
+                            android:textSize="14sp"
+                            android:textColor="@color/text_secondary"
+                            android:layout_marginTop="4dp" />
+                    </LinearLayout>
+
+                    <Switch
+                        android:id="@+id/battery_saver_switch"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:thumbTint="@color/primary_purple"
+                        android:trackTint="@color/text_secondary"
+                        android:checked="true" />
+                </LinearLayout>
+            </androidx.cardview.widget.CardView>
+
         </LinearLayout>
     </ScrollView>
 </LinearLayout>

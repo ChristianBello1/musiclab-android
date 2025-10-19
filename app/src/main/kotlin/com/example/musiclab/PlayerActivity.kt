@@ -90,6 +90,8 @@ class PlayerActivity : AppCompatActivity() {
         startProgressUpdates()
 
         Log.d("PlayerActivity", "=== SETUP COMPLETATO ===")
+
+        AnimationUtils.fadeIn(findViewById(R.id.player_controls_container))
     }
 
     private fun setupViews() {
@@ -164,69 +166,83 @@ class PlayerActivity : AppCompatActivity() {
         Log.d("PlayerActivity", "=== SETUP CLICK LISTENERS START ===")
 
         backButton.setOnClickListener {
+            AnimationUtils.scaleButton(backButton)
             Log.d("PlayerActivity", "Back button clicked")
             finish()
+            overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out)
         }
 
         queueButton.setOnClickListener {
-            Log.d("PlayerActivity", "Queue button clicked - opening QueueActivity")
+            AnimationUtils.scaleButton(queueButton)
+            Log.d("PlayerActivity", "Queue button clicked")
             val intent = Intent(this, QueueActivity::class.java)
             startActivity(intent)
+            AnimationUtils.overrideActivityTransition(this)
         }
 
         skipBack10Button.setOnClickListener {
+            AnimationUtils.scaleButton(skipBack10Button)
             Log.d("PlayerActivity", "Skip back 10s clicked")
             musicPlayer.skipBackward(10000)
         }
 
         previousButton.setOnClickListener {
+            AnimationUtils.scaleButton(previousButton)
             Log.d("PlayerActivity", "Previous clicked")
             musicPlayer.playPrevious()
         }
 
         playPauseButton.setOnClickListener {
+            AnimationUtils.scaleButton(playPauseButton)
             Log.d("PlayerActivity", "Play/Pause clicked")
             musicPlayer.playPause()
         }
 
         nextButton.setOnClickListener {
+            AnimationUtils.scaleButton(nextButton)
             Log.d("PlayerActivity", "Next clicked")
             musicPlayer.playNext()
         }
 
         skipForward10Button.setOnClickListener {
+            AnimationUtils.scaleButton(skipForward10Button)
             Log.d("PlayerActivity", "Skip forward 10s clicked")
             musicPlayer.skipForward(10000)
         }
 
         settingsButton.setOnClickListener {
+            AnimationUtils.scaleButton(settingsButton)
             val intent = Intent(this, SettingsActivity::class.java)
             startActivity(intent)
+            AnimationUtils.overrideActivityTransition(this)
         }
 
-        // MIGLIORATO: Click listeners per shuffle e repeat
         try {
             shuffleButton.setOnClickListener {
+                AnimationUtils.scaleButton(shuffleButton)
                 Log.d("PlayerActivity", "🔀 SHUFFLE BUTTON CLICKED!")
                 val isShuffleEnabled = musicPlayer.toggleShuffle()
-                Log.d("PlayerActivity", "✅ Shuffle toggled to: $isShuffleEnabled")
-                // Non chiamare updateShuffleButton qui - il listener se ne occuperà
+
+                if (isShuffleEnabled) {
+                    AnimationUtils.pulse(shuffleButton, 2)
+                } else {
+                    AnimationUtils.stopPulse(shuffleButton)
+                }
             }
 
             repeatButton.setOnClickListener {
+                AnimationUtils.scaleButton(repeatButton)
                 Log.d("PlayerActivity", "🔁 REPEAT BUTTON CLICKED!")
                 val repeatMode = musicPlayer.toggleRepeat()
                 Log.d("PlayerActivity", "✅ Repeat toggled to mode: $repeatMode")
-                // Non chiamare updateRepeatButton qui - il listener se ne occuperà
             }
 
-            Log.d("PlayerActivity", "✅ Shuffle/Repeat click listeners configurati")
+            Log.d("PlayerActivity", "✅ Shuffle/Repeat click listeners configured")
 
         } catch (e: Exception) {
-            Log.e("PlayerActivity", "❌ Error setting up shuffle/repeat listeners: $e")
+            Log.e("PlayerActivity", "❌ Error setting up shuffle/repeat: $e")
         }
 
-        // AGGIORNATO: Aggiungi entrambi i listener
         musicPlayer.addStateChangeListener(playerActivityListener)
         musicPlayer.addQueueChangeListener(playerQueueChangeListener)
 
@@ -321,10 +337,18 @@ class PlayerActivity : AppCompatActivity() {
     }
 
     private fun updateProgress() {
-        if (!isUpdatingProgress) {
-            val currentPosition = musicPlayer.getCurrentPosition()
-            seekBar.progress = (currentPosition / 1000).toInt()
-            currentTime.text = formatTime((currentPosition / 1000).toInt())
+        if (isUpdatingProgress) return
+
+        val currentPosition = musicPlayer.getCurrentPosition()
+        val duration = musicPlayer.getDuration()
+
+        if (duration > 0) {
+            val progress = ((currentPosition.toFloat() / duration) * seekBar.max).toInt()
+
+            // ✅ NUOVO: Animazione seekbar
+            AnimationUtils.animateSeekBar(seekBar, progress, 200L)
+
+            currentTime.text = formatTime(currentPosition.toInt())
         }
     }
 

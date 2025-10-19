@@ -16,6 +16,8 @@ class MusicService : Service() {
 
     private lateinit var musicPlayer: MusicPlayer
 
+    private lateinit var batteryOptimizer: BatteryOptimizer
+
     // ✅ NUOVO: MediaSessionManager per controlli esterni
     private lateinit var mediaSessionManager: MediaSessionManager
 
@@ -43,12 +45,20 @@ class MusicService : Service() {
         mediaSessionManager.initialize()
         Log.d(TAG, "✅ MediaSession initialized")
 
+        batteryOptimizer = BatteryOptimizer.getInstance(applicationContext)
+
         // Avvia subito come foreground con notifica placeholder
         startForegroundWithPlaceholder()
 
         // Aggiungi listener per aggiornare notifica
         musicPlayer.addStateChangeListener { isPlaying, currentSong ->
             updateNotification(currentSong, isPlaying)
+        }
+        val batterySaverEnabled = SettingsActivity.isBatterySaverEnabled(applicationContext)
+        if (isPlaying) {
+            batteryOptimizer.acquireWakeLock(batterySaverEnabled)
+        } else {
+            batteryOptimizer.releaseWakeLock()
         }
     }
 
@@ -151,10 +161,13 @@ class MusicService : Service() {
 
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val batterySaverEnabled = SettingsActivity.isBatterySaverEnabled(applicationContext)
+            val importance = batteryOptimizer.getNotificationPriority(batterySaverEnabled)
+
             val channel = NotificationChannel(
                 CHANNEL_ID,
                 "Music Playback",
-                NotificationManager.IMPORTANCE_LOW
+                importance // MODIFICATO: usa priority dinamica
             ).apply {
                 description = "Shows currently playing music"
                 setShowBadge(false)
@@ -163,9 +176,20 @@ class MusicService : Service() {
 
             val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
             notificationManager.createNotificationChannel(channel)
-            Log.d(TAG, "Notification channel created")
+            Log.d(TAG, "Notification channel created with priority: $importance")
         }
     }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        mediaSessionManager.release()
+
+        // NUOVO: Cleanup del BatteryOptimizer
+        batteryOptimizer.releaseWakeLock()
+
+        Log.d(TAG, "Service destroyed, all resources released")
+    }
+}
 
     fun updateNotification(song: Song?, isPlaying: Boolean) {
         val notification = if (song != null) {
