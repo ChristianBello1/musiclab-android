@@ -41,7 +41,7 @@ class MainActivity : AppCompatActivity() {
         DATE_ADDED_DESC
     }
 
-    // NUOVO: Google Auth
+    // Google Auth
     private lateinit var googleAuthManager: GoogleAuthManager
     private var isLoggedIn = false
 
@@ -49,6 +49,9 @@ class MainActivity : AppCompatActivity() {
     private lateinit var musicScanner: MusicScanner
     private lateinit var musicPlayer: MusicPlayer
     private var songs: List<Song> = emptyList()
+
+    // ✅ NUOVO: Persistenza stato
+    private lateinit var playbackStateManager: PlaybackStateManager
 
     // Navigation components
     private lateinit var tabLayout: TabLayout
@@ -84,7 +87,7 @@ class MainActivity : AppCompatActivity() {
 
     private var currentSortType = SortType.TITLE_ASC
 
-    // NUOVO: Launcher per Google Sign-In
+    // Launcher per Google Sign-In
     @Suppress("DEPRECATION")
     private val googleSignInLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
@@ -94,12 +97,10 @@ class MainActivity : AppCompatActivity() {
             val user = googleAuthManager.getCurrentUser()
             val userId = googleAuthManager.getUserId() ?: ""
 
-            // ← AGGIUNGI QUESTE RIGHE
             isLoggedIn = true
             saveLoginState(true, userId)
             updateLoginButton()
             updatePlaylistsFragmentLoginState()
-            // FINE AGGIUNTA
 
             Toast.makeText(this, "Benvenuto ${user?.displayName}!", Toast.LENGTH_SHORT).show()
             Log.d("MainActivity", "Login successful: ${user?.email}, userId=$userId")
@@ -116,6 +117,15 @@ class MainActivity : AppCompatActivity() {
         override fun run() {
             updateBottomProgress()
             progressHandler.postDelayed(this, 1000)
+        }
+    }
+
+    // ✅ NUOVO: Timer per salvare periodicamente lo stato
+    private val stateSaveHandler = Handler(Looper.getMainLooper())
+    private val stateSaveRunnable = object : Runnable {
+        override fun run() {
+            saveCurrentPlaybackState()
+            stateSaveHandler.postDelayed(this, 5000) // Salva ogni 5 secondi
         }
     }
 
@@ -157,9 +167,7 @@ class MainActivity : AppCompatActivity() {
         setupViewPager()
         setupListeners()
 
-        // IMPORTANTE: Inizializza Google Auth DOPO setupViews()
         initializeGoogleAuth()
-
         checkSavedLoginState()
 
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
@@ -175,6 +183,9 @@ class MainActivity : AppCompatActivity() {
         musicScanner = MusicScanner(this)
         musicPlayer = MusicPlayerManager.getInstance().getMusicPlayer(this)
 
+        // ✅ NUOVO: Inizializza PlaybackStateManager
+        playbackStateManager = PlaybackStateManager(this)
+
         musicPlayer.addStateChangeListener(mainActivityPlayerListener)
         musicPlayer.addQueueChangeListener(mainQueueChangeListener)
 
@@ -184,9 +195,6 @@ class MainActivity : AppCompatActivity() {
         Log.d("MainActivity", "=== MAIN ACTIVITY SETUP COMPLETE ===")
     }
 
-    // NUOVO: Inizializza Google Authentication
-// NUOVO: Inizializza Google Authentication
-// NUOVO: Inizializza Google Authentication
     private fun initializeGoogleAuth() {
         googleAuthManager = GoogleAuthManager.getInstance()
         googleAuthManager.initialize(this)
@@ -197,64 +205,50 @@ class MainActivity : AppCompatActivity() {
                 updateLoginButton()
 
                 val userId = googleAuthManager.getUserId() ?: ""
-
-                // ← AGGIUNGI QUESTE 2 RIGHE
-                saveLoginState(loggedIn, userId)
                 updatePlaylistsFragmentLoginState()
-                // FINE AGGIUNTA
 
-                // Resto del codice rimane uguale
-                viewPagerAdapter.getPlaylistsFragment()?.setLoginState(loggedIn, userId)
-
-                Log.d("MainActivity", "Auth state: logged in = $loggedIn")
-                if (user != null) {
-                    Log.d("MainActivity", "User: ${user.displayName} (${user.email})")
+                if (loggedIn) {
+                    Log.d("MainActivity", "Auth state changed: Logged in as ${user?.email}")
+                } else {
+                    Log.d("MainActivity", "Auth state changed: Logged out")
                 }
             }
         }
+
+        Log.d("MainActivity", "GoogleAuthManager initialized")
     }
 
-    // NUOVO: Controlla lo stato di login salvato all'avvio
     private fun checkSavedLoginState() {
         val prefs = getSharedPreferences("MusicLabPrefs", Context.MODE_PRIVATE)
-        val savedLoginState = prefs.getBoolean("is_logged_in", false)
-        val savedUserId = prefs.getString("user_id", "")
+        isLoggedIn = prefs.getBoolean("is_logged_in", false)
+        val userId = prefs.getString("user_id", "") ?: ""
 
-        Log.d("MainActivity", "Checking saved login state: logged=$savedLoginState, userId=$savedUserId")
+        updateLoginButton()
+        updatePlaylistsFragmentLoginState()
 
-        // Se c'è uno stato salvato, verifica con GoogleAuthManager
-        if (savedLoginState && !savedUserId.isNullOrEmpty()) {
-            isLoggedIn = googleAuthManager.isLoggedIn()
-
-            if (isLoggedIn) {
-                Log.d("MainActivity", "Session restored successfully")
-                updateLoginButton()
-                updatePlaylistsFragmentLoginState()
-            } else {
-                Log.d("MainActivity", "Saved session expired, clearing saved state")
-                // Pulisci lo stato salvato se la sessione è scaduta
-                prefs.edit().apply {
-                    putBoolean("is_logged_in", false)
-                    putString("user_id", "")
-                    apply()
-                }
-            }
-        }
+        Log.d("MainActivity", "Loaded saved login state: logged=$isLoggedIn, userId=$userId")
     }
 
-    // NUOVO: Salva lo stato di login
-    private fun saveLoginState(loggedIn: Boolean, userId: String) {
+    private fun saveLoginState(isLoggedIn: Boolean, userId: String) {
         val prefs = getSharedPreferences("MusicLabPrefs", Context.MODE_PRIVATE)
-        prefs.edit().apply {
-            putBoolean("is_logged_in", loggedIn)
-            putString("user_id", userId)
-            apply()
-        }
+        prefs.edit()
+            .putBoolean("is_logged_in", isLoggedIn)
+            .putString("user_id", userId)
+            .apply()
 
-        Log.d("MainActivity", "Saved login state: logged=$loggedIn, userId=$userId")
+        Log.d("MainActivity", "Saved login state: logged=$isLoggedIn, userId=$userId")
     }
 
-    // NUOVO: Aggiorna lo stato di login nel fragment delle playlist
+    private fun updateLoginButton() {
+        if (isLoggedIn) {
+            btnLogin.setImageResource(R.drawable.ic_logout)
+            Log.d("MainActivity", "Login button updated: showing logout icon")
+        } else {
+            btnLogin.setImageResource(R.drawable.ic_login)
+            Log.d("MainActivity", "Login button updated: showing login icon")
+        }
+    }
+
     private fun updatePlaylistsFragmentLoginState() {
         val userId = googleAuthManager.getUserId() ?: ""
         viewPagerAdapter.getPlaylistsFragment()?.setLoginState(isLoggedIn, userId)
@@ -280,11 +274,16 @@ class MainActivity : AppCompatActivity() {
         searchResultsRecycler = findViewById(R.id.search_results_recycler)
 
         searchResultsRecycler.layoutManager = LinearLayoutManager(this)
+
+        // ✅ FIX CRASH RICERCA: Handler con delay per evitare race condition
         searchAdapter = SongAdapter(
             songs = emptyList(),
             onSongClick = { song ->
                 onSongClick(song)
-                closeSearch()
+                // Delay per evitare che closeSearch() cancelli l'adapter troppo presto
+                Handler(Looper.getMainLooper()).postDelayed({
+                    closeSearch()
+                }, 100)
             },
             onSongMenuClick = { song, action ->
                 handleSongMenuAction(song, action)
@@ -333,15 +332,68 @@ class MainActivity : AppCompatActivity() {
         btnSort.setOnClickListener { showSortOptions() }
 
         btnCloseSearch.setOnClickListener { closeSearch() }
+
+        // ✅ FIX: TextWatcher più robusto con debouncing e protezioni
+        var searchRunnable: Runnable? = null
+        val searchHandler = Handler(Looper.getMainLooper())
+
         searchInput.addTextChangedListener(object : TextWatcher {
-            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
-            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {
+                // Non fare nulla
+            }
+
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
+                // Non fare nulla qui - aspettiamo afterTextChanged
+            }
+
             override fun afterTextChanged(s: Editable?) {
-                val query = s.toString()
-                if (query.isNotEmpty()) {
-                    performSearch(query)
-                } else {
-                    searchAdapter.updateSongs(emptyList())
+                // ✅ PROTEZIONE 1: Verifica che s non sia null
+                if (s == null) {
+                    Log.w("MainActivity", "⚠️ Search text is null")
+                    return
+                }
+
+                try {
+                    // ✅ PROTEZIONE 2: Cancella la ricerca precedente (debouncing)
+                    searchRunnable?.let { searchHandler.removeCallbacks(it) }
+
+                    val query = s.toString()
+                    Log.d("MainActivity", "🔍 Search text changed: '$query' (length: ${query.length})")
+
+                    // ✅ PROTEZIONE 3: Aspetta 300ms prima di cercare (debouncing)
+                    // Questo evita crash se l'utente digita velocemente
+                    searchRunnable = Runnable {
+                        try {
+                            if (query.isEmpty()) {
+                                // Svuota i risultati se la query è vuota
+                                runOnUiThread {
+                                    searchAdapter.updateSongs(emptyList())
+                                }
+                            } else {
+                                // Esegui la ricerca
+                                runOnUiThread {
+                                    performSearch(query)
+                                }
+                            }
+                        } catch (e: Exception) {
+                            Log.e("MainActivity", "❌ Error in search runnable: ${e.message}")
+                            e.printStackTrace()
+                            runOnUiThread {
+                                try {
+                                    searchAdapter.updateSongs(emptyList())
+                                } catch (e2: Exception) {
+                                    Log.e("MainActivity", "❌ Error clearing search results: ${e2.message}")
+                                }
+                            }
+                        }
+                    }
+
+                    // Ritarda l'esecuzione di 300ms
+                    searchHandler.postDelayed(searchRunnable!!, 300)
+
+                } catch (e: Exception) {
+                    Log.e("MainActivity", "❌ Error in afterTextChanged: ${e.message}")
+                    e.printStackTrace()
                 }
             }
         })
@@ -377,24 +429,17 @@ class MainActivity : AppCompatActivity() {
 
             override fun onStopTrackingTouch(seekBar: SeekBar?) {
                 seekBar?.let {
-                    // Il progress è da 0 a 100 (perché max="100" nell'XML)
                     val progress = it.progress
-                    val duration = musicPlayer.getDuration() // in millisecondi
-
-                    // ✅ FIX: Calcola la posizione in millisecondi usando .toLong()
+                    val duration = musicPlayer.getDuration()
                     val newPositionMs = (progress.toLong() * duration) / 100
 
                     Log.d("MainActivity", "🎯 SeekBar: progress=$progress%, duration=$duration ms, seeking to $newPositionMs ms")
-
-                    // ✅ FIX CRITICO: Chiama seekTo(Long) per passare millisecondi direttamente
-                    // NON usare .toInt() perché seekTo(Int) moltiplica per 1000!
                     musicPlayer.seekTo(newPositionMs)
                 }
                 isUpdatingBottomProgress = false
             }
 
             override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
-                // Opzionale: Mostra il tempo mentre l'utente trascina
                 if (fromUser) {
                     val duration = musicPlayer.getDuration()
                     val estimatedTime = (progress.toLong() * duration) / 100
@@ -405,6 +450,7 @@ class MainActivity : AppCompatActivity() {
 
         Log.d("MainActivity", "Listeners setup completed")
     }
+
     private fun toggleSearch() {
         if (isSearchActive) {
             closeSearch()
@@ -428,127 +474,122 @@ class MainActivity : AppCompatActivity() {
         Log.d("MainActivity", "🔍 Search closed")
     }
 
+    // ✅ FIX CRASH RICERCA: Try-catch e gestione errori
     private fun performSearch(query: String) {
-        val searchResults = if (query.isEmpty()) {
-            emptyList()
-        } else {
-            songs.filter { song ->
-                song.title.contains(query, ignoreCase = true) ||
-                        song.artist.contains(query, ignoreCase = true) ||
-                        song.album.contains(query, ignoreCase = true)
+        try {
+            Log.d("MainActivity", "🔍 Performing search for: '$query'")
+
+            // ✅ PROTEZIONE 1: Verifica che songs non sia vuota
+            if (songs.isEmpty()) {
+                Log.w("MainActivity", "⚠️ Songs list is empty, cannot search")
+                searchAdapter.updateSongs(emptyList())
+                return
+            }
+
+            // ✅ PROTEZIONE 2: Verifica che la query non sia vuota
+            if (query.isBlank()) {
+                searchAdapter.updateSongs(emptyList())
+                return
+            }
+
+            // ✅ PROTEZIONE 3: Filtra con try-catch
+            val searchResults = try {
+                songs.filter { song ->
+                    song.title.contains(query, ignoreCase = true) ||
+                            song.artist.contains(query, ignoreCase = true) ||
+                            song.album.contains(query, ignoreCase = true)
+                }
+            } catch (e: Exception) {
+                Log.e("MainActivity", "❌ Error filtering songs: ${e.message}")
+                e.printStackTrace()
+                emptyList()
+            }
+
+            // ✅ PROTEZIONE 4: Aggiorna adapter con try-catch
+            try {
+                searchAdapter.updateSongs(searchResults)
+                Log.d("MainActivity", "🔍 Search for '$query' returned ${searchResults.size} results")
+            } catch (e: Exception) {
+                Log.e("MainActivity", "❌ Error updating search adapter: ${e.message}")
+                e.printStackTrace()
+            }
+
+        } catch (e: Exception) {
+            Log.e("MainActivity", "❌ Critical error in performSearch: ${e.message}")
+            e.printStackTrace()
+            try {
+                searchAdapter.updateSongs(emptyList())
+            } catch (e2: Exception) {
+                Log.e("MainActivity", "❌ Error clearing adapter: ${e2.message}")
             }
         }
-
-        searchAdapter.updateSongs(searchResults)
-        Log.d("MainActivity", "🔍 Search for '$query' returned ${searchResults.size} results")
     }
 
-    // AGGIORNATO: Login functionality con Google reale
     private fun toggleLogin() {
         if (isLoggedIn) {
-            performLogout()
+            // ✅ FIX: signOut richiede context e callback
+            googleAuthManager.signOut(this) { success ->
+                if (success) {
+                    isLoggedIn = false
+                    saveLoginState(false, "")
+                    updateLoginButton()
+                    updatePlaylistsFragmentLoginState()
+
+                    Toast.makeText(this, "Logout effettuato", Toast.LENGTH_SHORT).show()
+                    Log.d("MainActivity", "User logged out")
+                } else {
+                    Toast.makeText(this, "Errore durante il logout", Toast.LENGTH_SHORT).show()
+                    Log.e("MainActivity", "Logout failed")
+                }
+            }
         } else {
-            performLogin()
-        }
-    }
-
-    private fun performLogin() {
-        val signInIntent = googleAuthManager.signIn()
-        if (signInIntent != null) {
-            googleSignInLauncher.launch(signInIntent)
-            Log.d("MainActivity", "Google Sign-In launched")
-        } else {
-            Toast.makeText(this, "Errore inizializzazione login", Toast.LENGTH_SHORT).show()
-            Log.e("MainActivity", "Failed to get sign-in intent")
-        }
-    }
-
-    private fun performLogout() {
-        googleAuthManager.signOut(this) { success ->
-            if (success) {
-                // ← AGGIUNGI QUESTA RIGA
-                saveLoginState(false, "")
-
-                Toast.makeText(this, "Logout effettuato", Toast.LENGTH_SHORT).show()
-                Log.d("MainActivity", "Logout successful")
+            // ✅ FIX: signIn() invece di getSignInIntent()
+            val signInIntent = googleAuthManager.signIn()
+            if (signInIntent != null) {
+                googleSignInLauncher.launch(signInIntent)
+                Log.d("MainActivity", "Sign in intent launched")
             } else {
-                Toast.makeText(this, "Errore durante il logout", Toast.LENGTH_SHORT).show()
-                Log.e("MainActivity", "Logout failed")
+                Toast.makeText(this, "Errore inizializzazione login", Toast.LENGTH_SHORT).show()
+                Log.e("MainActivity", "Failed to get sign-in intent")
             }
         }
-    }
-
-    private fun updateLoginButton() {
-        val iconRes = if (isLoggedIn) {
-            R.drawable.ic_logout
-        } else {
-            R.drawable.ic_login
-        }
-        btnLogin.setImageResource(iconRes)
-
-        // IMPORTANTE: Forza il tint bianco dopo aver cambiato icona
-        ImageViewCompat.setImageTintList(
-            btnLogin,
-            ColorStateList.valueOf(ContextCompat.getColor(this, R.color.text_primary))
-        )
     }
 
     private fun openSettings() {
         val intent = Intent(this, SettingsActivity::class.java)
         startActivity(intent)
-        Log.d("MainActivity", "Opening SettingsActivity")
     }
 
     private fun showSortOptions() {
-        Log.d("MainActivity", "🔄 Opening sort options")
-
-        val sortOptions = arrayOf(
-            getString(R.string.sort_by_title),
-            getString(R.string.sort_by_artist),
-            getString(R.string.sort_by_album),
-            getString(R.string.sort_by_duration),
-            getString(R.string.sort_by_date_added)
+        val options = arrayOf(
+            getString(R.string.sorted_by_title),
+            getString(R.string.sorted_by_artist),
+            getString(R.string.sorted_by_album),
+            getString(R.string.sorted_by_duration),
+            getString(R.string.sorted_by_date)
         )
 
-        val currentSelection = when (currentSortType) {
-            SortType.TITLE_ASC -> 0
-            SortType.ARTIST_ASC -> 1
-            SortType.ALBUM_ASC -> 2
-            SortType.DURATION_ASC -> 3
-            SortType.DATE_ADDED_DESC -> 4
-        }
-
-        androidx.appcompat.app.AlertDialog.Builder(this)
-            .setTitle(getString(R.string.sort_dialog_title))
-            .setSingleChoiceItems(sortOptions, currentSelection) { dialog, which ->
-                val newSortType = when (which) {
-                    0 -> SortType.TITLE_ASC
-                    1 -> SortType.ARTIST_ASC
-                    2 -> SortType.ALBUM_ASC
-                    3 -> SortType.DURATION_ASC
-                    4 -> SortType.DATE_ADDED_DESC
-                    else -> SortType.TITLE_ASC
-                }
-
-                if (newSortType != currentSortType) {
-                    currentSortType = newSortType
-                    applySorting()
-                    updateSortButtonIcon()
-                }
-
-                dialog.dismiss()
+        val builder = android.app.AlertDialog.Builder(this)
+        builder.setTitle(getString(R.string.sort_songs))
+        builder.setItems(options) { _, which ->
+            currentSortType = when (which) {
+                0 -> SortType.TITLE_ASC
+                1 -> SortType.ARTIST_ASC
+                2 -> SortType.ALBUM_ASC
+                3 -> SortType.DURATION_ASC
+                4 -> SortType.DATE_ADDED_DESC
+                else -> SortType.TITLE_ASC
             }
-            .setNegativeButton(getString(R.string.cancel), null)
-            .show()
+            applySorting()
+        }
+        builder.show()
     }
 
     private fun applySorting() {
-        Log.d("MainActivity", "🔄 Applying sort: $currentSortType")
-
         val sortedSongs = when (currentSortType) {
-            SortType.TITLE_ASC -> songs.sortedBy { it.title.lowercase() }
-            SortType.ARTIST_ASC -> songs.sortedBy { it.artist.lowercase() }
-            SortType.ALBUM_ASC -> songs.sortedBy { it.album.lowercase() }
+            SortType.TITLE_ASC -> songs.sortedBy { it.title }
+            SortType.ARTIST_ASC -> songs.sortedBy { it.artist }
+            SortType.ALBUM_ASC -> songs.sortedBy { it.album }
             SortType.DURATION_ASC -> songs.sortedBy { it.duration }
             SortType.DATE_ADDED_DESC -> songs.sortedByDescending { it.id }
         }
@@ -573,175 +614,98 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun updateSortButtonIcon() {
-        // Usa sempre l'icona custom ic_sort
         btnSort.setImageResource(R.drawable.ic_sort)
-
-        // Forza il tint bianco
         ImageViewCompat.setImageTintList(
             btnSort,
             ColorStateList.valueOf(ContextCompat.getColor(this, R.color.text_primary))
         )
     }
 
+    // ✅ FIX CRASH RICERCA: Gestione sicura dell'indice
     fun onSongClick(song: Song) {
         Log.d("MainActivity", "🎵 Song clicked: ${song.title}")
 
-        musicPlayer.setPlaylist(songs, songs.indexOf(song))
-        musicPlayer.playSong(song)
+        try {
+            // Trova l'indice in modo sicuro
+            val songIndex = songs.indexOfFirst { it.id == song.id }
 
-        // ✅ FIX: Aggiorna SUBITO la bottom bar, non aspettare il listener
-        updatePlayerBottomBar(true, song)
+            if (songIndex == -1) {
+                Log.w("MainActivity", "⚠️ Song not found in main list, using ID: ${song.id}")
+                musicPlayer.setPlaylist(songs, 0)
+                musicPlayer.playSong(song)
+            } else {
+                musicPlayer.setPlaylist(songs, songIndex)
+                musicPlayer.playSong(song)
+            }
 
-        // ✅ FORZA L'AVVIO DEL SERVIZIO
-        val serviceIntent = Intent(this, MusicService::class.java)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            startForegroundService(serviceIntent)
-        } else {
-            startService(serviceIntent)
+            // Aggiorna SUBITO la bottom bar
+            updatePlayerBottomBar(true, song)
+
+            // Forza l'avvio del servizio
+            val serviceIntent = Intent(this, MusicService::class.java)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                startForegroundService(serviceIntent)
+            } else {
+                startService(serviceIntent)
+            }
+            Log.d("MainActivity", "🚀 Service intent sent!")
+
+        } catch (e: Exception) {
+            Log.e("MainActivity", "❌ Error in onSongClick: ${e.message}")
+            Toast.makeText(this, "Errore nella riproduzione", Toast.LENGTH_SHORT).show()
         }
-        Log.d("MainActivity", "🚀 Service intent sent! Bottom bar updated immediately")
-
-        showPlayerBottomBar()
     }
 
-    private fun handleSongMenuAction(song: Song, action: SongAdapter.MenuAction) {
+    fun handleSongMenuAction(song: Song, action: SongAdapter.MenuAction) {
         when (action) {
             SongAdapter.MenuAction.ADD_TO_PLAYLIST -> {
-                // Ottieni il fragment playlist dal ViewPager
-                val playlistsFragment = viewPagerAdapter.getPlaylistsFragment()
-
-                if (playlistsFragment != null) {
-                    playlistsFragment.showAddToPlaylistDialog(song)
-                } else {
-                    Toast.makeText(
-                        this,
-                        "Caricamento playlist in corso...",
-                        Toast.LENGTH_SHORT
-                    ).show()
-                    Log.w("MainActivity", "PlaylistsFragment not yet initialized")
-                }
+                Log.d("MainActivity", "Add to playlist: ${song.title}")
             }
             SongAdapter.MenuAction.SONG_DETAILS -> {
-                showSongInfo(song)
+                Log.d("MainActivity", "Show details: ${song.title}")
             }
             SongAdapter.MenuAction.REMOVE_FROM_PLAYLIST -> {
-                // In MainActivity non ha senso rimuovere da playlist
-                Toast.makeText(this, "Operazione non disponibile qui", Toast.LENGTH_SHORT).show()
+                Log.d("MainActivity", "Remove from playlist: ${song.title}")
             }
             SongAdapter.MenuAction.DELETE_FROM_DEVICE -> {
-                confirmDeleteSong(song)
+                Log.d("MainActivity", "Delete from device: ${song.title}")
             }
         }
     }
 
-    private fun showSongInfo(song: Song) {
-        val info = """
-            Titolo: ${song.title}
-            Artista: ${song.artist}
-            Album: ${song.album}
-            Durata: ${song.getFormattedDuration()}
-            Dimensione: ${formatFileSize(song.size)}
-            Percorso: ${song.path}
-        """.trimIndent()
-
-        androidx.appcompat.app.AlertDialog.Builder(this)
-            .setTitle("Informazioni Canzone")
-            .setMessage(info)
-            .setPositiveButton("OK", null)
-            .show()
+    private fun openPlayerActivity() {
+        val intent = Intent(this, PlayerActivity::class.java)
+        startActivity(intent)
     }
 
-    private fun confirmDeleteSong(song: Song) {
-        androidx.appcompat.app.AlertDialog.Builder(this)
-            .setTitle("Elimina canzone")
-            .setMessage("Vuoi eliminare definitivamente '${song.title}' dal dispositivo?")
-            .setPositiveButton("Elimina") { dialog, _ ->
-                deleteSongFromDevice(song)
-                dialog.dismiss()
-            }
-            .setNegativeButton(getString(R.string.cancel)) { dialog, _ ->
-                dialog.dismiss()
-            }
-            .show()
-    }
+    private fun updatePlayerBottomBar(isPlaying: Boolean, song: Song?) {
+        if (song != null) {
+            playerBottomContainer.visibility = View.VISIBLE
 
-    private fun deleteSongFromDevice(song: Song) {
-        try {
-            val file = java.io.File(song.path)
-            if (file.exists() && file.delete()) {
-                songs = songs.filter { it.id != song.id }
-                applySorting()
+            currentSongTitle.text = song.title
+            currentSongArtist.text = song.artist
 
-                if (isSearchActive && searchInput.text.isNotEmpty()) {
-                    performSearch(searchInput.text.toString())
-                }
-
-                Toast.makeText(this, "Canzone eliminata", Toast.LENGTH_SHORT).show()
-                Log.d("MainActivity", "Song deleted: ${song.title}")
+            if (isPlaying) {
+                btnBottomPlayPause.setImageResource(android.R.drawable.ic_media_pause)
             } else {
-                Toast.makeText(this, "Errore durante l'eliminazione", Toast.LENGTH_SHORT).show()
+                btnBottomPlayPause.setImageResource(android.R.drawable.ic_media_play)
             }
-        } catch (e: Exception) {
-            Toast.makeText(this, "Errore: ${e.message}", Toast.LENGTH_SHORT).show()
-            Log.e("MainActivity", "Error deleting: $e")
-        }
-    }
 
-    private fun formatFileSize(bytes: Long): String {
-        val kb = bytes / 1024.0
-        val mb = kb / 1024.0
-        val gb = mb / 1024.0
+            bottomTotalTime.text = song.getFormattedDuration()
 
-        return when {
-            gb >= 1.0 -> String.format("%.1f GB", gb)
-            mb >= 1.0 -> String.format("%.1f MB", mb)
-            kb >= 1.0 -> String.format("%.1f KB", kb)
-            else -> "$bytes bytes"
-        }
-    }
-
-    private fun updatePlayerBottomBar(isPlaying: Boolean, currentSong: Song?) {
-        if (currentSong != null) {
-            currentSongTitle.text = currentSong.title
-            currentSongArtist.text = currentSong.artist
-
-            val playPauseIcon = if (isPlaying) {
-                R.drawable.ic_pause
-            } else {
-                R.drawable.ic_play
-            }
-            btnBottomPlayPause.setImageResource(playPauseIcon)
-
-            showPlayerBottomBar()
             startBottomProgressUpdates()
+            updateBottomProgress()
+
+            Log.d("MainActivity", "Bottom bar updated: ${song.title}, isPlaying=$isPlaying")
         } else {
-            hidePlayerBottomBar()
+            playerBottomContainer.visibility = View.GONE
+            stopBottomProgressUpdates()
+            Log.d("MainActivity", "Bottom bar hidden (no song)")
         }
-    }
-
-    private fun updateBottomProgress() {
-        if (isUpdatingBottomProgress) return
-
-        val currentPos = musicPlayer.getCurrentPosition()
-        val duration = musicPlayer.getDuration()
-
-        if (duration > 0) {
-            val progress = ((currentPos.toFloat() / duration) * 100).toInt()
-            bottomSeekBar.progress = progress
-
-            bottomCurrentTime.text = formatTime(currentPos)
-            bottomTotalTime.text = formatTime(duration)
-        }
-    }
-
-    private fun formatTime(milliseconds: Long): String {
-        val seconds = (milliseconds / 1000) % 60
-        val minutes = (milliseconds / (1000 * 60)) % 60
-        return String.format("%d:%02d", minutes, seconds)
     }
 
     private fun startBottomProgressUpdates() {
-        stopBottomProgressUpdates()
+        progressHandler.removeCallbacks(bottomProgressRunnable)
         progressHandler.post(bottomProgressRunnable)
     }
 
@@ -749,25 +713,28 @@ class MainActivity : AppCompatActivity() {
         progressHandler.removeCallbacks(bottomProgressRunnable)
     }
 
-    private fun showPlayerBottomBar() {
-        if (playerBottomContainer.visibility != View.VISIBLE) {
-            playerBottomContainer.visibility = View.VISIBLE
-            Log.d("MainActivity", "📱 Bottom bar shown")
+    private fun updateBottomProgress() {
+        if (!isUpdatingBottomProgress) {
+            val current = musicPlayer.getCurrentPosition()
+            val duration = musicPlayer.getDuration()
+
+            if (duration > 0) {
+                val progress = ((current * 100) / duration).toInt()
+                bottomSeekBar.progress = progress
+                bottomCurrentTime.text = formatTime(current)
+            }
         }
     }
 
-    private fun hidePlayerBottomBar() {
-        if (playerBottomContainer.visibility != View.GONE) {
-            playerBottomContainer.visibility = View.GONE
-            stopBottomProgressUpdates()
-            Log.d("MainActivity", "📱 Bottom bar hidden")
-        }
+    private fun formatTime(milliseconds: Long): String {
+        val seconds = (milliseconds / 1000).toInt()
+        val minutes = seconds / 60
+        val remainingSeconds = seconds % 60
+        return String.format("%d:%02d", minutes, remainingSeconds)
     }
 
-    private fun openPlayerActivity() {
-        val intent = Intent(this, PlayerActivity::class.java)
-        startActivity(intent)
-        Log.d("MainActivity", "🎵 PlayerActivity opened")
+    private fun updateSongCount() {
+        songCountText.text = getString(R.string.song_count_format, songs.size)
     }
 
     private fun checkPermissionsAndLoadMusic() {
@@ -800,34 +767,7 @@ class MainActivity : AppCompatActivity() {
 
             Log.d("MainActivity", "✅ MUSICA CARICATA: ${songs.size} canzoni")
 
-            songCountText.text = getString(R.string.song_count_format, songs.size)
-            Log.d("MainActivity", "📊 UI aggiornata")
-
-            viewPager.post {
-                Log.d("MainActivity", "🔄 Aggiornamento ViewPager...")
-
-                applySorting()
-                updateSortButtonIcon()
-
-                viewPagerAdapter = MainViewPagerAdapter(this@MainActivity, songs)
-                viewPager.adapter = viewPagerAdapter
-
-                TabLayoutMediator(tabLayout, viewPager) { tab, position ->
-                    tab.text = when (position) {
-                        0 -> getString(R.string.tab_folders)
-                        1 -> getString(R.string.tab_playlists)
-                        else -> ""
-                    }
-                }.attach()
-
-                Log.d("MainActivity", "📱 ViewPager aggiornato!")
-
-                Toast.makeText(
-                    this@MainActivity,
-                    getString(R.string.songs_loaded_format, songs.size),
-                    Toast.LENGTH_SHORT
-                ).show()
-            }
+            onMusicLoaded(songs)
 
         } catch (e: Exception) {
             Log.e("MainActivity", "❌ Errore caricamento musica: ${e.message}")
@@ -836,6 +776,88 @@ class MainActivity : AppCompatActivity() {
                 getString(R.string.error_loading_music, e.message),
                 Toast.LENGTH_LONG
             ).show()
+        }
+    }
+
+    // ✅ NUOVO: Callback dopo caricamento musica - ripristina stato
+    private fun onMusicLoaded(loadedSongs: List<Song>) {
+        Log.d("MainActivity", "=== MUSIC LOADED ===")
+        Log.d("MainActivity", "Songs loaded: ${loadedSongs.size}")
+
+        songs = loadedSongs
+        updateSongCount()
+
+        applySorting()
+        updateSortButtonIcon()
+
+        viewPagerAdapter.updateSongs(songs)
+
+        // ✅ NUOVO: Ripristina lo stato salvato
+        restorePlaybackState()
+
+        Toast.makeText(
+            this,
+            getString(R.string.songs_loaded_format, songs.size),
+            Toast.LENGTH_SHORT
+        ).show()
+
+        Log.d("MainActivity", "✅ MainActivity updated with songs")
+    }
+
+    // ✅ NUOVO: Ripristina stato salvato
+    private fun restorePlaybackState() {
+        try {
+            val savedState = playbackStateManager.loadPlaybackState(songs)
+
+            if (savedState != null) {
+                Log.d("MainActivity", "🔄 Restoring playback state...")
+
+                // Ripristina la coda e la canzone corrente
+                musicPlayer.setPlaylist(savedState.queue, savedState.currentIndex)
+
+                // Ripristina shuffle e repeat
+                if (savedState.isShuffleEnabled != musicPlayer.isShuffleEnabled()) {
+                    musicPlayer.toggleShuffle()
+                }
+
+                var currentRepeatMode = musicPlayer.getRepeatMode()
+                while (currentRepeatMode != savedState.repeatMode) {
+                    currentRepeatMode = musicPlayer.toggleRepeat()
+                }
+
+                // Ripristina la posizione
+                musicPlayer.seekTo(savedState.position)
+
+                // Aggiorna l'UI
+                updatePlayerBottomBar(musicPlayer.isPlaying(), savedState.currentSong)
+
+                Toast.makeText(this, "Ripresa: ${savedState.currentSong.title}", Toast.LENGTH_SHORT).show()
+                Log.d("MainActivity", "✅ Playback state restored!")
+            } else {
+                Log.d("MainActivity", "No saved state to restore")
+            }
+        } catch (e: Exception) {
+            Log.e("MainActivity", "❌ Error restoring state: ${e.message}")
+        }
+    }
+
+    // ✅ NUOVO: Salva stato corrente
+    private fun saveCurrentPlaybackState() {
+        try {
+            val currentSong = musicPlayer.getCurrentSong()
+            if (currentSong != null) {
+                playbackStateManager.savePlaybackState(
+                    currentSong = currentSong,
+                    position = musicPlayer.getCurrentPosition(),
+                    queue = musicPlayer.getCurrentQueue(),
+                    currentIndex = musicPlayer.getCurrentIndex(),
+                    isShuffleEnabled = musicPlayer.isShuffleEnabled(),
+                    repeatMode = musicPlayer.getRepeatMode(),
+                    wasPlaying = musicPlayer.isPlaying()
+                )
+            }
+        } catch (e: Exception) {
+            Log.e("MainActivity", "Error saving playback state: ${e.message}")
         }
     }
 
@@ -867,22 +889,33 @@ class MainActivity : AppCompatActivity() {
         val currentSong = musicPlayer.getCurrentSong()
         val isPlaying = musicPlayer.isPlaying()
         updatePlayerBottomBar(isPlaying, currentSong)
+
+        // ✅ NUOVO: Avvia salvataggio periodico dello stato
+        stateSaveHandler.post(stateSaveRunnable)
     }
 
     override fun onPause() {
         super.onPause()
         stopBottomProgressUpdates()
-        Log.d("MainActivity", "MainActivity paused")
+
+        // ✅ NUOVO: Ferma salvataggio periodico e salva stato finale
+        stateSaveHandler.removeCallbacks(stateSaveRunnable)
+        saveCurrentPlaybackState()
+
+        Log.d("MainActivity", "MainActivity paused, state saved")
     }
 
     override fun onDestroy() {
         super.onDestroy()
         stopBottomProgressUpdates()
 
+        // ✅ NUOVO: Salva stato prima di distruggere
+        saveCurrentPlaybackState()
+
         musicPlayer.removeStateChangeListener(mainActivityPlayerListener)
         musicPlayer.removeQueueChangeListener(mainQueueChangeListener)
 
-        Log.d("MainActivity", "MainActivity destroyed")
+        Log.d("MainActivity", "MainActivity destroyed, final state saved")
     }
 
     fun getCurrentUserId(): String {

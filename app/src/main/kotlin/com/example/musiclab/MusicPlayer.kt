@@ -172,27 +172,42 @@ class MusicPlayer(private val context: Context) {
         Log.d("MusicPlayer", "CrossfadeManager initialized with listener")
     }
 
-    private fun moveToNextSongAfterCrossfade() {
+    private fun updateToNextSongForUI() {
         // Incrementa l'indice per riflettere che siamo passati alla prossima canzone
         if (repeatMode == Player.REPEAT_MODE_ONE) {
             // In modalità repeat one, rimaniamo sulla stessa canzone
             Log.d("MusicPlayer", "Repeat ONE - staying on same song")
         } else if (currentSongIndex < currentQueue.size - 1) {
             currentSongIndex++
-            Log.d("MusicPlayer", "Moved to next song at index $currentSongIndex")
+            Log.d("MusicPlayer", "UI: Moved to next song at index $currentSongIndex")
         } else if (repeatMode == Player.REPEAT_MODE_ALL) {
             currentSongIndex = 0
-            Log.d("MusicPlayer", "Repeat ALL - back to start")
+            Log.d("MusicPlayer", "UI: Repeat ALL - back to start")
         } else {
-            Log.d("MusicPlayer", "End of queue reached")
+            Log.d("MusicPlayer", "UI: End of queue reached")
         }
 
+        // Aggiorna currentSong
         currentSong = getCurrentSong()
+
+        // Notifica l'UI del cambio
         notifyStateChanged(isPlaying(), currentSong)
+    }
+
+    // 3. AGGIORNA moveToNextSongAfterCrossfade() - ora serve solo per schedulare il prossimo crossfade
+    private fun moveToNextSongAfterCrossfade() {
+        // L'indice e currentSong sono già stati aggiornati in updateToNextSongForUI()
+        // Qui dobbiamo solo schedulare il prossimo crossfade
+
+        Log.d("MusicPlayer", "✅ Crossfade audio completed")
+
+        crossfadeTriggered = false
+        isCrossfadeScheduled = false
 
         // Schedula il prossimo crossfade se necessario
         if (isAutomixEnabled() && currentSong != null) {
             scheduleCrossfadeCheck()
+            Log.d("MusicPlayer", "📅 Next crossfade scheduled for: '${currentSong?.title}'")
         }
     }
 
@@ -224,11 +239,14 @@ class MusicPlayer(private val context: Context) {
                     return
                 }
 
-                val currentPos = crossfadeManager?.getCurrentPosition() ?: 0L
-                val duration = crossfadeManager?.getDuration() ?: 0L
+                // ✅ IMPORTANTE: Usa getPrimaryPosition/Duration per monitorare la canzone CORRENTE
+                // Non getCurrentPosition che durante il crossfade legge dalla nuova canzone!
+                val currentPos = crossfadeManager?.getPrimaryPosition() ?: 0L
+                val duration = crossfadeManager?.getPrimaryDuration() ?: 0L
 
                 if (duration > 0 && !crossfadeTriggered) {
-                    val crossfadeDurationMs = getCrossfadeDuration() * 1000L
+                    // IMPORTANTE: Moltiplica per 2 perché il crossfade ha 2 fasi
+                    val crossfadeDurationMs = getCrossfadeDuration() * 2 * 1000L
                     val timeUntilEnd = duration - currentPos
 
                     Log.d("MusicPlayer", "⏱️ Crossfade check: pos=${currentPos/1000}s, duration=${duration/1000}s, timeLeft=${timeUntilEnd/1000}s, trigger at ${crossfadeDurationMs/1000}s")
@@ -268,11 +286,16 @@ class MusicPlayer(private val context: Context) {
             val nextUri = Uri.parse(nextSong.path)
             crossfadeManager?.prepareNextSong(nextUri)
 
+            // ✅ NUOVO: Aggiorna currentSong e l'indice SUBITO
+            // in modo che l'UI si aggiorni quando il crossfade inizia
+            updateToNextSongForUI()
+
             // Inizia il crossfade
             val duration = getCrossfadeDuration()
             crossfadeManager?.startCrossfade(duration)
 
             Log.d("MusicPlayer", "✅ Crossfade started: ${duration}s to '${nextSong.title}'")
+            Log.d("MusicPlayer", "✅ UI updated to show: '${currentSong?.title}'")
         } else {
             Log.d("MusicPlayer", "❌ No next song for crossfade")
             crossfadeTriggered = false
@@ -697,11 +720,12 @@ class MusicPlayer(private val context: Context) {
         cancelScheduledCrossfade()
         crossfadeTriggered = false
 
-        if (isPlaying() && isAutomixEnabled()) {
+        // FIX: Ri-schedula SEMPRE il crossfade se l'automix è attivo
+        if (isAutomixEnabled()) {
             scheduleCrossfadeCheck()
         }
 
-        Log.d("MusicPlayer", "Seeked to: ${positionMs}ms")
+        Log.d("MusicPlayer", "Seeked to: ${positionMs}ms, crossfade rescheduled")
     }
 
     fun seekTo(positionSeconds: Int) {

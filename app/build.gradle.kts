@@ -55,25 +55,20 @@ android {
 }
 
 dependencies {
-    implementation(libs.androidx.core.ktx)
-    implementation(libs.androidx.appcompat)
-    implementation(libs.material)
-    testImplementation(libs.junit)
-    androidTestImplementation(libs.androidx.junit)
-    androidTestImplementation(libs.androidx.espresso.core)
-    implementation("com.google.android.gms:play-services-auth:21.3.0")
+    implementation("androidx.core:core-ktx:1.13.1")
+    implementation("androidx.appcompat:appcompat:1.7.0")
+    implementation("com.google.android.material:material:1.11.0")
+    implementation("androidx.constraintlayout:constraintlayout:2.1.4")
 
-    // Music Player dependencies
-    implementation("androidx.media3:media3-exoplayer:1.8.0")
-    implementation("androidx.media3:media3-ui:1.8.0")
-    implementation("androidx.media3:media3-common:1.8.0")
-    implementation("androidx.recyclerview:recyclerview:1.4.0")
-    implementation("androidx.cardview:cardview:1.0.0")
-    implementation("com.google.android.material:material:1.12.0")
-    implementation("androidx.activity:activity-ktx:1.10.1")
+    // Media3 (ExoPlayer)
+    implementation("androidx.media3:media3-exoplayer:1.2.0")
+    implementation("androidx.media3:media3-ui:1.2.0")
+    implementation("androidx.media3:media3-common:1.2.0")
 
-    // Navigation e ViewPager
+    // ViewPager2
     implementation("androidx.viewpager2:viewpager2:1.1.0")
+
+    // Fragment
     implementation("androidx.fragment:fragment-ktx:1.8.5")
 
     // Firebase
@@ -81,8 +76,14 @@ dependencies {
     implementation("com.google.firebase:firebase-firestore-ktx")
     implementation("com.google.firebase:firebase-auth-ktx")
 
-    // Media notification
+    // ✅ IMPORTANTE: Google Sign-In (mancava!)
+    implementation("com.google.android.gms:play-services-auth:21.0.0")
+
+    // Media notification e MediaSession
     implementation("androidx.media:media:1.7.0")
+
+    // Gson per persistenza stato
+    implementation("com.google.code.gson:gson:2.10.1")
 
     // YouTube API
     implementation("com.google.apis:google-api-services-youtube:v3-rev20230502-2.0.0")
@@ -95,11 +96,7 @@ dependencies {
 
     // HTTP e JSON
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
-    implementation("com.google.code.gson:gson:2.10.1")
 
     // Coroutines
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
-
-    // Material Icons Extended
-    implementation("com.google.android.material:material:1.11.0")
 }

@@ -1,5 +1,5 @@
 package com.example.musiclab
-//
+
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -15,6 +15,10 @@ import androidx.core.app.NotificationCompat
 class MusicService : Service() {
 
     private lateinit var musicPlayer: MusicPlayer
+
+    // ✅ NUOVO: MediaSessionManager per controlli esterni
+    private lateinit var mediaSessionManager: MediaSessionManager
+
     private val NOTIFICATION_ID = 1
     private val CHANNEL_ID = "music_playback_channel"
     private var isForegroundStarted = false
@@ -34,7 +38,12 @@ class MusicService : Service() {
         createNotificationChannel()
         musicPlayer = MusicPlayerManager.getInstance().getMusicPlayer(applicationContext)
 
-        // CRITICO: Avvia subito come foreground con notifica placeholder
+        // ✅ NUOVO: Inizializza MediaSession per controlli cuffie/Bluetooth
+        mediaSessionManager = MediaSessionManager(applicationContext, musicPlayer)
+        mediaSessionManager.initialize()
+        Log.d(TAG, "✅ MediaSession initialized")
+
+        // Avvia subito come foreground con notifica placeholder
         startForegroundWithPlaceholder()
 
         // Aggiungi listener per aggiornare notifica
@@ -58,7 +67,7 @@ class MusicService : Service() {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        return NotificationCompat.Builder(this, CHANNEL_ID)
+        val builder = NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle("MusicLab")
             .setContentText("Pronto per riprodurre")
             .setSmallIcon(android.R.drawable.ic_media_play)
@@ -67,7 +76,17 @@ class MusicService : Service() {
             .setCategory(NotificationCompat.CATEGORY_TRANSPORT)
             .setOnlyAlertOnce(true)
             .setPriority(NotificationCompat.PRIORITY_LOW)
-            .build()
+
+        // ✅ NUOVO: Aggiungi MediaStyle anche al placeholder
+        val sessionToken = mediaSessionManager.getSessionToken()
+        if (sessionToken != null) {
+            builder.setStyle(
+                androidx.media.app.NotificationCompat.MediaStyle()
+                    .setMediaSession(sessionToken)
+            )
+        }
+
+        return builder.build()
     }
 
     override fun onBind(intent: Intent?): IBinder? {
@@ -85,7 +104,19 @@ class MusicService : Service() {
             }
             ACTION_PLAY_PAUSE -> {
                 Log.d(TAG, "Play/Pause clicked")
-                musicPlayer.playPause()
+
+                // ✅ NUOVO: Richiedi audio focus quando si preme play
+                if (!musicPlayer.isPlaying()) {
+                    val gotFocus = mediaSessionManager.requestAudioFocus()
+                    if (gotFocus) {
+                        musicPlayer.play()
+                        Log.d(TAG, "✅ Audio focus obtained, playing")
+                    } else {
+                        Log.w(TAG, "⚠️ Failed to get audio focus")
+                    }
+                } else {
+                    musicPlayer.pause()
+                }
             }
             ACTION_NEXT -> {
                 Log.d(TAG, "Next clicked")
@@ -93,6 +124,10 @@ class MusicService : Service() {
             }
             ACTION_STOP -> {
                 Log.d(TAG, "Stop clicked")
+
+                // ✅ NUOVO: Rilascia audio focus quando si stoppa
+                mediaSessionManager.abandonAudioFocus()
+
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
                     stopForeground(STOP_FOREGROUND_REMOVE)
                 } else {
@@ -185,7 +220,7 @@ class MusicService : Service() {
             android.R.drawable.ic_media_play
         }
 
-        return NotificationCompat.Builder(this, CHANNEL_ID)
+        val builder = NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle(song.title)
             .setContentText(song.artist)
             .setSubText(song.album)
@@ -197,17 +232,29 @@ class MusicService : Service() {
             .addAction(android.R.drawable.ic_media_previous, "Previous", previousIntent)
             .addAction(playPauseIcon, "Play/Pause", playPauseIntent)
             .addAction(android.R.drawable.ic_media_next, "Next", nextIntent)
-            .setStyle(
-                androidx.media.app.NotificationCompat.MediaStyle()
-                    .setShowActionsInCompactView(0, 1, 2)
-            )
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .setOngoing(isPlaying)
-            .build()
+
+        // ✅ NUOVO: Aggiungi MediaStyle con session token per controlli esterni
+        val sessionToken = mediaSessionManager.getSessionToken()
+        if (sessionToken != null) {
+            builder.setStyle(
+                androidx.media.app.NotificationCompat.MediaStyle()
+                    .setMediaSession(sessionToken)
+                    .setShowActionsInCompactView(0, 1, 2)
+            )
+            Log.d(TAG, "✅ MediaStyle added to notification with session token")
+        }
+
+        return builder.build()
     }
 
     override fun onDestroy() {
         super.onDestroy()
-        Log.d(TAG, "Service destroyed")
+
+        // ✅ NUOVO: Rilascia MediaSession
+        mediaSessionManager.release()
+
+        Log.d(TAG, "Service destroyed, MediaSession released")
     }
 }

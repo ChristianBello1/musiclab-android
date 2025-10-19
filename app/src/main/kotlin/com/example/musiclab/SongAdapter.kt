@@ -1,6 +1,7 @@
 package com.example.musiclab
 
 import android.graphics.Color
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -118,8 +119,19 @@ class SongAdapter(
     override fun getItemCount(): Int = songs.size
 
     fun updateSongs(newSongs: List<Song>) {
-        songs = newSongs
-        notifyItemRangeChanged(0, songs.size)
+        try {
+            Log.d("SongAdapter", "Updating songs: ${songs.size} -> ${newSongs.size}")
+
+            // ✅ SOLUZIONE: Usa notifyDataSetChanged() che è più sicuro
+            // invece di notifyItemRangeChanged()
+            songs = newSongs
+            notifyDataSetChanged()
+
+            Log.d("SongAdapter", "✅ Songs updated successfully")
+        } catch (e: Exception) {
+            Log.e("SongAdapter", "❌ Error updating songs: ${e.message}")
+            e.printStackTrace()
+        }
     }
 
     private fun enterSelectionMode(firstSongId: Long) {
