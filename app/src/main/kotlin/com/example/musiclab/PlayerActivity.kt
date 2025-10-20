@@ -11,10 +11,8 @@ import android.widget.SeekBar
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
-import java.util.Locale
-import androidx.core.widget.ImageViewCompat
-import android.content.res.ColorStateList
 import androidx.media3.common.Player
+import java.util.Locale
 
 class PlayerActivity : AppCompatActivity() {
 
@@ -26,7 +24,6 @@ class PlayerActivity : AppCompatActivity() {
     private lateinit var seekBar: SeekBar
     private lateinit var currentTime: TextView
     private lateinit var totalTime: TextView
-
     private lateinit var settingsButton: ImageButton
 
     // Control buttons
@@ -43,13 +40,13 @@ class PlayerActivity : AppCompatActivity() {
     private val progressHandler = Handler(Looper.getMainLooper())
     private var isUpdatingProgress = false
 
-    // NUOVO: Listener per cambiamenti della coda (shuffle)
+    // Listener per cambiamenti della coda (shuffle)
     private val playerQueueChangeListener: () -> Unit = {
         runOnUiThread {
             Log.d("PlayerActivity", "🔄 Queue changed - updating shuffle/repeat UI")
             updateShuffleButton(musicPlayer.isShuffleEnabled())
             updateRepeatButton(musicPlayer.getRepeatMode())
-            updateSongInfo() // Potrebbe essere cambiata la canzone corrente
+            updateSongInfo()
         }
     }
 
@@ -67,21 +64,17 @@ class PlayerActivity : AppCompatActivity() {
     private val progressRunnable = object : Runnable {
         override fun run() {
             updateProgress()
-            progressHandler.postDelayed(this, 1000) // Aggiorna ogni secondo
+            progressHandler.postDelayed(this, 1000)
         }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
-        // Nascondi ActionBar anche nel PlayerActivity
         supportActionBar?.hide()
-
         setContentView(R.layout.activity_player)
 
         Log.d("PlayerActivity", "=== CREAZIONE PLAYER ACTIVITY ===")
 
-        // Ottieni il MusicPlayer globale
         musicPlayer = MusicPlayerManager.getInstance().getMusicPlayer(this)
 
         setupViews()
@@ -90,8 +83,6 @@ class PlayerActivity : AppCompatActivity() {
         startProgressUpdates()
 
         Log.d("PlayerActivity", "=== SETUP COMPLETATO ===")
-
-        AnimationUtils.fadeIn(findViewById(R.id.player_controls_container))
     }
 
     private fun setupViews() {
@@ -123,7 +114,6 @@ class PlayerActivity : AppCompatActivity() {
             shuffleButton = findViewById(R.id.btn_shuffle)
             repeatButton = findViewById(R.id.btn_repeat)
 
-            // Assicurati che siano visibili e cliccabili
             shuffleButton.visibility = View.VISIBLE
             repeatButton.visibility = View.VISIBLE
             shuffleButton.isClickable = true
@@ -162,6 +152,7 @@ class PlayerActivity : AppCompatActivity() {
         })
     }
 
+    // ✅ MODIFICATO: Aggiunta animazione su tutti i pulsanti
     private fun setupClickListeners() {
         Log.d("PlayerActivity", "=== SETUP CLICK LISTENERS START ===")
 
@@ -217,14 +208,17 @@ class PlayerActivity : AppCompatActivity() {
             AnimationUtils.overrideActivityTransition(this)
         }
 
+        // ✅ MODIFICATO: Pulse animation quando shuffle attivo
         try {
             shuffleButton.setOnClickListener {
                 AnimationUtils.scaleButton(shuffleButton)
                 Log.d("PlayerActivity", "🔀 SHUFFLE BUTTON CLICKED!")
                 val isShuffleEnabled = musicPlayer.toggleShuffle()
 
+                // Pulse animation per feedback visivo
                 if (isShuffleEnabled) {
                     AnimationUtils.pulse(shuffleButton, 2)
+                    Log.d("PlayerActivity", "✅ Shuffle enabled with pulse")
                 } else {
                     AnimationUtils.stopPulse(shuffleButton)
                 }
@@ -243,6 +237,7 @@ class PlayerActivity : AppCompatActivity() {
             Log.e("PlayerActivity", "❌ Error setting up shuffle/repeat: $e")
         }
 
+        // AGGIORNATO: Aggiungi entrambi i listener
         musicPlayer.addStateChangeListener(playerActivityListener)
         musicPlayer.addQueueChangeListener(playerQueueChangeListener)
 
@@ -288,7 +283,6 @@ class PlayerActivity : AppCompatActivity() {
         Log.d("PlayerActivity", "Play/Pause updated: playing=$isPlaying")
     }
 
-    // MIGLIORATO: Aggiornamento UI con logging esteso
     private fun updateShuffleButton(isEnabled: Boolean) {
         Log.d("PlayerActivity", "🔄 Updating shuffle button: enabled=$isEnabled")
 
@@ -312,30 +306,26 @@ class PlayerActivity : AppCompatActivity() {
         try {
             val iconRes = when (repeatMode) {
                 Player.REPEAT_MODE_OFF -> R.drawable.ic_repeat
+                Player.REPEAT_MODE_ALL -> R.drawable.ic_repeat
                 Player.REPEAT_MODE_ONE -> R.drawable.ic_repeat_one
-                Player.REPEAT_MODE_ALL -> R.drawable.ic_repeat_active
                 else -> R.drawable.ic_repeat
             }
-
             repeatButton.setImageResource(iconRes)
 
             val colorRes = if (repeatMode != Player.REPEAT_MODE_OFF) {
-                ContextCompat.getColor(this, R.color.primary_purple)
+                ContextCompat.getColor(this, R.color.purple_500)
             } else {
-                ContextCompat.getColor(this, R.color.text_secondary)
+                ContextCompat.getColor(this, android.R.color.darker_gray)
             }
+            repeatButton.setColorFilter(colorRes)
 
-            ImageViewCompat.setImageTintList(
-                repeatButton,
-                ColorStateList.valueOf(colorRes)
-            )
-
-            Log.d("PlayerActivity", "✅ Repeat button updated")
+            Log.d("PlayerActivity", "✅ Repeat button updated - mode: $repeatMode")
         } catch (e: Exception) {
             Log.e("PlayerActivity", "❌ Error updating repeat button: $e")
         }
     }
 
+    // ✅ MODIFICATO: Seekbar animata
     private fun updateProgress() {
         if (isUpdatingProgress) return
 
@@ -345,7 +335,7 @@ class PlayerActivity : AppCompatActivity() {
         if (duration > 0) {
             val progress = ((currentPosition.toFloat() / duration) * seekBar.max).toInt()
 
-            // ✅ NUOVO: Animazione seekbar
+            // ✅ NUOVO: Anima la seekbar
             AnimationUtils.animateSeekBar(seekBar, progress, 200L)
 
             currentTime.text = formatTime(currentPosition.toInt())
@@ -355,35 +345,19 @@ class PlayerActivity : AppCompatActivity() {
     private fun formatTime(seconds: Int): String {
         val minutes = seconds / 60
         val remainingSeconds = seconds % 60
-        return String.format(Locale.getDefault(), "%d:%02d", minutes, remainingSeconds)
+        return String.format("%d:%02d", minutes, remainingSeconds)
     }
 
     private fun startProgressUpdates() {
-        progressHandler.post(progressRunnable)
-        Log.d("PlayerActivity", "Progress updates started")
+        if (!isUpdatingProgress) {
+            progressHandler.post(progressRunnable)
+            Log.d("PlayerActivity", "Progress updates started")
+        }
     }
 
     private fun stopProgressUpdates() {
         progressHandler.removeCallbacks(progressRunnable)
         Log.d("PlayerActivity", "Progress updates stopped")
-    }
-
-
-    override fun onDestroy() {
-        super.onDestroy()
-        stopProgressUpdates()
-
-        // AGGIORNATO: Rimuovi entrambi i listener per evitare memory leak
-        musicPlayer.removeStateChangeListener(playerActivityListener)
-        musicPlayer.removeQueueChangeListener(playerQueueChangeListener)
-
-        Log.d("PlayerActivity", "PlayerActivity destroyed, all listeners removed")
-    }
-
-    override fun onPause() {
-        super.onPause()
-        stopProgressUpdates()
-        Log.d("PlayerActivity", "PlayerActivity paused")
     }
 
     override fun onResume() {
@@ -392,7 +366,6 @@ class PlayerActivity : AppCompatActivity() {
         updateUI()
         startProgressUpdates()
 
-        // Debug: Re-check pulsanti dopo resume
         try {
             Log.d("PlayerActivity", "Post-resume shuffle visible: ${shuffleButton.visibility}")
             Log.d("PlayerActivity", "Post-resume repeat visible: ${repeatButton.visibility}")
@@ -402,5 +375,22 @@ class PlayerActivity : AppCompatActivity() {
         } catch (e: Exception) {
             Log.e("PlayerActivity", "Error checking buttons post-resume: $e")
         }
+    }
+
+    override fun onPause() {
+        super.onPause()
+        stopProgressUpdates()
+        Log.d("PlayerActivity", "PlayerActivity paused")
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        stopProgressUpdates()
+
+        // AGGIORNATO: Rimuovi entrambi i listener
+        musicPlayer.removeStateChangeListener(playerActivityListener)
+        musicPlayer.removeQueueChangeListener(playerQueueChangeListener)
+
+        Log.d("PlayerActivity", "PlayerActivity destroyed, all listeners removed")
     }
 }

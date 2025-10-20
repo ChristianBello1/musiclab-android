@@ -4,6 +4,7 @@ import android.content.Context
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.view.View
 import android.widget.Button
 import android.widget.ImageButton
 import android.widget.LinearLayout
@@ -11,7 +12,6 @@ import android.widget.SeekBar
 import android.widget.Switch
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
-import android.view.View
 
 class SettingsActivity : AppCompatActivity() {
 
@@ -38,13 +38,12 @@ class SettingsActivity : AppCompatActivity() {
     // Battery Saver
     private lateinit var batterySaverSwitch: Switch
 
-    // Handler per aggiornare il timer UI
     private val timerHandler = Handler(Looper.getMainLooper())
     private val timerUpdateRunnable = object : Runnable {
         override fun run() {
             if (sleepTimerManager.isTimerActive()) {
                 updateTimerUI()
-                timerHandler.postDelayed(this, 1000) // Aggiorna ogni secondo
+                timerHandler.postDelayed(this, 1000)
             }
         }
     }
@@ -55,33 +54,23 @@ class SettingsActivity : AppCompatActivity() {
         const val KEY_CROSSFADE_DURATION = "crossfade_duration"
         const val KEY_BATTERY_SAVER = "battery_saver_enabled"
 
-        // Default: 8 secondi di crossfade
         const val DEFAULT_CROSSFADE_DURATION = 8
         const val MIN_CROSSFADE_DURATION = 5
         const val MAX_CROSSFADE_DURATION = 10
 
-        /**
-         * Helper per leggere se automix è abilitato
-         */
         fun isAutomixEnabled(context: Context): Boolean {
             val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             return prefs.getBoolean(KEY_AUTOMIX_ENABLED, false)
         }
 
-        /**
-         * Helper per leggere la durata del crossfade
-         */
         fun getCrossfadeDuration(context: Context): Int {
             val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             return prefs.getInt(KEY_CROSSFADE_DURATION, DEFAULT_CROSSFADE_DURATION)
         }
 
-        /**
-         * Helper per leggere se il risparmio batteria è abilitato
-         */
         fun isBatterySaverEnabled(context: Context): Boolean {
             val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-            return prefs.getBoolean(KEY_BATTERY_SAVER, true) // Default: attivo
+            return prefs.getBoolean(KEY_BATTERY_SAVER, true)
         }
     }
 
@@ -89,7 +78,6 @@ class SettingsActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_settings)
 
-        // Ottieni istanze globali
         musicPlayer = MusicPlayerManager.getInstance().getMusicPlayer(this)
         sleepTimerManager = SleepTimerManager.getInstance(this)
 
@@ -97,7 +85,6 @@ class SettingsActivity : AppCompatActivity() {
         loadSettings()
         setupListeners()
 
-        // Aggiorna UI del timer se attivo
         if (sleepTimerManager.isTimerActive()) {
             updateTimerUI()
             startTimerUpdates()
@@ -107,13 +94,11 @@ class SettingsActivity : AppCompatActivity() {
     private fun initializeViews() {
         backButton = findViewById(R.id.back_button)
 
-        // Automix
         automixSwitch = findViewById(R.id.automix_switch)
         crossfadeDurationSeekBar = findViewById(R.id.crossfade_duration_seekbar)
         crossfadeDurationText = findViewById(R.id.crossfade_duration_text)
         crossfadeSettingsContainer = findViewById(R.id.crossfade_settings_container)
 
-        // Sleep Timer
         btnTimer5 = findViewById(R.id.btn_timer_5)
         btnTimer10 = findViewById(R.id.btn_timer_10)
         btnTimer15 = findViewById(R.id.btn_timer_15)
@@ -123,17 +108,14 @@ class SettingsActivity : AppCompatActivity() {
         timerActiveContainer = findViewById(R.id.timer_active_container)
         timerRemainingText = findViewById(R.id.timer_remaining_text)
 
-        // Battery Saver
         batterySaverSwitch = findViewById(R.id.battery_saver_switch)
 
-        // Configura la SeekBar (0-5 per rappresentare 5-10 secondi)
         crossfadeDurationSeekBar.max = MAX_CROSSFADE_DURATION - MIN_CROSSFADE_DURATION
     }
 
     private fun loadSettings() {
         val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
-        // Automix
         val automixEnabled = prefs.getBoolean(KEY_AUTOMIX_ENABLED, false)
         val crossfadeDuration = prefs.getInt(KEY_CROSSFADE_DURATION, DEFAULT_CROSSFADE_DURATION)
         automixSwitch.isChecked = automixEnabled
@@ -141,7 +123,6 @@ class SettingsActivity : AppCompatActivity() {
         crossfadeDurationSeekBar.progress = crossfadeDuration - MIN_CROSSFADE_DURATION
         updateCrossfadeDurationText(crossfadeDuration)
 
-        // Battery Saver
         val batterySaverEnabled = prefs.getBoolean(KEY_BATTERY_SAVER, true)
         batterySaverSwitch.isChecked = batterySaverEnabled
     }
@@ -151,7 +132,6 @@ class SettingsActivity : AppCompatActivity() {
             finish()
         }
 
-        // Automix
         automixSwitch.setOnCheckedChangeListener { _, isChecked ->
             saveAutomixEnabled(isChecked)
             updateCrossfadeSettingsVisibility(isChecked)
@@ -171,7 +151,6 @@ class SettingsActivity : AppCompatActivity() {
             }
         })
 
-        // Sleep Timer buttons
         btnTimer5.setOnClickListener { startSleepTimer(5) }
         btnTimer10.setOnClickListener { startSleepTimer(10) }
         btnTimer15.setOnClickListener { startSleepTimer(15) }
@@ -184,7 +163,6 @@ class SettingsActivity : AppCompatActivity() {
             stopTimerUpdates()
         }
 
-        // Battery Saver
         batterySaverSwitch.setOnCheckedChangeListener { _, isChecked ->
             saveBatterySaverEnabled(isChecked)
         }

@@ -275,9 +275,10 @@
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
                             android:text="30 min"
-                            android:textSize="14sp"
+                            android:textSize="13sp"
                             android:backgroundTint="@color/purple_500"
-                            android:layout_margin="4dp" />
+                            android:layout_margin="4dp"
+                            android:paddingHorizontal="4dp" />
 
                         <Button
                             android:id="@+id/btn_timer_60"
@@ -285,19 +286,22 @@
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
                             android:text="60 min"
-                            android:textSize="14sp"
+                            android:textSize="13sp"
                             android:backgroundTint="@color/purple_500"
-                            android:layout_margin="4dp" />
+                            android:layout_margin="4dp"
+                            android:paddingHorizontal="4dp" />
 
                         <Button
                             android:id="@+id/btn_timer_cancel"
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:text="Annulla"
-                            android:textSize="14sp"
+                            android:layout_weight="0.8"
+                            android:text="✕"
+                            android:textSize="18sp"
+                            android:textStyle="bold"
                             android:backgroundTint="@android:color/holo_red_dark"
-                            android:layout_margin="4dp" />
+                            android:layout_margin="4dp"
+                            android:paddingHorizontal="2dp" />
                     </LinearLayout>
                 </LinearLayout>
             </androidx.cardview.widget.CardView>

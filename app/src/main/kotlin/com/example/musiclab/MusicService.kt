@@ -16,10 +16,11 @@ class MusicService : Service() {
 
     private lateinit var musicPlayer: MusicPlayer
 
-    private lateinit var batteryOptimizer: BatteryOptimizer
-
-    // ✅ NUOVO: MediaSessionManager per controlli esterni
+    // MediaSessionManager per controlli esterni
     private lateinit var mediaSessionManager: MediaSessionManager
+
+    // ✅ NUOVO: BatteryOptimizer
+    private lateinit var batteryOptimizer: BatteryOptimizer
 
     private val NOTIFICATION_ID = 1
     private val CHANNEL_ID = "music_playback_channel"
@@ -40,25 +41,29 @@ class MusicService : Service() {
         createNotificationChannel()
         musicPlayer = MusicPlayerManager.getInstance().getMusicPlayer(applicationContext)
 
-        // ✅ NUOVO: Inizializza MediaSession per controlli cuffie/Bluetooth
+        // Inizializza MediaSession per controlli cuffie/Bluetooth
         mediaSessionManager = MediaSessionManager(applicationContext, musicPlayer)
         mediaSessionManager.initialize()
         Log.d(TAG, "✅ MediaSession initialized")
 
+        // ✅ NUOVO: Inizializza BatteryOptimizer
         batteryOptimizer = BatteryOptimizer.getInstance(applicationContext)
+        Log.d(TAG, "✅ BatteryOptimizer initialized")
 
         // Avvia subito come foreground con notifica placeholder
         startForegroundWithPlaceholder()
 
-        // Aggiungi listener per aggiornare notifica
+        // ✅ MODIFICATO: Aggiungi listener con gestione WakeLock
         musicPlayer.addStateChangeListener { isPlaying, currentSong ->
             updateNotification(currentSong, isPlaying)
-        }
-        val batterySaverEnabled = SettingsActivity.isBatterySaverEnabled(applicationContext)
-        if (isPlaying) {
-            batteryOptimizer.acquireWakeLock(batterySaverEnabled)
-        } else {
-            batteryOptimizer.releaseWakeLock()
+
+            // Gestisci WakeLock in base allo stato di riproduzione
+            val batterySaverEnabled = SettingsActivity.isBatterySaverEnabled(applicationContext)
+            if (isPlaying) {
+                batteryOptimizer.acquireWakeLock(batterySaverEnabled)
+            } else {
+                batteryOptimizer.releaseWakeLock()
+            }
         }
     }
 
@@ -87,7 +92,7 @@ class MusicService : Service() {
             .setOnlyAlertOnce(true)
             .setPriority(NotificationCompat.PRIORITY_LOW)
 
-        // ✅ NUOVO: Aggiungi MediaStyle anche al placeholder
+        // Aggiungi MediaStyle anche al placeholder
         val sessionToken = mediaSessionManager.getSessionToken()
         if (sessionToken != null) {
             builder.setStyle(
@@ -115,7 +120,7 @@ class MusicService : Service() {
             ACTION_PLAY_PAUSE -> {
                 Log.d(TAG, "Play/Pause clicked")
 
-                // ✅ NUOVO: Richiedi audio focus quando si preme play
+                // Richiedi audio focus quando si preme play
                 if (!musicPlayer.isPlaying()) {
                     val gotFocus = mediaSessionManager.requestAudioFocus()
                     if (gotFocus) {
@@ -135,7 +140,7 @@ class MusicService : Service() {
             ACTION_STOP -> {
                 Log.d(TAG, "Stop clicked")
 
-                // ✅ NUOVO: Rilascia audio focus quando si stoppa
+                // Rilascia audio focus quando si stoppa
                 mediaSessionManager.abandonAudioFocus()
 
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
@@ -161,13 +166,10 @@ class MusicService : Service() {
 
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val batterySaverEnabled = SettingsActivity.isBatterySaverEnabled(applicationContext)
-            val importance = batteryOptimizer.getNotificationPriority(batterySaverEnabled)
-
             val channel = NotificationChannel(
                 CHANNEL_ID,
                 "Music Playback",
-                importance // MODIFICATO: usa priority dinamica
+                NotificationManager.IMPORTANCE_LOW
             ).apply {
                 description = "Shows currently playing music"
                 setShowBadge(false)
@@ -176,20 +178,9 @@ class MusicService : Service() {
 
             val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
             notificationManager.createNotificationChannel(channel)
-            Log.d(TAG, "Notification channel created with priority: $importance")
+            Log.d(TAG, "Notification channel created")
         }
     }
-
-    override fun onDestroy() {
-        super.onDestroy()
-        mediaSessionManager.release()
-
-        // NUOVO: Cleanup del BatteryOptimizer
-        batteryOptimizer.releaseWakeLock()
-
-        Log.d(TAG, "Service destroyed, all resources released")
-    }
-}
 
     fun updateNotification(song: Song?, isPlaying: Boolean) {
         val notification = if (song != null) {
@@ -259,7 +250,7 @@ class MusicService : Service() {
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .setOngoing(isPlaying)
 
-        // ✅ NUOVO: Aggiungi MediaStyle con session token per controlli esterni
+        // Aggiungi MediaStyle con session token per controlli esterni
         val sessionToken = mediaSessionManager.getSessionToken()
         if (sessionToken != null) {
             builder.setStyle(
@@ -276,9 +267,12 @@ class MusicService : Service() {
     override fun onDestroy() {
         super.onDestroy()
 
-        // ✅ NUOVO: Rilascia MediaSession
+        // Rilascia MediaSession
         mediaSessionManager.release()
 
-        Log.d(TAG, "Service destroyed, MediaSession released")
+        // ✅ NUOVO: Rilascia WakeLock
+        batteryOptimizer.releaseWakeLock()
+
+        Log.d(TAG, "Service destroyed, MediaSession released, WakeLock released")
     }
 }
