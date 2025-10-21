@@ -1,9 +1,11 @@
 package com.example.musiclab
 
 import android.content.Context
+import android.content.Intent
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.util.Log
 import android.view.View
 import android.widget.Button
 import android.widget.ImageButton
@@ -37,6 +39,8 @@ class SettingsActivity : AppCompatActivity() {
 
     // Battery Saver
     private lateinit var batterySaverSwitch: Switch
+
+    private lateinit var helpCard: androidx.cardview.widget.CardView
 
     private val timerHandler = Handler(Looper.getMainLooper())
     private val timerUpdateRunnable = object : Runnable {
@@ -107,6 +111,7 @@ class SettingsActivity : AppCompatActivity() {
         btnTimerCancel = findViewById(R.id.btn_timer_cancel)
         timerActiveContainer = findViewById(R.id.timer_active_container)
         timerRemainingText = findViewById(R.id.timer_remaining_text)
+        helpCard = findViewById(R.id.help_card)
 
         batterySaverSwitch = findViewById(R.id.battery_saver_switch)
 
@@ -165,6 +170,12 @@ class SettingsActivity : AppCompatActivity() {
 
         batterySaverSwitch.setOnCheckedChangeListener { _, isChecked ->
             saveBatterySaverEnabled(isChecked)
+        }
+
+        helpCard.setOnClickListener {
+            Log.d("SettingsActivity", "Opening help activity")
+            val intent = Intent(this, HelpActivity::class.java)
+            startActivity(intent)
         }
     }
 

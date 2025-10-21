@@ -4,72 +4,42 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:fitsSystemWindows="true">
+    android:background="@color/background_dark">
 
-    <!-- Header COMPATTO -->
+    <!-- Header -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
-        android:padding="12dp"
-        android:gravity="center_vertical"
-        android:background="?attr/colorPrimary">
+        android:padding="16dp"
+        android:gravity="center_vertical">
 
-        <!-- Back button (cambia icona in base al contesto) -->
         <ImageButton
             android:id="@+id/btn_back_playlist"
             android:layout_width="48dp"
             android:layout_height="48dp"
-            android:src="@android:drawable/arrow_down_float"
+            android:src="@android:drawable/ic_menu_close_clear_cancel"
             android:background="?attr/selectableItemBackgroundBorderless"
             android:contentDescription="@string/close_player"
             app:tint="@android:color/white" />
 
-        <!-- Info normale O contatore selezione -->
-        <LinearLayout
-            android:id="@+id/normal_info_container"
+        <Space
             android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:orientation="vertical"
-            android:layout_marginStart="12dp">
+            android:layout_height="1dp"
+            android:layout_weight="1" />
 
-            <TextView
-                android:id="@+id/playlist_name_title"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@string/playlist_name"
-                android:textSize="16sp"
-                android:textStyle="bold"
-                android:textColor="@android:color/white"
-                android:maxLines="1"
-                android:ellipsize="end" />
-
-            <TextView
-                android:id="@+id/playlist_song_count_text"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@string/songs_in_playlist"
-                android:textSize="12sp"
-                android:textColor="@android:color/white"
-                android:alpha="0.8" />
-
-        </LinearLayout>
-
-        <!-- Contatore selezione (nascosto inizialmente) -->
+        <!-- Selezione: contatore -->
         <TextView
             android:id="@+id/selection_count_text"
-            android:layout_width="0dp"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:layout_marginStart="12dp"
-            android:text="0 selezionate"
+            android:text="0 selezionati"
             android:textSize="16sp"
-            android:textStyle="bold"
             android:textColor="@android:color/white"
-            android:visibility="gone" />
+            android:visibility="gone"
+            android:layout_marginEnd="8dp" />
 
-        <!-- Bottoni modalità selezione -->
+        <!-- Selezione: aggiungi ad altra playlist -->
         <ImageButton
             android:id="@+id/btn_add_selected_to_other_playlist"
             android:layout_width="48dp"
@@ -81,6 +51,7 @@
             app:tint="@android:color/white"
             android:layout_marginEnd="4dp" />
 
+        <!-- Selezione: rimuovi da questa playlist -->
         <ImageButton
             android:id="@+id/btn_remove_selected_from_playlist"
             android:layout_width="48dp"
@@ -102,7 +73,6 @@
             app:tint="@android:color/white"
             android:layout_marginEnd="8dp" />
 
-        <!-- Menu playlist (visibile solo in modalità normale) -->
         <ImageButton
             android:id="@+id/btn_playlist_menu"
             android:layout_width="48dp"
@@ -114,53 +84,76 @@
 
     </LinearLayout>
 
-    <!-- Lista canzoni -->
+    <!-- Info Playlist (nome e conteggio canzoni) -->
+    <LinearLayout
+        android:id="@+id/normal_info_container"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="16dp"
+        android:background="@color/surface_dark">
+
+        <TextView
+            android:id="@+id/playlist_name_title"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Playlist"
+            android:textSize="24sp"
+            android:textStyle="bold"
+            android:textColor="@color/text_primary" />
+
+        <TextView
+            android:id="@+id/playlist_song_count_text"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="0 canzoni"
+            android:textSize="14sp"
+            android:textColor="@color/text_secondary"
+            android:layout_marginTop="4dp" />
+
+    </LinearLayout>
+
+    <!-- ✅ NUOVO: Container con RecyclerView e Loading -->
     <FrameLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent">
 
+        <!-- RecyclerView delle canzoni -->
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/playlist_songs_recycler"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:padding="8dp"
-            android:clipToPadding="false" />
+            android:clipToPadding="false"
+            android:scrollbars="vertical" />
 
-        <!-- Empty state -->
+        <!-- ✅ Loading Container semplificato -->
         <LinearLayout
-            android:id="@+id/empty_state_playlist"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_gravity="center"
+            android:id="@+id/loading_container"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
             android:orientation="vertical"
             android:gravity="center"
+            android:background="@color/background_dark"
             android:visibility="gone">
 
-            <ImageView
+            <!-- ProgressBar circolare -->
+            <ProgressBar
+                android:id="@+id/loading_progress"
                 android:layout_width="64dp"
                 android:layout_height="64dp"
-                android:src="@android:drawable/ic_menu_agenda"
-                android:layout_marginBottom="16dp"
-                app:tint="?android:attr/textColorSecondary"
-                android:alpha="0.5" />
+                android:indeterminate="true"
+                style="@android:style/Widget.ProgressBar.Large" />
 
+            <!-- Testo di caricamento statico -->
             <TextView
+                android:id="@+id/loading_text"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Nessuna canzone in questa playlist"
+                android:text="Caricamento playlist..."
                 android:textSize="16sp"
-                android:textColor="?android:attr/textColorSecondary"
-                android:gravity="center" />
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Aggiungi canzoni dal menu principale"
-                android:textSize="12sp"
-                android:textColor="?android:attr/textColorSecondary"
-                android:gravity="center"
-                android:layout_marginTop="8dp"
-                android:alpha="0.7" />
+                android:textColor="@color/text_primary"
+                android:layout_marginTop="16dp" />
 
         </LinearLayout>
 

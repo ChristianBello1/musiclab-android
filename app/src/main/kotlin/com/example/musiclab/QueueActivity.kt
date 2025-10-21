@@ -112,6 +112,40 @@ class QueueActivity : AppCompatActivity() {
             Log.d("QueueActivity", "Clear queue clicked")
             clearQueue()
         }
+
+        // ✅ NUOVO: Click su "In riproduzione: ..." per scrollare alla canzone corrente
+        currentSongTitle.setOnClickListener {
+            scrollToCurrentSong()
+        }
+    }
+
+    private fun scrollToCurrentSong() {
+        if (currentSongIndex >= 0 && currentSongIndex < currentQueue.size) {
+            // Scrolla alla posizione corrente con animazione smooth
+            queueRecyclerView.smoothScrollToPosition(currentSongIndex)
+
+            Log.d("QueueActivity", "📍 Scrolled to current song at index: $currentSongIndex")
+
+            // Opzionale: Fai un piccolo "pulse" sulla canzone per evidenziarla
+            queueRecyclerView.postDelayed({
+                val viewHolder = queueRecyclerView.findViewHolderForAdapterPosition(currentSongIndex)
+                viewHolder?.itemView?.let { view ->
+                    // Animazione di "pulse" per evidenziare
+                    view.animate()
+                        .scaleX(1.05f)
+                        .scaleY(1.05f)
+                        .setDuration(150)
+                        .withEndAction {
+                            view.animate()
+                                .scaleX(1.0f)
+                                .scaleY(1.0f)
+                                .setDuration(150)
+                                .start()
+                        }
+                        .start()
+                }
+            }, 300) // Aspetta che lo scroll sia completato
+        }
     }
 
     private fun loadCurrentQueue() {

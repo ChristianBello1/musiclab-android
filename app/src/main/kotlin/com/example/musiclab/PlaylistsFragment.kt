@@ -231,20 +231,12 @@ class PlaylistsFragment : Fragment() {
         isLoggedIn = loggedIn
         currentUserId = userId
 
-        // ← AGGIUNGI QUESTE RIGHE
-        val context = context ?: return
-        val prefs = context.getSharedPreferences("MusicLabPrefs", android.content.Context.MODE_PRIVATE)
-        prefs.edit().apply {
-            putBoolean("is_logged_in", loggedIn)
-            putString("user_id", userId)
-            apply()
-        }
-        Log.d("PlaylistsFragment", "Saved login state: logged=$loggedIn, userId=$userId")
-        // FINE AGGIUNTA
+        Log.d("PlaylistsFragment", "Login state set: logged=$loggedIn, userId=$userId")
 
         updateUI()
 
-        if (loggedIn) {
+        if (loggedIn && userId.isNotEmpty()) {
+            // ✅ Carica le playlist SOLO se autenticato E con UID valido
             loadPlaylistsFromCloud()
         } else {
             playlists.removeAll { !it.isLocal }
@@ -599,10 +591,20 @@ class PlaylistsFragment : Fragment() {
 
     override fun onResume() {
         super.onResume()
+        Log.d("PlaylistsFragment", "=== ON RESUME ===")
 
-        if (isLoggedIn && currentUserId.isNotEmpty()) {
-            Log.d("PlaylistsFragment", "onResume - reloading playlists")
-            loadPlaylistsFromCloud()
+        // ✅ Ricarica lo stato di login ogni volta che il fragment diventa visibile
+        val context = context ?: return
+        val prefs = context.getSharedPreferences("MusicLabPrefs", android.content.Context.MODE_PRIVATE)
+        val savedLoggedIn = prefs.getBoolean("is_logged_in", false)
+        val savedUserId = prefs.getString("user_id", "") ?: ""
+
+        // Se lo stato è cambiato, aggiorna
+        if (savedLoggedIn != isLoggedIn || savedUserId != currentUserId) {
+            Log.d("PlaylistsFragment", "⚠️ Login state changed! Was: $isLoggedIn, Now: $savedLoggedIn")
+            setLoginState(savedLoggedIn, savedUserId)
+        } else {
+            Log.d("PlaylistsFragment", "✅ Login state unchanged: $isLoggedIn")
         }
     }
 

@@ -18,6 +18,10 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
 
+    <uses-permission android:name="android.permission.BLUETOOTH"
+        android:maxSdkVersion="30" />
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+
     <application
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
@@ -78,6 +82,12 @@
             android:label="Impostazioni"
             android:theme="@style/Theme.MusicLab"
             android:screenOrientation="fullSensor"
+            android:exported="false" />
+
+        <activity
+            android:name=".HelpActivity"
+            android:label="Guida"
+            android:theme="@style/Theme.MusicLab"
             android:exported="false" />
 
     </application>

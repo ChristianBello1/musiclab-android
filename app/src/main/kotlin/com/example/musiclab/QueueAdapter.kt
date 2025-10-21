@@ -45,13 +45,13 @@ class QueueAdapter(
         holder.songArtist.text = song.artist
         holder.songDuration.text = song.getFormattedDuration()
 
-        // Setup status (Currently Playing vs Up Next)
+        // Setup status - MOSTRA SOLO per canzone corrente
         if (isCurrentSong) {
             holder.statusText.text = holder.itemView.context.getString(R.string.currently_playing)
             holder.statusText.visibility = View.VISIBLE
             holder.nowPlayingIndicator.visibility = View.VISIBLE
 
-            // Evidenzia la canzone corrente con colore selection
+            // Evidenzia la canzone corrente
             holder.itemView.setBackgroundColor(
                 ContextCompat.getColor(holder.itemView.context, R.color.selection_dark)
             )
@@ -59,9 +59,8 @@ class QueueAdapter(
                 ContextCompat.getColor(holder.itemView.context, R.color.text_primary)
             )
         } else {
-            val queuePosition = if (position > currentSongIndex) position - currentSongIndex else position + 1
-            holder.statusText.text = holder.itemView.context.getString(R.string.up_next) + " #$queuePosition"
-            holder.statusText.visibility = View.VISIBLE
+            // ✅ FIX: NASCONDI il testo "Prossimi #X" per tutte le altre canzoni
+            holder.statusText.visibility = View.GONE
             holder.nowPlayingIndicator.visibility = View.GONE
 
             // Sfondo trasparente per le altre

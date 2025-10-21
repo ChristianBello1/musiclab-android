@@ -139,13 +139,15 @@ class PlayerActivity : AppCompatActivity() {
             override fun onStopTrackingTouch(seekBar: SeekBar?) {
                 isUpdatingProgress = false
                 seekBar?.let { bar ->
-                    val position = bar.progress
-                    musicPlayer.seekTo(position)
+                    // ✅ IMPORTANTE: Qui bar.progress è già in secondi, quindi moltiplica per 1000
+                    val positionInMillis = bar.progress * 1000
+                    musicPlayer.seekTo(positionInMillis.toLong())
                 }
             }
 
             override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
                 if (fromUser) {
+                    // ✅ progress è già in secondi qui
                     currentTime.text = formatTime(progress)
                 }
             }
@@ -335,10 +337,12 @@ class PlayerActivity : AppCompatActivity() {
         if (duration > 0) {
             val progress = ((currentPosition.toFloat() / duration) * seekBar.max).toInt()
 
-            // ✅ NUOVO: Anima la seekbar
+            // ✅ Anima la seekbar
             AnimationUtils.animateSeekBar(seekBar, progress, 200L)
 
-            currentTime.text = formatTime(currentPosition.toInt())
+            // ✅ FIX: Converti millisecondi in secondi PRIMA di passare a formatTime
+            val currentSeconds = (currentPosition / 1000).toInt()
+            currentTime.text = formatTime(currentSeconds)
         }
     }
 

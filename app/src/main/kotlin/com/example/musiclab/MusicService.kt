@@ -5,8 +5,12 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
+import android.bluetooth.BluetoothDevice
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
+import android.media.AudioManager
 import android.os.Build
 import android.os.IBinder
 import android.util.Log
@@ -15,12 +19,11 @@ import androidx.core.app.NotificationCompat
 class MusicService : Service() {
 
     private lateinit var musicPlayer: MusicPlayer
-
-    // MediaSessionManager per controlli esterni
     private lateinit var mediaSessionManager: MediaSessionManager
-
-    // ✅ NUOVO: BatteryOptimizer
     private lateinit var batteryOptimizer: BatteryOptimizer
+
+    // ✅ NUOVO: BroadcastReceiver per disconnessione Bluetooth e cuffie
+    private var audioDeviceReceiver: BroadcastReceiver? = null
 
     private val NOTIFICATION_ID = 1
     private val CHANNEL_ID = "music_playback_channel"
@@ -46,14 +49,14 @@ class MusicService : Service() {
         mediaSessionManager.initialize()
         Log.d(TAG, "✅ MediaSession initialized")
 
-        // ✅ NUOVO: Inizializza BatteryOptimizer
+        // Inizializza BatteryOptimizer
         batteryOptimizer = BatteryOptimizer.getInstance(applicationContext)
         Log.d(TAG, "✅ BatteryOptimizer initialized")
 
         // Avvia subito come foreground con notifica placeholder
         startForegroundWithPlaceholder()
 
-        // ✅ MODIFICATO: Aggiungi listener con gestione WakeLock
+        // Aggiungi listener con gestione WakeLock
         musicPlayer.addStateChangeListener { isPlaying, currentSong ->
             updateNotification(currentSong, isPlaying)
 
@@ -65,6 +68,49 @@ class MusicService : Service() {
                 batteryOptimizer.releaseWakeLock()
             }
         }
+
+        // ✅ NUOVO: Registra receiver per disconnessione audio
+        registerAudioDeviceReceiver()
+    }
+
+    // ✅ NUOVA FUNZIONE: Registra receiver per Bluetooth e cuffie
+    private fun registerAudioDeviceReceiver() {
+        audioDeviceReceiver = object : BroadcastReceiver() {
+            override fun onReceive(context: Context, intent: Intent) {
+                when (intent.action) {
+                    // Bluetooth disconnesso
+                    BluetoothDevice.ACTION_ACL_DISCONNECTED -> {
+                        Log.d(TAG, "🔵 Bluetooth disconnesso - pausing music")
+                        musicPlayer.pause()
+                    }
+
+                    // Cuffie scollegate
+                    Intent.ACTION_HEADSET_PLUG -> {
+                        val state = intent.getIntExtra("state", -1)
+                        if (state == 0) { // 0 = disconnesso, 1 = connesso
+                            Log.d(TAG, "🎧 Cuffie scollegate - pausing music")
+                            musicPlayer.pause()
+                        }
+                    }
+
+                    // Audio diventa "noisy" (es. cuffie bluetooth disconnesse)
+                    AudioManager.ACTION_AUDIO_BECOMING_NOISY -> {
+                        Log.d(TAG, "🔊 Audio becoming noisy - pausing music")
+                        musicPlayer.pause()
+                    }
+                }
+            }
+        }
+
+        // Registra il receiver con tutti i filtri necessari
+        val filter = IntentFilter().apply {
+            addAction(BluetoothDevice.ACTION_ACL_DISCONNECTED)
+            addAction(Intent.ACTION_HEADSET_PLUG)
+            addAction(AudioManager.ACTION_AUDIO_BECOMING_NOISY)
+        }
+
+        registerReceiver(audioDeviceReceiver, filter)
+        Log.d(TAG, "✅ Audio device receiver registered")
     }
 
     private fun startForegroundWithPlaceholder() {
@@ -270,8 +316,18 @@ class MusicService : Service() {
         // Rilascia MediaSession
         mediaSessionManager.release()
 
-        // ✅ NUOVO: Rilascia WakeLock
+        // Rilascia WakeLock
         batteryOptimizer.releaseWakeLock()
+
+        // ✅ NUOVO: Unregister del receiver
+        audioDeviceReceiver?.let {
+            try {
+                unregisterReceiver(it)
+                Log.d(TAG, "✅ Audio device receiver unregistered")
+            } catch (e: Exception) {
+                Log.e(TAG, "Error unregistering receiver: ${e.message}")
+            }
+        }
 
         Log.d(TAG, "Service destroyed, MediaSession released, WakeLock released")
     }

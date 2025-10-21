@@ -2,6 +2,7 @@ package com.example.musiclab
 
 import androidx.core.app.ActivityCompat
 import android.Manifest
+import android.app.Activity
 import android.content.Intent
 import android.content.Context
 import android.content.pm.PackageManager
@@ -95,21 +96,16 @@ class MainActivity : AppCompatActivity() {
     private val googleSignInLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
     ) { result ->
-        val success = googleAuthManager.handleSignInResult(result.data)
-        if (success) {
-            val user = googleAuthManager.getCurrentUser()
-            val userId = googleAuthManager.getUserId() ?: ""
-
-            isLoggedIn = true
-            saveLoginState(true, userId)
-            updateLoginButton()
-            updatePlaylistsFragmentLoginState()
-
-            Toast.makeText(this, "Benvenuto ${user?.displayName}!", Toast.LENGTH_SHORT).show()
-            Log.d("MainActivity", "Login successful: ${user?.email}, userId=$userId")
-        } else {
-            Toast.makeText(this, "Login fallito", Toast.LENGTH_SHORT).show()
-            Log.e("MainActivity", "Login failed")
+        if (result.resultCode == Activity.RESULT_OK) {
+            val success = googleAuthManager.handleSignInResult(result.data)
+            if (success) {
+                Log.d("MainActivity", "🔄 Google Sign-In successful, waiting for Firebase Auth...")
+                // NON fare nulla qui! Aspetta che l'AuthStateListener si attivi
+                // quando Firebase Auth sarà completato
+            } else {
+                Toast.makeText(this, "Login fallito", Toast.LENGTH_SHORT).show()
+                Log.e("MainActivity", "Login failed")
+            }
         }
     }
 
@@ -207,17 +203,23 @@ class MainActivity : AppCompatActivity() {
 
         googleAuthManager.addAuthStateListener { loggedIn, user ->
             runOnUiThread {
+                // ✅ QUESTO si attiva SOLO quando Firebase è VERAMENTE autenticato
                 isLoggedIn = loggedIn
-                updateLoginButton()
-
-                val userId = googleAuthManager.getUserId() ?: ""
-                updatePlaylistsFragmentLoginState()
 
                 if (loggedIn) {
-                    Log.d("MainActivity", "Auth state changed: Logged in as ${user?.email}")
+                    // ✅ AGGIUNGI: Salva stato e aggiorna UI solo quando Firebase è pronto
+                    val userId = googleAuthManager.getUserId() ?: ""
+                    saveLoginState(true, userId)
+                    Toast.makeText(this, "Login effettuato!", Toast.LENGTH_SHORT).show()
+                    Log.d("MainActivity", "✅ User logged in successfully: ${user?.email}")
                 } else {
-                    Log.d("MainActivity", "Auth state changed: Logged out")
+                    // Logout
+                    saveLoginState(false, "")
+                    Log.d("MainActivity", "❌ User logged out")
                 }
+
+                updateLoginButton()
+                updatePlaylistsFragmentLoginState()
             }
         }
 
