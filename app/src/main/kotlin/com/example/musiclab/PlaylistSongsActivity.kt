@@ -57,7 +57,7 @@ class PlaylistSongsActivity : AppCompatActivity() {
         ADDED_OLDEST_FIRST
     }
 
-    private var currentSortType = PlaylistSortType.TITLE_ASC
+    private var currentSortType = PlaylistSortType.ADDED_OLDEST_FIRST
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -470,6 +470,7 @@ class PlaylistSongsActivity : AppCompatActivity() {
                 .addOnSuccessListener {
                     playlistNameText.text = newName
                     Toast.makeText(this, "Playlist rinominata", Toast.LENGTH_SHORT).show()
+                    setResult(RESULT_OK)
                 }
                 .addOnFailureListener { e ->
                     Log.e("PlaylistSongsActivity", "Error renaming: ${e.message}")
@@ -496,6 +497,7 @@ class PlaylistSongsActivity : AppCompatActivity() {
                 .delete()
                 .addOnSuccessListener {
                     Toast.makeText(this, "Playlist eliminata", Toast.LENGTH_SHORT).show()
+                    setResult(RESULT_OK)
                     finish()
                 }
                 .addOnFailureListener { e ->
