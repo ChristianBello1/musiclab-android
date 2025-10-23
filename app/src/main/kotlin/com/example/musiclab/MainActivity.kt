@@ -1,12 +1,12 @@
 package com.example.musiclab
 
 import androidx.core.app.ActivityCompat
+import java.util.Locale
 import android.Manifest
-import android.app.Activity
 import android.content.Intent
-import android.content.Context
 import android.content.pm.PackageManager
-import android.content.res.ColorStateList
+import androidx.core.content.edit
+// import android.content.res.ColorStateList
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
@@ -25,7 +25,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.activity.OnBackPressedCallback
 import androidx.core.content.ContextCompat
-import androidx.core.widget.ImageViewCompat
+// import androidx.core.widget.ImageViewCompat
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import androidx.viewpager2.widget.ViewPager2
@@ -96,7 +96,7 @@ class MainActivity : AppCompatActivity() {
     private val googleSignInLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
     ) { result ->
-        if (result.resultCode == Activity.RESULT_OK) {
+        if (result.resultCode == RESULT_OK) {
             val success = googleAuthManager.handleSignInResult(result.data)
             if (success) {
                 Log.d("MainActivity", "🔄 Google Sign-In successful, waiting for Firebase Auth...")
@@ -227,7 +227,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun checkSavedLoginState() {
-        val prefs = getSharedPreferences("MusicLabPrefs", Context.MODE_PRIVATE)
+        val prefs = getSharedPreferences("MusicLabPrefs", MODE_PRIVATE)
         isLoggedIn = prefs.getBoolean("is_logged_in", false)
         val userId = prefs.getString("user_id", "") ?: ""
 
@@ -238,11 +238,11 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun saveLoginState(isLoggedIn: Boolean, userId: String) {
-        val prefs = getSharedPreferences("MusicLabPrefs", Context.MODE_PRIVATE)
-        prefs.edit()
-            .putBoolean("is_logged_in", isLoggedIn)
-            .putString("user_id", userId)
-            .apply()
+        val prefs = getSharedPreferences("MusicLabPrefs", MODE_PRIVATE)
+        prefs.edit {
+            putBoolean("is_logged_in", isLoggedIn)
+            putString("user_id", userId)
+        }
 
         Log.d("MainActivity", "Saved login state: logged=$isLoggedIn, userId=$userId")
     }
@@ -379,7 +379,7 @@ class MainActivity : AppCompatActivity() {
                     }
                 }
 
-                searchHandler.postDelayed(searchRunnable!!, 300)
+                searchHandler.postDelayed(searchRunnable, 300)
             }
         })
 
@@ -572,13 +572,13 @@ class MainActivity : AppCompatActivity() {
         Log.d("MainActivity", "✅ Sorting applied: $sortName")
     }
 
-    private fun updateSortButtonIcon() {
-        btnSort.setImageResource(R.drawable.ic_sort)
-        ImageViewCompat.setImageTintList(
-            btnSort,
-            ColorStateList.valueOf(ContextCompat.getColor(this, R.color.text_primary))
-        )
-    }
+// private fun updateSortButtonIcon() {
+//     btnSort.setImageResource(R.drawable.ic_sort)
+//     ImageViewCompat.setImageTintList(
+//         btnSort,
+//         ColorStateList.valueOf(ContextCompat.getColor(this, R.color.text_primary))
+//     )
+// }
 
     fun onSongClick(song: Song) {
         Log.d("MainActivity", "🎵 Song clicked: ${song.title}")
@@ -710,7 +710,7 @@ class MainActivity : AppCompatActivity() {
     private fun formatTime(seconds: Int): String {
         val minutes = seconds / 60
         val remainingSeconds = seconds % 60
-        return String.format("%d:%02d", minutes, remainingSeconds)
+        return String.format(Locale.getDefault(), "%d:%02d", minutes, remainingSeconds)
     }
 
     private fun updateSongCount() {
@@ -768,31 +768,29 @@ class MainActivity : AppCompatActivity() {
 
         val savedState = playbackStateManager.loadPlaybackState(songs)
         if (savedState != null) {
-            Log.d("MainActivity", "✅ Ripristino stato: ${savedState.currentSong?.title}")
+            Log.d("MainActivity", "✅ Ripristino stato: ${savedState.currentSong.title}")
 
             musicPlayer.setPlaylist(savedState.queue, savedState.currentIndex)
 
-            if (savedState.currentSong != null) {
-                musicPlayer.playSong(savedState.currentSong)
-                musicPlayer.seekTo(savedState.position.toInt())
+            musicPlayer.playSong(savedState.currentSong)
+            musicPlayer.seekTo(savedState.position.toInt())
 
-                if (!savedState.wasPlaying) {
-                    musicPlayer.pause()
-                }
-
-                // ✅ FIX: Ripristina shuffle condizionalmente
-                if (savedState.isShuffleEnabled != musicPlayer.isShuffleEnabled()) {
-                    musicPlayer.toggleShuffle()
-                }
-
-                // ✅ FIX: Ripristina repeat mode con loop
-                var currentRepeatMode = musicPlayer.getRepeatMode()
-                while (currentRepeatMode != savedState.repeatMode) {
-                    currentRepeatMode = musicPlayer.toggleRepeat()
-                }
-
-                updatePlayerBottomBar(savedState.wasPlaying, savedState.currentSong)
+            if (!savedState.wasPlaying) {
+                musicPlayer.pause()
             }
+
+            // ✅ FIX: Ripristina shuffle condizionalmente
+            if (savedState.isShuffleEnabled != musicPlayer.isShuffleEnabled()) {
+                musicPlayer.toggleShuffle()
+            }
+
+            // ✅ FIX: Ripristina repeat mode con loop
+            var currentRepeatMode = musicPlayer.getRepeatMode()
+            while (currentRepeatMode != savedState.repeatMode) {
+                currentRepeatMode = musicPlayer.toggleRepeat()
+            }
+
+            updatePlayerBottomBar(savedState.wasPlaying, savedState.currentSong)
         }
 
         Toast.makeText(
@@ -805,7 +803,7 @@ class MainActivity : AppCompatActivity() {
     private fun saveCurrentPlaybackState() {
         try {
             val currentSong = musicPlayer.getCurrentSong()
-            val position = musicPlayer.getCurrentPosition().toLong()
+            val position = musicPlayer.getCurrentPosition()
             // ✅ FIX: getCurrentQueue() invece di getQueue()
             val queue = musicPlayer.getCurrentQueue()
             // ✅ FIX: getCurrentIndex() invece di getCurrentSongIndex()

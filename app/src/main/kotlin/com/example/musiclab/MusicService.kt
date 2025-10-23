@@ -24,12 +24,11 @@ class MusicService : Service() {
 
     // ✅ NUOVO: BroadcastReceiver per disconnessione Bluetooth e cuffie
     private var audioDeviceReceiver: BroadcastReceiver? = null
-
-    private val NOTIFICATION_ID = 1
-    private val CHANNEL_ID = "music_playback_channel"
     private var isForegroundStarted = false
 
     companion object {
+        const val NOTIFICATION_ID = 1
+        const val CHANNEL_ID = "music_playback_channel"
         private const val TAG = "MusicService"
         const val ACTION_PLAY_PAUSE = "ACTION_PLAY_PAUSE"
         const val ACTION_NEXT = "ACTION_NEXT"
@@ -189,12 +188,7 @@ class MusicService : Service() {
                 // Rilascia audio focus quando si stoppa
                 mediaSessionManager.abandonAudioFocus()
 
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-                    stopForeground(STOP_FOREGROUND_REMOVE)
-                } else {
-                    @Suppress("DEPRECATION")
-                    stopForeground(true)
-                }
+                stopForeground(STOP_FOREGROUND_REMOVE)
                 stopSelf()
             }
             else -> {
@@ -222,7 +216,7 @@ class MusicService : Service() {
                 lockscreenVisibility = Notification.VISIBILITY_PUBLIC
             }
 
-            val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            val notificationManager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
             notificationManager.createNotificationChannel(channel)
             Log.d(TAG, "Notification channel created")
         }
@@ -239,7 +233,7 @@ class MusicService : Service() {
             startForeground(NOTIFICATION_ID, notification)
             isForegroundStarted = true
         } else {
-            val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            val notificationManager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
             notificationManager.notify(NOTIFICATION_ID, notification)
         }
 

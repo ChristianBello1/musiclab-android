@@ -72,7 +72,7 @@ class QueueActivity : AppCompatActivity() {
         queueRecyclerView = findViewById(R.id.queue_recycler_view)
         clearQueueButton = findViewById(R.id.btn_clear_queue)
 
-        emptyStateContainer = findViewById<View?>(R.id.empty_queue_container) ?: View(this)
+        emptyStateContainer = findViewById(R.id.empty_queue_container) ?: View(this)
 
         queueTitle.text = getString(R.string.playback_queue)
     }
@@ -304,15 +304,14 @@ class QueueActivity : AppCompatActivity() {
         val isShuffleEnabled = musicPlayer.isShuffleEnabled()
         val repeatMode = musicPlayer.getRepeatMode()
 
-        val baseTitle = getString(R.string.playback_queue)
-        val shuffleText = if (isShuffleEnabled) " 🔀" else ""
-        val repeatText = when (repeatMode) {
-            androidx.media3.common.Player.REPEAT_MODE_ONE -> " 🔂"
-            androidx.media3.common.Player.REPEAT_MODE_ALL -> " 🔁"
-            else -> ""
+        queueTitle.text = buildString {
+            append(getString(R.string.playback_queue))
+            if (isShuffleEnabled) append(" 🔀")
+            when (repeatMode) {
+                androidx.media3.common.Player.REPEAT_MODE_ONE -> append(" 🔂")
+                androidx.media3.common.Player.REPEAT_MODE_ALL -> append(" 🔁")
+            }
         }
-
-        queueTitle.text = "$baseTitle$shuffleText$repeatText"
 
         Log.d("QueueActivity", "UI updated: shuffle=$isShuffleEnabled, repeat=$repeatMode")
     }

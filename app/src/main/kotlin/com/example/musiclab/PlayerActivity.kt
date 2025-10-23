@@ -1,5 +1,7 @@
 package com.example.musiclab
 
+import java.util.Locale
+import android.os.Build
 import android.content.Intent
 import android.os.Bundle
 import android.os.Handler
@@ -12,7 +14,6 @@ import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.media3.common.Player
-import java.util.Locale
 
 class PlayerActivity : AppCompatActivity() {
 
@@ -162,7 +163,16 @@ class PlayerActivity : AppCompatActivity() {
             AnimationUtils.scaleButton(backButton)
             Log.d("PlayerActivity", "Back button clicked")
             finish()
-            overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                overrideActivityTransition(
+                    OVERRIDE_TRANSITION_CLOSE,
+                    android.R.anim.fade_in,
+                    android.R.anim.fade_out
+                )
+            } else {
+                @Suppress("DEPRECATION")
+                overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out)
+            }
         }
 
         queueButton.setOnClickListener {
@@ -349,9 +359,8 @@ class PlayerActivity : AppCompatActivity() {
     private fun formatTime(seconds: Int): String {
         val minutes = seconds / 60
         val remainingSeconds = seconds % 60
-        return String.format("%d:%02d", minutes, remainingSeconds)
+        return String.format(Locale.getDefault(), "%d:%02d", minutes, remainingSeconds)
     }
-
     private fun startProgressUpdates() {
         if (!isUpdatingProgress) {
             progressHandler.post(progressRunnable)

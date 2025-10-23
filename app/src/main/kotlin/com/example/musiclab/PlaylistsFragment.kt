@@ -1,6 +1,5 @@
 package com.example.musiclab
 
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -35,21 +34,21 @@ data class Playlist(
     val ownerId: String = "",
     val isLocal: Boolean = false
 ) {
-    fun getSongCount(): Int = songs.size
+    // fun getSongCount(): Int = songs.size
 
-    fun getDuration(): Long = songs.sumOf { it.duration }
+    // fun getDuration(): Long = songs.sumOf { it.duration }
 
-    fun getFormattedDuration(): String {
-        val totalSeconds = (getDuration() / 1000).toInt()
-        val minutes = totalSeconds / 60
-        val hours = minutes / 60
-
-        return if (hours > 0) {
-            String.format("%d:%02d:%02d", hours, minutes % 60, totalSeconds % 60)
-        } else {
-            String.format("%d:%02d", minutes, totalSeconds % 60)
-        }
-    }
+    // fun getFormattedDuration(): String {
+    //     val totalSeconds = (getDuration() / 1000).toInt()
+    //     val minutes = totalSeconds / 60
+    //     val hours = minutes / 60
+    //
+    //     return if (hours > 0) {
+    //         String.format("%d:%02d:%02d", hours, minutes % 60, totalSeconds % 60)
+    //     } else {
+    //         String.format("%d:%02d", minutes, totalSeconds % 60)
+    //     }
+    // }
 }
 
 class PlaylistsFragment : Fragment() {
@@ -59,7 +58,7 @@ class PlaylistsFragment : Fragment() {
     private lateinit var emptyStateText: TextView
     private lateinit var fabCreatePlaylist: FloatingActionButton
 
-    private var playlists: MutableList<Playlist> = mutableListOf()
+    private val playlists: MutableList<Playlist> = mutableListOf()
     private var isLoggedIn = false
     private var currentUserId: String = ""
     private var isLoading = false
@@ -339,86 +338,86 @@ class PlaylistsFragment : Fragment() {
         }
     }
 
-    private fun loadAllSongsForPlaylist(
-        playlistId: String,
-        playlistName: String,
-        onComplete: (MutableList<Song>) -> Unit
-    ) {
-        val allSongs = mutableListOf<Song>()
-        var batchCount = 0
-        var processedIds = mutableSetOf<String>()
-
-        Log.d("PlaylistsFragment", "Starting to load all songs for: $playlistName")
-
-        fun loadBatch(lastDocId: String? = null) {
-            batchCount++
-            Log.d("PlaylistsFragment", "Loading batch $batchCount for: $playlistName")
-
-            var query = firestore.collection("playlists")
-                .document(playlistId)
-                .collection("songs")
-                .orderBy(com.google.firebase.firestore.FieldPath.documentId())
-                .limit(500)
-
-            if (lastDocId != null) {
-                query = query.startAfter(lastDocId)
-            }
-
-            query.get()
-                .addOnSuccessListener { songDocs ->
-                    if (songDocs.isEmpty) {
-                        Log.d("PlaylistsFragment", "No more songs. Total loaded: ${allSongs.size} in $batchCount batches")
-                        onComplete(allSongs)
-                        return@addOnSuccessListener
-                    }
-
-                    Log.d("PlaylistsFragment", "Batch $batchCount: loaded ${songDocs.size()} songs")
-
-                    var newSongsCount = 0
-                    for (songDoc in songDocs) {
-                        if (processedIds.contains(songDoc.id)) {
-                            continue
-                        }
-                        processedIds.add(songDoc.id)
-
-                        try {
-                            // ✅ MODIFICATO: Usa mediaStoreId per trovare la canzone
-                            val mediaStoreId = songDoc.getLong("mediaStoreId") ?: songDoc.getLong("id") ?: 0L
-
-                            // ✅ NUOVO: Cerca la canzone reale nel MediaStore
-                            val song = findSongByMediaStoreId(mediaStoreId)
-
-                            if (song != null) {
-                                allSongs.add(song)
-                                newSongsCount++
-                            } else {
-                                Log.w("PlaylistsFragment", "Song with ID $mediaStoreId not found on device")
-                            }
-                        } catch (e: Exception) {
-                            Log.e("PlaylistsFragment", "Error parsing song: ${e.message}")
-                        }
-                    }
-
-                    Log.d("PlaylistsFragment", "Added $newSongsCount new songs. Total: ${allSongs.size}")
-
-                    if (songDocs.size() >= 500) {
-                        val lastDoc = songDocs.documents[songDocs.size() - 1]
-                        Log.d("PlaylistsFragment", "Batch full (${songDocs.size()} docs), loading next batch...")
-                        loadBatch(lastDoc.id)
-                    } else {
-                        Log.d("PlaylistsFragment", "Last batch loaded. Total: ${allSongs.size} songs in $batchCount batches")
-                        onComplete(allSongs)
-                    }
-                }
-                .addOnFailureListener { e ->
-                    Log.e("PlaylistsFragment", "Error loading batch $batchCount: ${e.message}", e)
-                    Log.d("PlaylistsFragment", "Returning ${allSongs.size} songs due to error")
-                    onComplete(allSongs)
-                }
-        }
-
-        loadBatch()
-    }
+    //     private fun loadAllSongsForPlaylist(
+    //         playlistId: String,
+    //         playlistName: String,
+    //         onComplete: (MutableList<Song>) -> Unit
+    //     ) {
+    //         val allSongs = mutableListOf<Song>()
+    //         var batchCount = 0
+    //         val processedIds = mutableSetOf<String>()
+    //
+    //         Log.d("PlaylistsFragment", "Starting to load all songs for: $playlistName")
+    //
+    //         fun loadBatch(lastDocId: String? = null) {
+    //             batchCount++
+    //             Log.d("PlaylistsFragment", "Loading batch $batchCount for: $playlistName")
+    //
+    //             var query = firestore.collection("playlists")
+    //                 .document(playlistId)
+    //                 .collection("songs")
+    //                 .orderBy(com.google.firebase.firestore.FieldPath.documentId())
+    //                 .limit(500)
+    //
+    //             if (lastDocId != null) {
+    //                 query = query.startAfter(lastDocId)
+    //             }
+    //
+    //             query.get()
+    //                 .addOnSuccessListener { songDocs ->
+    //                     if (songDocs.isEmpty) {
+    //                         Log.d("PlaylistsFragment", "No more songs. Total loaded: ${allSongs.size} in $batchCount batches")
+    //                         onComplete(allSongs)
+    //                         return@addOnSuccessListener
+    //                     }
+    //
+    //                     Log.d("PlaylistsFragment", "Batch $batchCount: loaded ${songDocs.size()} songs")
+    //
+    //                     var newSongsCount = 0
+    //                     for (songDoc in songDocs) {
+    //                         if (processedIds.contains(songDoc.id)) {
+    //                             continue
+    //                         }
+    //                         processedIds.add(songDoc.id)
+    //
+    //                         try {
+    // ✅ MODIFICATO: Usa mediaStoreId per trovare la canzone
+    //                             val mediaStoreId = songDoc.getLong("mediaStoreId") ?: songDoc.getLong("id") ?: 0L
+    //
+    // ✅ NUOVO: Cerca la canzone reale nel MediaStore
+    //                             val song = findSongByMediaStoreId(mediaStoreId)
+    //
+    //                             if (song != null) {
+    //                                 allSongs.add(song)
+    //                                 newSongsCount++
+    //                             } else {
+    //                                 Log.w("PlaylistsFragment", "Song with ID $mediaStoreId not found on device")
+    //                             }
+    //                         } catch (e: Exception) {
+    //                             Log.e("PlaylistsFragment", "Error parsing song: ${e.message}")
+    //                         }
+    //                     }
+    //
+    //                     Log.d("PlaylistsFragment", "Added $newSongsCount new songs. Total: ${allSongs.size}")
+    //
+    //                     if (songDocs.size() >= 500) {
+    //                         val lastDoc = songDocs.documents[songDocs.size() - 1]
+    //                         Log.d("PlaylistsFragment", "Batch full (${songDocs.size()} docs), loading next batch...")
+    //                         loadBatch(lastDoc.id)
+    //                     } else {
+    //                         Log.d("PlaylistsFragment", "Last batch loaded. Total: ${allSongs.size} songs in $batchCount batches")
+    //                         onComplete(allSongs)
+    //                     }
+    //                 }
+    //                 .addOnFailureListener { e ->
+    //                     Log.e("PlaylistsFragment", "Error loading batch $batchCount: ${e.message}", e)
+    //                     Log.d("PlaylistsFragment", "Returning ${allSongs.size} songs due to error")
+    //                     onComplete(allSongs)
+    //                 }
+    //         }
+    //
+    //         loadBatch()
+    //     }
 
     private fun findSongByMediaStoreId(mediaStoreId: Long): Song? {
         val projection = arrayOf(
@@ -545,41 +544,41 @@ class PlaylistsFragment : Fragment() {
         }
     }
 
-    fun showAddToPlaylistDialog(song: Song) {
-        if (!isLoggedIn) {
-            showLoginRequiredDialog()
-            return
-        }
+    //     fun showAddToPlaylistDialog(song: Song) {
+    //         if (!isLoggedIn) {
+    //             showLoginRequiredDialog()
+    //             return
+    //         }
+    //
+    //         if (playlists.isEmpty()) {
+    //             Toast.makeText(requireContext(), "Crea prima una playlist!", Toast.LENGTH_SHORT).show()
+    //             return
+    //         }
+    //
+    //         val playlistNames = playlists.map { it.name }.toTypedArray()
+    //
+    //         AlertDialog.Builder(requireContext())
+    //             .setTitle("Aggiungi a Playlist")
+    //             .setItems(playlistNames) { _, which ->
+    //                 val selectedPlaylist = playlists[which]
+    //                 addSongToPlaylist(song, selectedPlaylist.id)
+    //             }
+    //             .setNegativeButton("Annulla", null)
+    //             .show()
+    //     }
 
-        if (playlists.isEmpty()) {
-            Toast.makeText(requireContext(), "Crea prima una playlist!", Toast.LENGTH_SHORT).show()
-            return
-        }
-
-        val playlistNames = playlists.map { it.name }.toTypedArray()
-
-        AlertDialog.Builder(requireContext())
-            .setTitle("Aggiungi a Playlist")
-            .setItems(playlistNames) { _, which ->
-                val selectedPlaylist = playlists[which]
-                addSongToPlaylist(song, selectedPlaylist.id)
-            }
-            .setNegativeButton("Annulla", null)
-            .show()
-    }
-
-    fun getPlaylists(): List<Playlist> = playlists
-
-    fun deletePlaylist(playlistId: String) {
-        val playlist = playlists.find { it.id == playlistId }
-        if (playlist != null && playlist.ownerId == currentUserId) {
-            playlists.remove(playlist)
-            playlistAdapter.notifyDataSetChanged()
-            updateUI()
-
-            Toast.makeText(requireContext(), "Playlist '${playlist.name}' eliminata", Toast.LENGTH_SHORT).show()
-        }
-    }
+    //     fun getPlaylists(): List<Playlist> = playlists
+    //
+    //     fun deletePlaylist(playlistId: String) {
+    //         val playlist = playlists.find { it.id == playlistId }
+    //         if (playlist != null && playlist.ownerId == currentUserId) {
+    //             playlists.remove(playlist)
+    //             playlistAdapter.notifyDataSetChanged()
+    //             updateUI()
+    //
+    //             Toast.makeText(requireContext(), "Playlist '${playlist.name}' eliminata", Toast.LENGTH_SHORT).show()
+    //         }
+    //     }
 
     fun refreshPlaylists() {
         Log.d("PlaylistsFragment", "Refreshing playlists manually")
@@ -779,38 +778,38 @@ class PlaylistsFragment : Fragment() {
             .show()
     }
 
-    private fun showImportResults(result: YouTubeImporter.ImportResult) {
-        val message = buildString {
-            append("Playlist: ${result.playlistTitle}\n\n")
-            append("Risultati:\n")
-            append("Trovate: ${result.matchedSongs.size}\n")
-            append("Non trovate: ${result.unmatchedTitles.size}\n")
-            append("Totale video: ${result.totalVideos}\n\n")
-
-            if (result.unmatchedTitles.isNotEmpty()) {
-                append("Non trovate:\n")
-                result.unmatchedTitles.take(5).forEach {
-                    append("- $it\n")
-                }
-                if (result.unmatchedTitles.size > 5) {
-                    append("... e altre ${result.unmatchedTitles.size - 5}\n")
-                }
-            }
-        }
-
-        AlertDialog.Builder(requireContext())
-            .setTitle("Importazione Completata")
-            .setMessage(message)
-            .setPositiveButton("Crea Playlist") { _, _ ->
-                if (result.matchedSongs.isNotEmpty()) {
-                    createPlaylistFromImport(result)
-                } else {
-                    Toast.makeText(requireContext(), "Nessuna canzone da aggiungere", Toast.LENGTH_SHORT).show()
-                }
-            }
-            .setNegativeButton("Annulla", null)
-            .show()
-    }
+    //     private fun showImportResults(result: YouTubeImporter.ImportResult) {
+    //         val message = buildString {
+    //             append("Playlist: ${result.playlistTitle}\n\n")
+    //             append("Risultati:\n")
+    //             append("Trovate: ${result.matchedSongs.size}\n")
+    //             append("Non trovate: ${result.unmatchedTitles.size}\n")
+    //             append("Totale video: ${result.totalVideos}\n\n")
+    //
+    //             if (result.unmatchedTitles.isNotEmpty()) {
+    //                 append("Non trovate:\n")
+    //                 result.unmatchedTitles.take(5).forEach {
+    //                     append("- $it\n")
+    //                 }
+    //                 if (result.unmatchedTitles.size > 5) {
+    //                     append("... e altre ${result.unmatchedTitles.size - 5}\n")
+    //                 }
+    //             }
+    //         }
+    //
+    //         AlertDialog.Builder(requireContext())
+    //             .setTitle("Importazione Completata")
+    //             .setMessage(message)
+    //             .setPositiveButton("Crea Playlist") { _, _ ->
+    //                 if (result.matchedSongs.isNotEmpty()) {
+    //                     createPlaylistFromImport(result)
+    //                 } else {
+    //                     Toast.makeText(requireContext(), "Nessuna canzone da aggiungere", Toast.LENGTH_SHORT).show()
+    //                 }
+    //             }
+    //             .setNegativeButton("Annulla", null)
+    //             .show()
+    //     }
 
     private fun createPlaylistFromImport(result: YouTubeImporter.ImportResult) {
         val playlistName = result.playlistTitle
@@ -856,105 +855,105 @@ class PlaylistsFragment : Fragment() {
         }
     }
 
-    private fun addSongsInBatchFast(
-        playlistId: String,
-        songs: List<Song>,
-        progressDialog: AlertDialog,
-        onComplete: (addedCount: Int, errorCount: Int) -> Unit
-    ) {
-        Log.d("PlaylistsFragment", "=== START BATCH IMPORT ===")
-        Log.d("PlaylistsFragment", "Playlist ID: $playlistId")
-        Log.d("PlaylistsFragment", "Total songs to add: ${songs.size}")
-
-        var addedCount = 0
-        var errorCount = 0
-        val totalSongs = songs.size
-        val startTime = System.currentTimeMillis()
-
-        lifecycleScope.launch {
-            try {
-                // ✅ Riduci batch size a 100 (più sicuro per Firestore)
-                val batches = songs.chunked(100)
-                Log.d("PlaylistsFragment", "Created ${batches.size} batches")
-
-                batches.forEachIndexed { batchIndex, batchSongs ->
-                    Log.d("PlaylistsFragment", "Processing batch ${batchIndex + 1}/${batches.size} with ${batchSongs.size} songs")
-
-                    try {
-                        withContext(Dispatchers.IO) {
-                            val batch = firestore.batch()
-
-                            batchSongs.forEach { song ->
-                                val docRef = firestore.collection("playlists")
-                                    .document(playlistId)
-                                    .collection("songs")
-                                    .document(song.id.toString())
-
-                                val songData = hashMapOf(
-                                    "id" to song.id,
-                                    "title" to song.title,
-                                    "artist" to song.artist,
-                                    "album" to song.album,
-                                    "duration" to song.duration,
-                                    "path" to song.path,
-                                    "size" to song.size,
-                                    "addedAt" to System.currentTimeMillis()
-                                )
-
-                                batch.set(docRef, songData)
-                            }
-
-                            Log.d("PlaylistsFragment", "Committing batch ${batchIndex + 1}...")
-                            batch.commit().await()
-                            Log.d("PlaylistsFragment", "Batch ${batchIndex + 1} committed successfully!")
-                        }
-
-                        addedCount += batchSongs.size
-                        Log.d("PlaylistsFragment", "Total added so far: $addedCount")
-
-                        withContext(Dispatchers.Main) {
-                            val elapsed = (System.currentTimeMillis() - startTime) / 1000
-                            val progress = addedCount
-                            val avgTimePerSong = if (progress > 0) elapsed.toDouble() / progress else 0.15
-                            val remainingSongs = totalSongs - progress
-                            val remainingTime = (remainingSongs * avgTimePerSong).toInt()
-                            val remainingMin = remainingTime / 60
-                            val remainingSec = remainingTime % 60
-
-                            progressDialog.setMessage(
-                                "$progress / $totalSongs aggiunte\n" +
-                                        "Batch ${batchIndex + 1}/${batches.size}\n" +
-                                        "Tempo rimanente: ~${remainingMin}m ${remainingSec}s"
-                            )
-                        }
-
-                        // Pausa tra batch
-                        if (batchIndex < batches.size - 1) {
-                            Log.d("PlaylistsFragment", "Pausing 1s before next batch...")
-                            kotlinx.coroutines.delay(1000)
-                        }
-
-                    } catch (e: Exception) {
-                        errorCount += batchSongs.size
-                        Log.e("PlaylistsFragment", "ERROR in batch ${batchIndex + 1}: ${e.message}", e)
-                    }
-                }
-
-                Log.d("PlaylistsFragment", "=== BATCH IMPORT COMPLETE ===")
-                Log.d("PlaylistsFragment", "Added: $addedCount, Errors: $errorCount")
-
-                withContext(Dispatchers.Main) {
-                    onComplete(addedCount, errorCount)
-                }
-
-            } catch (e: Exception) {
-                Log.e("PlaylistsFragment", "FATAL ERROR: ${e.message}", e)
-                errorCount = totalSongs
-
-                withContext(Dispatchers.Main) {
-                    onComplete(0, errorCount)
-                }
-            }
-        }
-    }
+    //     private fun addSongsInBatchFast(
+    //         playlistId: String,
+    //         songs: List<Song>,
+    //         progressDialog: AlertDialog,
+    //         onComplete: (addedCount: Int, errorCount: Int) -> Unit
+    //     ) {
+    //         Log.d("PlaylistsFragment", "=== START BATCH IMPORT ===")
+    //         Log.d("PlaylistsFragment", "Playlist ID: $playlistId")
+    //         Log.d("PlaylistsFragment", "Total songs to add: ${songs.size}")
+    //
+    //         var addedCount = 0
+    //         var errorCount = 0
+    //         val totalSongs = songs.size
+    //         val startTime = System.currentTimeMillis()
+    //
+    //         lifecycleScope.launch {
+    //             try {
+    // ✅ Riduci batch size a 100 (più sicuro per Firestore)
+    //                 val batches = songs.chunked(100)
+    //                 Log.d("PlaylistsFragment", "Created ${batches.size} batches")
+    //
+    //                 batches.forEachIndexed { batchIndex, batchSongs ->
+    //                     Log.d("PlaylistsFragment", "Processing batch ${batchIndex + 1}/${batches.size} with ${batchSongs.size} songs")
+    //
+    //                     try {
+    //                         withContext(Dispatchers.IO) {
+    //                             val batch = firestore.batch()
+    //
+    //                             batchSongs.forEach { song ->
+    //                                 val docRef = firestore.collection("playlists")
+    //                                     .document(playlistId)
+    //                                     .collection("songs")
+    //                                     .document(song.id.toString())
+    //
+    //                                 val songData = hashMapOf(
+    //                                     "id" to song.id,
+    //                                     "title" to song.title,
+    //                                     "artist" to song.artist,
+    //                                     "album" to song.album,
+    //                                     "duration" to song.duration,
+    //                                     "path" to song.path,
+    //                                     "size" to song.size,
+    //                                     "addedAt" to System.currentTimeMillis()
+    //                                 )
+    //
+    //                                 batch.set(docRef, songData)
+    //                             }
+    //
+    //                             Log.d("PlaylistsFragment", "Committing batch ${batchIndex + 1}...")
+    //                             batch.commit().await()
+    //                             Log.d("PlaylistsFragment", "Batch ${batchIndex + 1} committed successfully!")
+    //                         }
+    //
+    //                         addedCount += batchSongs.size
+    //                         Log.d("PlaylistsFragment", "Total added so far: $addedCount")
+    //
+    //                         withContext(Dispatchers.Main) {
+    //                             val elapsed = (System.currentTimeMillis() - startTime) / 1000
+    //                             val progress = addedCount
+    //                             val avgTimePerSong = if (progress > 0) elapsed.toDouble() / progress else 0.15
+    //                             val remainingSongs = totalSongs - progress
+    //                             val remainingTime = (remainingSongs * avgTimePerSong).toInt()
+    //                             val remainingMin = remainingTime / 60
+    //                             val remainingSec = remainingTime % 60
+    //
+    //                             progressDialog.setMessage(
+    //                                 "$progress / $totalSongs aggiunte\n" +
+    //                                         "Batch ${batchIndex + 1}/${batches.size}\n" +
+    //                                         "Tempo rimanente: ~${remainingMin}m ${remainingSec}s"
+    //                             )
+    //                         }
+    //
+    // Pausa tra batch
+    //                         if (batchIndex < batches.size - 1) {
+    //                             Log.d("PlaylistsFragment", "Pausing 1s before next batch...")
+    //                             kotlinx.coroutines.delay(1000)
+    //                         }
+    //
+    //                     } catch (e: Exception) {
+    //                         errorCount += batchSongs.size
+    //                         Log.e("PlaylistsFragment", "ERROR in batch ${batchIndex + 1}: ${e.message}", e)
+    //                     }
+    //                 }
+    //
+    //                 Log.d("PlaylistsFragment", "=== BATCH IMPORT COMPLETE ===")
+    //                 Log.d("PlaylistsFragment", "Added: $addedCount, Errors: $errorCount")
+    //
+    //                 withContext(Dispatchers.Main) {
+    //                     onComplete(addedCount, errorCount)
+    //                 }
+    //
+    //             } catch (e: Exception) {
+    //                 Log.e("PlaylistsFragment", "FATAL ERROR: ${e.message}", e)
+    //                 errorCount = totalSongs
+    //
+    //                 withContext(Dispatchers.Main) {
+    //                     onComplete(0, errorCount)
+    //                 }
+    //             }
+    //         }
+    //     }
 }

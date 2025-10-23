@@ -206,12 +206,12 @@ class CrossfadeManager(private val context: Context) {
     /**
      * Ottieni il player attualmente attivo
      */
-    fun getActivePlayer(): ExoPlayer? = primaryPlayer
+    // fun getActivePlayer(): ExoPlayer? = primaryPlayer
 
     /**
      * Controlla se è in corso un crossfade
      */
-    fun isCrossfading(): Boolean = isCrossfading
+    // fun isCrossfading(): Boolean = isCrossfading
 
     /**
      * Play sul player primario
@@ -373,12 +373,12 @@ class CrossfadeManager(private val context: Context) {
     /**
      * Rimuovi listener
      */
-    fun removePlayerListener(listener: Player.Listener) {
-        listeners.remove(listener)
-        primaryPlayer?.removeListener(listener)
-        secondaryPlayer?.removeListener(listener)
-        Log.d("CrossfadeManager", "Listener removed (remaining: ${listeners.size})")
-    }
+    //fun removePlayerListener(listener: Player.Listener) {
+    //    listeners.remove(listener)
+    //    primaryPlayer?.removeListener(listener)
+    //    secondaryPlayer?.removeListener(listener)
+    //    Log.d("CrossfadeManager", "Listener removed (remaining: ${listeners.size})")
+    //}
 
     /**
      * Rilascia le risorse

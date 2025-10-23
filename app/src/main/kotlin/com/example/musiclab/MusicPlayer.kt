@@ -1,7 +1,6 @@
 package com.example.musiclab
 
 import android.content.Context
-import android.net.Uri
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
@@ -283,7 +282,7 @@ class MusicPlayer(private val context: Context) {
         val nextSong = getNextSongForCrossfade()
 
         if (nextSong != null) {
-            val nextUri = Uri.parse(nextSong.path)
+            val nextUri = nextSong.path.toUri()
             crossfadeManager?.prepareNextSong(nextUri)
 
             // ✅ NUOVO: Aggiorna currentSong e l'indice SUBITO
@@ -381,7 +380,7 @@ class MusicPlayer(private val context: Context) {
         if (isAutomixEnabled() && crossfadeManager != null) {
             Log.d("MusicPlayer", "🎵 Using AUTOMIX mode")
             // Usa CrossfadeManager
-            val uri = Uri.parse(song.path)
+            val uri = song.path.toUri()
             crossfadeManager?.setMediaItem(uri)
             crossfadeManager?.play()
 
@@ -390,7 +389,7 @@ class MusicPlayer(private val context: Context) {
         } else {
             Log.d("MusicPlayer", "🎵 Using NORMAL mode")
             // Usa ExoPlayer normale
-            val mediaItem = MediaItem.fromUri(Uri.parse(song.path))
+            val mediaItem = MediaItem.fromUri(song.path.toUri())
             exoPlayer?.setMediaItem(mediaItem)
             exoPlayer?.prepare()
             exoPlayer?.play()
@@ -482,17 +481,17 @@ class MusicPlayer(private val context: Context) {
         return currentQueue.toList()
     }
 
-    fun addToQueue(song: Song) {
-        currentQueue.add(song)
-        notifyQueueChanged()
-        Log.d("MusicPlayer", "Added '${song.title}' to queue. Queue size: ${currentQueue.size}")
-    }
+// fun addToQueue(song: Song) {
+//     currentQueue.add(song)
+//     notifyQueueChanged()
+//     Log.d("MusicPlayer", "Added '${song.title}' to queue. Queue size: ${currentQueue.size}")
+// }
 
-    fun addToQueue(songs: List<Song>) {
-        currentQueue.addAll(songs)
-        notifyQueueChanged()
-        Log.d("MusicPlayer", "Added ${songs.size} songs to queue. Queue size: ${currentQueue.size}")
-    }
+// fun addToQueue(songs: List<Song>) {
+//     currentQueue.addAll(songs)
+//     notifyQueueChanged()
+//     Log.d("MusicPlayer", "Added ${songs.size} songs to queue. Queue size: ${currentQueue.size}")
+// }
 
     fun removeFromQueue(position: Int): Boolean {
         Log.d("MusicPlayer", "=== REMOVE FROM QUEUE START ===")
@@ -748,7 +747,7 @@ class MusicPlayer(private val context: Context) {
 
     fun getCurrentIndex(): Int = currentSongIndex
 
-    fun getQueueSize(): Int = currentQueue.size
+// fun getQueueSize(): Int = currentQueue.size
 
     fun release() {
         stateChangeListeners.clear()
