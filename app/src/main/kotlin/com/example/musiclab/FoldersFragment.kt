@@ -61,7 +61,7 @@ class FoldersFragment : Fragment() {
         Log.d("FoldersFragment", "Setup views...")
         recyclerView = view.findViewById(R.id.folders_recycler_view)
         emptyStateText = view.findViewById(R.id.empty_state_folders)
-        Log.d("FoldersFragment", "Views trovate: recycler=${recyclerView != null}, empty=${emptyStateText != null}")
+        Log.d("FoldersFragment", "Views trovate: recycler=${true}, empty=${true}")
     }
 
     private fun setupRecyclerView() {
@@ -172,17 +172,17 @@ class FoldersFragment : Fragment() {
         Log.d("FoldersFragment", "✅ Update completato")
     }
 
-    fun filterSongs(query: String): List<Song> {
-        Log.d("FoldersFragment", "🔍 Filter songs per: '$query'")
-
-        return if (query.isBlank()) {
-            songs
-        } else {
-            songs.filter { song ->
-                song.title.contains(query, ignoreCase = true) ||
-                        song.artist.contains(query, ignoreCase = true) ||
-                        song.album.contains(query, ignoreCase = true)
-            }
-        }
-    }
+//    fun filterSongs(query: String): List<Song> {
+//        Log.d("FoldersFragment", "🔍 Filter songs per: '$query'")
+//
+//        return if (query.isBlank()) {
+//            songs
+//        } else {
+//            songs.filter { song ->
+//                song.title.contains(query, ignoreCase = true) ||
+//                        song.artist.contains(query, ignoreCase = true) ||
+//                        song.album.contains(query, ignoreCase = true)
+//            }
+//        }
+//    }
 }

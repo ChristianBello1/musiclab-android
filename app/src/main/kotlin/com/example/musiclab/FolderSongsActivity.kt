@@ -1,12 +1,6 @@
-/* ISTRUZIONI:
-1. Apri app/src/main/kotlin/com/example/musiclab/FolderSongsActivity.kt
-2. SOSTITUISCI TUTTO IL CONTENUTO con questo file
-3. Salva
-4. Torna qui e dimmi "fatto"
-*/
-
 package com.example.musiclab
 
+import android.os.Build
 import android.os.Bundle
 import android.util.Log
 import android.view.View
@@ -19,6 +13,7 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.firebase.firestore.FirebaseFirestore
 import androidx.activity.OnBackPressedCallback
+import java.util.Locale
 
 class FolderSongsActivity : AppCompatActivity() {
 
@@ -29,7 +24,7 @@ class FolderSongsActivity : AppCompatActivity() {
     private lateinit var songAdapter: SongAdapter
     private lateinit var musicPlayer: MusicPlayer
 
-    // NUOVO: Per selezione multipla
+    // Per selezione multipla
     private lateinit var btnAddSelectedToPlaylist: ImageButton
     private lateinit var btnCancelSelection: ImageButton
     private lateinit var selectionCountText: TextView
@@ -38,7 +33,7 @@ class FolderSongsActivity : AppCompatActivity() {
     private var folderSongs: List<Song> = emptyList()
     private var folderName: String = ""
 
-    // NUOVO: Per gestire playlist
+    // Per gestire playlist
     private lateinit var firestore: FirebaseFirestore
     private var userPlaylists: MutableList<Playlist> = mutableListOf()
     private var currentUserId: String = ""
@@ -50,9 +45,17 @@ class FolderSongsActivity : AppCompatActivity() {
 
         Log.d("FolderSongsActivity", "=== FOLDER SONGS ACTIVITY CREATED ===")
 
-        // Ottieni i dati passati dall'intent
+        // ✅ FIX: Ottieni i dati passati dall'intent con supporto per API 33+
         folderName = intent.getStringExtra("FOLDER_NAME") ?: "Cartella"
-        folderSongs = intent.getParcelableArrayListExtra<Song>("FOLDER_SONGS") ?: emptyList()
+
+        // ✅ FIX: Gestione corretta per getParcelableArrayListExtra deprecato
+        folderSongs = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            intent.getParcelableArrayListExtra("FOLDER_SONGS", Song::class.java) ?: emptyList()
+        } else {
+            @Suppress("DEPRECATION")
+            intent.getParcelableArrayListExtra("FOLDER_SONGS") ?: emptyList()
+        }
+
         currentUserId = intent.getStringExtra("USER_ID") ?: ""
 
         Log.d("FolderSongsActivity", "Folder: $folderName with ${folderSongs.size} songs")
@@ -86,7 +89,7 @@ class FolderSongsActivity : AppCompatActivity() {
         songCountText = findViewById(R.id.folder_song_count_text)
         songsRecyclerView = findViewById(R.id.folder_songs_recycler)
 
-        // NUOVO: Bottoni per selezione multipla
+        // Bottoni per selezione multipla
         btnAddSelectedToPlaylist = findViewById(R.id.btn_add_selected_to_playlist)
         btnCancelSelection = findViewById(R.id.btn_cancel_selection)
         selectionCountText = findViewById(R.id.selection_count_text)
@@ -102,7 +105,7 @@ class FolderSongsActivity : AppCompatActivity() {
             }
         }
 
-        // NUOVO: Click listeners per selezione multipla
+        // Click listeners per selezione multipla
         btnAddSelectedToPlaylist.setOnClickListener {
             addSelectedSongsToPlaylist()
         }
@@ -126,67 +129,46 @@ class FolderSongsActivity : AppCompatActivity() {
                 handleSongMenuAction(song, action)
             },
             onLongPress = { song ->
-                // NUOVO: Entra in modalità selezione
+                // Entra in modalità selezione
                 enterSelectionMode()
             },
             onSelectionChanged = { count ->
-                // NUOVO: Aggiorna contatore
                 updateSelectionUI(count)
             },
-            contextType = SongAdapter.ContextType.FOLDER // ← AGGIUNGI questa riga
+            contextType = SongAdapter.ContextType.FOLDER
         )
-        songsRecyclerView.adapter = songAdapter
 
+        songsRecyclerView.adapter = songAdapter
         Log.d("FolderSongsActivity", "RecyclerView setup with ${folderSongs.size} songs")
     }
-
 
     private fun onSongClick(song: Song) {
         Log.d("FolderSongsActivity", "Song clicked: ${song.title}")
 
-        // Imposta la playlist come le canzoni di questa cartella
         musicPlayer.setPlaylist(folderSongs, folderSongs.indexOf(song))
         musicPlayer.playSong(song)
 
-        Log.d("FolderSongsActivity", "Playing song, returning to main")
-        finish()
+        Toast.makeText(this, "Riproduzione: ${song.title}", Toast.LENGTH_SHORT).show()
     }
 
     private fun handleSongMenuAction(song: Song, action: SongAdapter.MenuAction) {
         when (action) {
+            SongAdapter.MenuAction.SONG_DETAILS -> showSongDetails(song)
+            SongAdapter.MenuAction.DELETE_FROM_DEVICE -> showDeleteSongConfirmation(song)
             SongAdapter.MenuAction.ADD_TO_PLAYLIST -> {
-                if (currentUserId.isEmpty()) {
-                    // Utente non loggato
-                    AlertDialog.Builder(this)
-                        .setTitle("Login Richiesto")
-                        .setMessage("Devi effettuare l'accesso per usare le playlist.")
-                        .setPositiveButton("OK", null)
-                        .show()
-                } else if (userPlaylists.isEmpty()) {
-                    // Nessuna playlist disponibile
-                    Toast.makeText(
-                        this,
-                        "Crea prima una playlist dalla schermata principale!",
-                        Toast.LENGTH_LONG
-                    ).show()
-                } else {
-                    // Mostra dialog per scegliere la playlist
+                if (currentUserId.isNotEmpty()) {
                     showAddToPlaylistDialog(song)
+                } else {
+                    Toast.makeText(this, "Devi effettuare il login per questa funzione", Toast.LENGTH_SHORT).show()
                 }
             }
             SongAdapter.MenuAction.REMOVE_FROM_PLAYLIST -> {
-                // NUOVO: In FolderSongsActivity non ha senso rimuovere da playlist
-                Toast.makeText(this, "Operazione non disponibile qui", Toast.LENGTH_SHORT).show()
-            }
-            SongAdapter.MenuAction.SONG_DETAILS -> {
-                showSongDetails(song)
-            }
-            SongAdapter.MenuAction.DELETE_FROM_DEVICE -> {
-                showDeleteSongConfirmation(song)
+                // Non applicabile in FolderSongsActivity
             }
         }
     }
 
+    // Carica le playlist dell'utente
     private fun loadUserPlaylists() {
         Log.d("FolderSongsActivity", "Loading playlists for user: $currentUserId")
 
@@ -243,7 +225,7 @@ class FolderSongsActivity : AppCompatActivity() {
                         Toast.LENGTH_SHORT
                     ).show()
                 } else {
-                    // ✅ MODIFICATO: Salva mediaStoreId invece di path
+                    // Salva mediaStoreId invece di path
                     val songData = hashMapOf(
                         "mediaStoreId" to song.id,
                         "title" to song.title,
@@ -287,7 +269,7 @@ class FolderSongsActivity : AppCompatActivity() {
             }
     }
 
-    // NUOVO: Entra in modalità selezione
+    // Entra in modalità selezione
     private fun enterSelectionMode() {
         isSelectionMode = true
 
@@ -300,43 +282,37 @@ class FolderSongsActivity : AppCompatActivity() {
         btnCancelSelection.visibility = View.VISIBLE
         selectionCountText.visibility = View.VISIBLE
 
-        // Cambia icona back button in X
-        backButton.setImageResource(android.R.drawable.ic_menu_close_clear_cancel)
-
-        Log.d("FolderSongsActivity", "✅ Entered selection mode")
+        Log.d("FolderSongsActivity", "Entered selection mode")
     }
 
-    // NUOVO: Esci dalla modalità selezione
+    // Esci da modalità selezione
     private fun exitSelectionMode() {
         isSelectionMode = false
-        songAdapter.exitSelectionMode()
 
-        // Ripristina UI normale
+        // Ripristina elementi normali
         folderNameText.visibility = View.VISIBLE
         songCountText.visibility = View.VISIBLE
 
+        // Nascondi elementi di selezione
         btnAddSelectedToPlaylist.visibility = View.GONE
         btnCancelSelection.visibility = View.GONE
         selectionCountText.visibility = View.GONE
 
-        // Ripristina icona back button
-        backButton.setImageResource(android.R.drawable.arrow_down_float)
+        songAdapter.exitSelectionMode()
 
-        Log.d("FolderSongsActivity", "❌ Exited selection mode")
+        Log.d("FolderSongsActivity", "Exited selection mode")
     }
 
-    // NUOVO: Aggiorna UI contatore selezione
+    // Aggiorna il conteggio delle canzoni selezionate
     private fun updateSelectionUI(count: Int) {
         selectionCountText.text = if (count == 1) {
             "$count canzone selezionata"
         } else {
             "$count canzoni selezionate"
         }
-
-        btnAddSelectedToPlaylist.isEnabled = count > 0
     }
 
-    // NUOVO: Aggiungi canzoni selezionate a playlist
+    // Aggiungi canzoni selezionate a playlist
     private fun addSelectedSongsToPlaylist() {
         val selectedSongs = songAdapter.getSelectedSongs()
 
@@ -346,60 +322,31 @@ class FolderSongsActivity : AppCompatActivity() {
         }
 
         if (currentUserId.isEmpty()) {
-            AlertDialog.Builder(this)
-                .setTitle("Login Richiesto")
-                .setMessage("Devi effettuare l'accesso per usare le playlist.")
-                .setPositiveButton("OK", null)
-                .show()
-            return
-        }
-
-        if (userPlaylists.isEmpty()) {
-            Toast.makeText(
-                this,
-                "Crea prima una playlist dalla schermata principale!",
-                Toast.LENGTH_LONG
-            ).show()
+            Toast.makeText(this, "Devi effettuare il login per questa funzione", Toast.LENGTH_SHORT).show()
             return
         }
 
         // Mostra dialog per scegliere la playlist
-        showAddMultipleSongsDialog(selectedSongs)
-    }
-
-    // NUOVO: Dialog per aggiungere più canzoni
-    private fun showAddMultipleSongsDialog(songs: List<Song>) {
         val playlistNames = userPlaylists.map { it.name }.toTypedArray()
 
         AlertDialog.Builder(this)
-            .setTitle("Aggiungi ${songs.size} canzoni a...")
+            .setTitle("Aggiungi ${selectedSongs.size} canzoni a")
             .setItems(playlistNames) { _, which ->
                 val selectedPlaylist = userPlaylists[which]
-                addMultipleSongsToPlaylist(songs, selectedPlaylist.id, selectedPlaylist.name)
+                addMultipleSongsToPlaylist(selectedSongs, selectedPlaylist.id, selectedPlaylist.name)
             }
             .setNegativeButton("Annulla", null)
             .show()
     }
 
-    // NUOVO: Aggiungi più canzoni a una playlist
+    // Aggiungi più canzoni a una playlist
     private fun addMultipleSongsToPlaylist(songs: List<Song>, playlistId: String, playlistName: String) {
-        Log.d("FolderSongsActivity", "Adding ${songs.size} songs to playlist '$playlistName'")
+        var added = 0
+        var skipped = 0
+        var errors = 0
+        val total = songs.size
 
-        var addedCount = 0
-        var skippedCount = 0
-        var errorCount = 0
-        val totalSongs = songs.size
-
-        // Mostra progress
-        val progressDialog = AlertDialog.Builder(this)
-            .setTitle("Aggiunta in corso...")
-            .setMessage("0 / $totalSongs")
-            .setCancelable(false)
-            .create()
-        progressDialog.show()
-
-        // Aggiungi ogni canzone
-        songs.forEachIndexed { index, song ->
+        songs.forEach { song ->
             firestore.collection("playlists")
                 .document(playlistId)
                 .collection("songs")
@@ -407,18 +354,14 @@ class FolderSongsActivity : AppCompatActivity() {
                 .get()
                 .addOnSuccessListener { document ->
                     if (document.exists()) {
-                        // Canzone già presente
-                        skippedCount++
-                        checkCompletion(addedCount, skippedCount, errorCount, totalSongs, progressDialog, playlistName)
+                        skipped++
                     } else {
-                        // Aggiungi la canzone
                         val songData = hashMapOf(
-                            "id" to song.id,
+                            "mediaStoreId" to song.id,
                             "title" to song.title,
                             "artist" to song.artist,
                             "album" to song.album,
                             "duration" to song.duration,
-                            "path" to song.path,
                             "size" to song.size,
                             "addedAt" to System.currentTimeMillis()
                         )
@@ -429,35 +372,35 @@ class FolderSongsActivity : AppCompatActivity() {
                             .document(song.id.toString())
                             .set(songData)
                             .addOnSuccessListener {
-                                addedCount++
-                                checkCompletion(addedCount, skippedCount, errorCount, totalSongs, progressDialog, playlistName)
+                                added++
+                                if (added + skipped + errors == total) {
+                                    showCompletionMessage(added, skipped, errors, playlistName)
+                                }
                             }
                             .addOnFailureListener {
-                                errorCount++
-                                checkCompletion(addedCount, skippedCount, errorCount, totalSongs, progressDialog, playlistName)
+                                errors++
+                                if (added + skipped + errors == total) {
+                                    showCompletionMessage(added, skipped, errors, playlistName)
+                                }
                             }
+                    }
+
+                    if (added + skipped + errors == total) {
+                        showCompletionMessage(added, skipped, errors, playlistName)
                     }
                 }
                 .addOnFailureListener {
-                    errorCount++
-                    checkCompletion(addedCount, skippedCount, errorCount, totalSongs, progressDialog, playlistName)
+                    errors++
+                    if (added + skipped + errors == total) {
+                        showCompletionMessage(added, skipped, errors, playlistName)
+                    }
                 }
         }
+
+        exitSelectionMode()
     }
 
-    private fun checkCompletion(added: Int, skipped: Int, errors: Int, total: Int,
-                                dialog: AlertDialog, playlistName: String) {
-        val completed = added + skipped + errors
-        dialog.setMessage("$completed / $total")
-
-        if (completed == total) {
-            dialog.dismiss()
-            showCompletionMessage(added, skipped, errors, playlistName)
-            exitSelectionMode()
-        }
-    }
-
-    // NUOVO: Mostra messaggio di completamento
+    // Mostra messaggio di completamento
     private fun showCompletionMessage(added: Int, skipped: Int, errors: Int, playlistName: String) {
         val message = buildString {
             append("✅ Operazione completata!\n\n")
@@ -475,7 +418,7 @@ class FolderSongsActivity : AppCompatActivity() {
 
         Log.d("FolderSongsActivity", "✅ Completed: added=$added, skipped=$skipped, errors=$errors")
 
-        // NUOVO: Se sono state aggiunte canzoni, segnala il cambiamento
+        // Se sono state aggiunte canzoni, segnala il cambiamento
         if (added > 0) {
             setResult(RESULT_OK)
         }
@@ -547,15 +490,16 @@ class FolderSongsActivity : AppCompatActivity() {
         }
     }
 
+    // ✅ FIX: Aggiungi Locale.getDefault() a tutti i String.format
     private fun formatFileSize(bytes: Long): String {
         val kb = bytes / 1024.0
         val mb = kb / 1024.0
         val gb = mb / 1024.0
 
         return when {
-            gb >= 1.0 -> String.format("%.1f GB", gb)
-            mb >= 1.0 -> String.format("%.1f MB", mb)
-            kb >= 1.0 -> String.format("%.1f KB", kb)
+            gb >= 1.0 -> String.format(Locale.getDefault(), "%.1f GB", gb)
+            mb >= 1.0 -> String.format(Locale.getDefault(), "%.1f MB", mb)
+            kb >= 1.0 -> String.format(Locale.getDefault(), "%.1f KB", kb)
             else -> "$bytes bytes"
         }
     }

@@ -148,7 +148,7 @@ class SongAdapter(
         notifyDataSetChanged()
     }
 
-    private fun toggleSelection(songId: Long) {
+    fun toggleSelection(songId: Long) {
         if (selectedSongs.contains(songId)) {
             selectedSongs.remove(songId)
         } else {
@@ -166,9 +166,9 @@ class SongAdapter(
         return songs.filter { selectedSongs.contains(it.id) }
     }
 
-    fun isInSelectionMode(): Boolean = isSelectionMode
+    // fun isInSelectionMode(): Boolean = isSelectionMode
 
-    fun getSelectedCount(): Int = selectedSongs.size
+    // fun getSelectedCount(): Int = selectedSongs.size
 
     private fun showSongMenu(view: View, song: Song) {
         val popupMenu = PopupMenu(view.context, view)

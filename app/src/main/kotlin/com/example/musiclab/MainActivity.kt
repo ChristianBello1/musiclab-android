@@ -484,8 +484,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun performLogout() {
-        // ✅ FIX: signOut richiede context e callback
-        googleAuthManager.signOut(this) { success ->
+        googleAuthManager.signOut(this, onComplete = { success ->
             if (success) {
                 isLoggedIn = false
                 saveLoginState(false, "")
@@ -497,7 +496,7 @@ class MainActivity : AppCompatActivity() {
                 Toast.makeText(this, "Errore durante il logout", Toast.LENGTH_SHORT).show()
                 Log.e("MainActivity", "Logout failed")
             }
-        }
+        })
     }
 
     private fun startGoogleSignIn() {

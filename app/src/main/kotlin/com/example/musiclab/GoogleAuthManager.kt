@@ -82,9 +82,9 @@ class GoogleAuthManager private constructor() {
         listener.invoke(isLoggedIn(), currentUser)
     }
 
-    fun removeAuthStateListener(listener: (Boolean, GoogleSignInAccount?) -> Unit) {
-        authStateListeners.remove(listener)
-    }
+//    fun removeAuthStateListener(listener: (Boolean, GoogleSignInAccount?) -> Unit) {
+//        authStateListeners.remove(listener)
+//    }
 
     private fun notifyAuthStateChanged() {
         val isLoggedIn = isLoggedIn()
@@ -153,7 +153,7 @@ class GoogleAuthManager private constructor() {
             }
     }
 
-    fun signOut(context: Context, onComplete: (Boolean) -> Unit) {
+    fun signOut(onComplete1: MainActivity, onComplete: (Boolean) -> Unit) {
         Log.d(TAG, "=== SIGNING OUT ===")
 
         googleSignInClient?.signOut()?.addOnCompleteListener { task ->
@@ -170,7 +170,7 @@ class GoogleAuthManager private constructor() {
         }
     }
 
-    fun getCurrentUser(): GoogleSignInAccount? = currentUser
+    // fun getCurrentUser(): GoogleSignInAccount? = currentUser
 
     fun isLoggedIn(): Boolean {
         // ✅ SEMPLICE: Basta controllare Firebase

@@ -153,9 +153,14 @@ class CrossfadeManager(private val context: Context) {
 
     /**
      * Completa il crossfade e scambia i player
+     * 🔧 FIX: Assicuriamoci che il nuovo primary player sia effettivamente in play
      */
     private fun completeCrossfade() {
         Log.d("CrossfadeManager", "✅ Crossfade completed - swapping players")
+
+        // Verifica lo stato del secondary player PRIMA dello swap
+        val wasSecondaryPlaying = secondaryPlayer?.isPlaying == true
+        Log.d("CrossfadeManager", "Secondary player was playing: $wasSecondaryPlaying")
 
         // Rimuovi i listener dal primary prima dello swap
         listeners.forEach { listener ->
@@ -171,8 +176,21 @@ class CrossfadeManager(private val context: Context) {
         primaryPlayer = secondaryPlayer
         secondaryPlayer = temp
 
-        // Assicurati che il nuovo primary sia a volume pieno
+        // 🔧 FIX CRITICO: Assicurati che il nuovo primary sia a volume pieno E IN PLAY
         primaryPlayer?.volume = 1f
+
+        // Se il player non era in play, fallo ripartire
+        if (!wasSecondaryPlaying) {
+            Log.w("CrossfadeManager", "⚠️ New primary player was not playing - starting it now")
+            primaryPlayer?.play()
+        } else {
+            // Verifica che sia effettivamente in play
+            val isNowPlaying = primaryPlayer?.isPlaying == true
+            if (!isNowPlaying) {
+                Log.w("CrossfadeManager", "⚠️ New primary player not playing despite swap - forcing play")
+                primaryPlayer?.play()
+            }
+        }
 
         // Riaggiungi i listener al nuovo primary
         listeners.forEach { listener ->
@@ -182,6 +200,7 @@ class CrossfadeManager(private val context: Context) {
         isCrossfading = false
 
         Log.d("CrossfadeManager", "🔄 Listeners re-attached to new primary player")
+        Log.d("CrossfadeManager", "✅ New primary player state: ${primaryPlayer?.playbackState}, isPlaying: ${primaryPlayer?.isPlaying}")
 
         // Notifica il completamento
         onCrossfadeComplete?.invoke()
@@ -260,9 +279,13 @@ class CrossfadeManager(private val context: Context) {
 
     /**
      * Completa lo swap dei player senza animazioni
+     * 🔧 FIX: Assicuriamoci che il player sia in play anche qui
      */
     private fun completeSwapImmediately() {
         Log.d("CrossfadeManager", "🔄 Completing swap immediately (no fade)")
+
+        // Verifica lo stato del secondary player PRIMA dello swap
+        val wasSecondaryPlaying = secondaryPlayer?.isPlaying == true
 
         // Rimuovi i listener dal primary prima dello swap
         listeners.forEach { listener ->
@@ -278,8 +301,19 @@ class CrossfadeManager(private val context: Context) {
         primaryPlayer = secondaryPlayer
         secondaryPlayer = temp
 
-        // Assicurati che il nuovo primary sia a volume pieno
+        // 🔧 FIX: Assicurati che il nuovo primary sia a volume pieno E IN PLAY
         primaryPlayer?.volume = 1f
+
+        if (!wasSecondaryPlaying) {
+            Log.w("CrossfadeManager", "⚠️ New primary player was not playing - starting it now")
+            primaryPlayer?.play()
+        } else {
+            val isNowPlaying = primaryPlayer?.isPlaying == true
+            if (!isNowPlaying) {
+                Log.w("CrossfadeManager", "⚠️ New primary player not playing - forcing play")
+                primaryPlayer?.play()
+            }
+        }
 
         // Riaggiungi i listener al nuovo primary
         listeners.forEach { listener ->
@@ -373,12 +407,12 @@ class CrossfadeManager(private val context: Context) {
     /**
      * Rimuovi listener
      */
-    //fun removePlayerListener(listener: Player.Listener) {
-    //    listeners.remove(listener)
-    //    primaryPlayer?.removeListener(listener)
+    // fun removePlayerListener(listener: Player.Listener) {
+    //  listeners.remove(listener)
+    // primaryPlayer?.removeListener(listener)
     //    secondaryPlayer?.removeListener(listener)
     //    Log.d("CrossfadeManager", "Listener removed (remaining: ${listeners.size})")
-    //}
+    // }
 
     /**
      * Rilascia le risorse
